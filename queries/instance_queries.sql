@@ -11,7 +11,9 @@ t9.cntr_value as deadlocks_sec,
 t10.cntr_value as user_errors,
 t11.cntr_value as kill_connection_errors,
 t12.cntr_value as batch_request_sec,
-t13.cntr_value as page_life_expectancy_sec
+t13.cntr_value as page_life_expectancy_sec,
+t14.cntr_value as transactions_sec,
+t15.cntr_value as forced_parameterizations_sec
 from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Buffer cache hit ratio') t1,
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Buffer cache hit ratio base') t2,
 (SELECT * FROM sys.dm_os_performance_counters with (NOLOCK) WHERE counter_name = 'SQL Compilations/sec') t3,
@@ -24,7 +26,9 @@ from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_n
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) where object_name = 'SQLServer:SQL Errors' and instance_name = 'User Errors') t10,
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) where object_name = 'SQLServer:SQL Errors' and instance_name like 'Kill Connection Errors%') t11,
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Batch Requests/sec') t12,
-(SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t13
+(SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t13,
+(SELECT SUM(cntr_value) as cntr_value FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Transactions/sec') t14,
+(SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Forced Parameterizations/sec') t15
 
 SELECT
 SUM(wait_time_ms) as wait_time
@@ -48,21 +52,41 @@ SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count
       FROM sys.dm_os_wait_stats wait_stats
       WHERE wait_time_ms != 0
 
-      SELECT
-      MAX(CASE WHEN sessions.status = 'preconnect' then counts else 0 end) AS preconnect,
-      MAX(CASE WHEN sessions.status = 'background' then counts else 0 end) AS background,
-      MAX(CASE WHEN sessions.status = 'dormant' then counts else 0 end) AS dormant,
-      MAX(CASE WHEN sessions.status = 'runnable' then counts else 0 end) AS runnable,
-      MAX(CASE WHEN sessions.status = 'suspended' then counts else 0 end) AS suspended,
-      MAX(CASE WHEN sessions.status = 'running' then counts else 0 end) AS running,
-      MAX(CASE WHEN sessions.status = 'blocked' then counts else 0 end) AS blocked,
-      MAX(CASE WHEN sessions.status = 'sleeping' then counts else 0 end) AS sleeping
-      FROM (SELECT status, count(*) counts FROM (
-                SELECT CASE WHEN req.status IS NOT NULL THEN
-                        CASE WHEN req.blocking_session_id <> 0 THEN 'blocked' ELSE req.status END
-                    ELSE sess.status END status, req.blocking_session_id
-                FROM sys.dm_exec_sessions sess
-                LEFT JOIN sys.dm_exec_requests req
-                on sess.session_id = req.session_id
-                WHERE sess.session_id > 50 ) statuses
-            GROUP BY status) sessions
+SELECT
+MAX(CASE WHEN sessions.status = 'preconnect' then counts else 0 end) AS preconnect,
+MAX(CASE WHEN sessions.status = 'background' then counts else 0 end) AS background,
+MAX(CASE WHEN sessions.status = 'dormant' then counts else 0 end) AS dormant,
+MAX(CASE WHEN sessions.status = 'runnable' then counts else 0 end) AS runnable,
+MAX(CASE WHEN sessions.status = 'suspended' then counts else 0 end) AS suspended,
+MAX(CASE WHEN sessions.status = 'running' then counts else 0 end) AS running,
+MAX(CASE WHEN sessions.status = 'blocked' then counts else 0 end) AS blocked,
+MAX(CASE WHEN sessions.status = 'sleeping' then counts else 0 end) AS sleeping
+FROM (SELECT status, count(*) counts FROM (
+        SELECT CASE WHEN req.status IS NOT NULL THEN
+                CASE WHEN req.blocking_session_id <> 0 THEN 'blocked' ELSE req.status END
+            ELSE sess.status END status, req.blocking_session_id
+        FROM sys.dm_exec_sessions sess
+        LEFT JOIN sys.dm_exec_requests req
+        on sess.session_id = req.session_id
+        WHERE sess.session_id > 50 ) statuses
+    GROUP BY status) sessions
+
+select Sum(total_bytes) AS total_disk_space from (
+      select DISTINCT
+      dovs.volume_mount_point,
+      dovs.available_bytes available_bytes,
+      dovs.total_bytes total_bytes
+      FROM sys.master_files mf
+      CROSS APPLY sys.dm_os_volume_stats(mf.database_id, mf.FILE_ID) dovs
+      ) drives
+
+select SUM(runnable_tasks_count) AS runnable_tasks_count
+from sys.dm_os_schedulers
+WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'
+
+SELECT SUM(db.buffer_pool_size) as instance_buffer_pool_size from (
+SELECT
+COUNT_BIG(*) * (8*1024) AS buffer_pool_size
+FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
+WHERE database_id <> 32767 -- ResourceDB
+GROUP BY database_id) db
