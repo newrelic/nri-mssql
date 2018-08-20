@@ -90,3 +90,18 @@ COUNT_BIG(*) * (8*1024) AS buffer_pool_size
 FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
 WHERE database_id <> 32767 -- ResourceDB
 GROUP BY database_id) db
+
+SELECT SUM(db.active_connections) as instance_active_connections from (
+SELECT
+COUNT(syssp.dbid) AS active_connections
+FROM sys.databases db WITH (NOLOCK)
+LEFT JOIN sys.sysprocesses syssp WITH (NOLOCK) ON syssp.dbid = db.database_id
+GROUP BY db.name) db
+
+select
+MAX(sys_mem.total_physical_memory_kb * 1024.0) AS total_physical_memory,
+MAX(sys_mem.available_physical_memory_kb * 1024.0) AS available_physical_memory,
+(Max(proc_mem.physical_memory_in_use_kb) / (Max(sys_mem.total_physical_memory_kb) * 1.0)) * 100 as memory_utilization
+FROM sys.dm_os_process_memory proc_mem,
+    sys.dm_os_sys_memory sys_mem,
+    sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'
