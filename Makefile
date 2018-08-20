@@ -38,11 +38,11 @@ deps-only:
 
 validate: deps
 	@echo "=== $(INTEGRATION) === [ validate ]: Validating source code running gometalinter..."
-	@gometalinter.v2 --config=.gometalinter.json ./...
+	@gometalinter.v2 --config=.gometalinter.json $(GO_FILES)...
 
 validate-all: deps
 	@echo "=== $(INTEGRATION) === [ validate ]: Validating source code running gometalinter..."
-	@gometalinter.v2 --config=.gometalinter.json --enable=interfacer --enable=gosimple ./...
+	@gometalinter.v2 --config=.gometalinter.json --enable=interfacer --enable=gosimple $(GO_FILES)...
 
 compile: deps
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
