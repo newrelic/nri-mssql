@@ -65,7 +65,7 @@ func createConnectionURL() string {
 		}
 	}
 
-	connectionURL.RawPath = query.Encode()
+	connectionURL.RawQuery = query.Encode()
 
 	return connectionURL.String()
 }
