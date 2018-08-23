@@ -21,19 +21,19 @@ type argumentList struct {
 
 // Validate validates SQL specific arguments
 func (al argumentList) Validate() error {
-	if args.Username == "" {
+	if al.Username == "" {
 		return errors.New("invalid configuration: must specify a username")
 	}
 
-	if args.Hostname == "" {
+	if al.Hostname == "" {
 		return errors.New("invalid configuration: must specify a hostname")
 	}
 
-	if (args.Port != "" && args.Instance != "") || (args.Port == "" && args.Instance == "") {
+	if (al.Port != "" && al.Instance != "") || (al.Port == "" && al.Instance == "") {
 		return errors.New("invalid configuration: must specify one of port or instance")
 	}
 
-	if args.EnableSSL && (!args.TrustServerCertificate && args.CertificateLocation == "") {
+	if al.EnableSSL && (!al.TrustServerCertificate && al.CertificateLocation == "") {
 		return errors.New("invalid configuration: must specify a certificate file when using SSL and not trusting server certificate")
 	}
 
