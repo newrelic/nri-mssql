@@ -1,8 +1,32 @@
 package main
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/jmoiron/sqlx"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
+
+func Test_sqlConnection_Close(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Errorf("Unexpected error while mocking: %s", err.Error())
+		t.FailNow()
+	}
+
+	defer mockDB.Close()
+	conn := sqlConnection{
+		connection: sqlx.NewDb(mockDB, "sqlmock"),
+	}
+
+	mock.ExpectClose().WillReturnError(errors.New("error"))
+	conn.close()
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("close expectation was not met: %s", err.Error())
+	}
+}
 
 func Test_createConnectionURL(t *testing.T) {
 	testCases := []struct {

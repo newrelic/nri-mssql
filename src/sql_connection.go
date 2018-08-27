@@ -27,9 +27,9 @@ func newConnection() (*sqlConnection, error) {
 	}, nil
 }
 
-// Close closes the SQL connection. If an error occurs
+// close closes the SQL connection. If an error occurs
 // it is logged as a warning.
-func (sc sqlConnection) Close() {
+func (sc sqlConnection) close() {
 	if err := sc.connection.Close(); err != nil {
 		log.Warn("Unable to close SQL Connection: %s", err.Error())
 	}
