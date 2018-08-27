@@ -33,6 +33,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create a new connection
+	con, err := newConnection()
+	if err != nil {
+		log.Error("Error creating connection to SQL Server: %s", err.Error())
+		os.Exit(1)
+	}
+
+	// Close connection when done
+	defer con.Close()
+
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)

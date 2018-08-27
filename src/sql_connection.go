@@ -10,26 +10,25 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/log"
 )
 
-// sqlConnections represents a wrapper around a SQL Server connection
-type sqlConnection struct {
+// SQLConnection represents a wrapper around a SQL Server connection
+type SQLConnection struct {
 	connection *sqlx.DB
 }
 
 // newConnection creates a new sqlConnection from args
-func newConnection() (*sqlConnection, error) {
+func newConnection() (*SQLConnection, error) {
 	db, err := sqlx.Connect("mssql", createConnectionURL())
 	if err != nil {
-		log.Error("Unable to make connections: %s", err.Error())
 		return nil, err
 	}
-	return &sqlConnection{
+	return &SQLConnection{
 		connection: db,
 	}, nil
 }
 
-// close closes the SQL connection. If an error occurs
+// Close closes the SQL connection. If an error occurs
 // it is logged as a warning.
-func (sc sqlConnection) close() {
+func (sc SQLConnection) Close() {
 	if err := sc.connection.Close(); err != nil {
 		log.Warn("Unable to close SQL Connection: %s", err.Error())
 	}

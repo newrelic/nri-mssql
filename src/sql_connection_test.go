@@ -16,12 +16,12 @@ func Test_sqlConnection_Close(t *testing.T) {
 	}
 
 	defer mockDB.Close()
-	conn := sqlConnection{
+	conn := SQLConnection{
 		connection: sqlx.NewDb(mockDB, "sqlmock"),
 	}
 
 	mock.ExpectClose().WillReturnError(errors.New("error"))
-	conn.close()
+	conn.Close()
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("close expectation was not met: %s", err.Error())
