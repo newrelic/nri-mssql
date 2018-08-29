@@ -8,17 +8,23 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func Test_SQLConnection_Close(t *testing.T) {
+// createMockSQL creates a Test SQLConnection. Must Close con when done
+func createMockSQL(t *testing.T) (con *SQLConnection, mock sqlmock.Sqlmock) {
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Errorf("Unexpected error while mocking: %s", err.Error())
 		t.FailNow()
 	}
 
-	defer mockDB.Close()
-	conn := SQLConnection{
+	con = &SQLConnection{
 		connection: sqlx.NewDb(mockDB, "sqlmock"),
 	}
+
+	return
+}
+
+func Test_SQLConnection_Close(t *testing.T) {
+	conn, mock := createMockSQL(t)
 
 	mock.ExpectClose().WillReturnError(errors.New("error"))
 	conn.Close()
@@ -29,17 +35,8 @@ func Test_SQLConnection_Close(t *testing.T) {
 }
 
 func Test_SQLConnection_Query(t *testing.T) {
-	mockDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Errorf("Unexpected error while mocking: %s", err.Error())
-		t.FailNow()
-	}
-
-	defer mockDB.Close()
-
-	conn := SQLConnection{
-		connection: sqlx.NewDb(mockDB, "sqlmock"),
-	}
+	conn, mock := createMockSQL(t)
+	defer conn.Close()
 
 	// Temp data structure to store data into
 	temp := []struct {
