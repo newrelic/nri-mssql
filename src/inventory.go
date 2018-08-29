@@ -13,8 +13,8 @@ const (
 // SPConfigRow represents a row in the table returned by spConfigQuery
 type SPConfigRow struct {
 	Name        string `db:"name"`
-	Minimum     int    `db:"minimum"` // not used but needed in order to unmarshal from query results
-	Maximum     int    `db:"maximum"` // not used but needed in order to unmarshal from query results
+	Minimum     int    `db:"minimum"`      // not used but needed in order to unmarshal from query results
+	Maximum     int    `db:"maximum"`      // not used but needed in order to unmarshal from query results
 	ConfigValue int    `db:"config_value"` // not used but needed in order to unmarshal from query results
 	RunValue    int    `db:"run_value"`
 }
