@@ -108,6 +108,10 @@ func (c *Conn) CheckNamedValue(nv *driver.NamedValue) error {
 			nv.Value = sql.Out{Dest: conv}
 		}
 		return nil
+	case *ReturnStatus:
+		*v = 0 // By default the return value should be zero.
+		c.returnStatus = v
+		return driver.ErrRemoveArgument
 	default:
 		var err error
 		nv.Value, err = convertInputParameter(nv.Value)

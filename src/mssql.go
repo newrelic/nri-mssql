@@ -49,9 +49,7 @@ func main() {
 
 	// Inventory collection
 	if args.HasInventory() {
-		if err := populateInventory(instanceEntity, con); err != nil {
-			log.Error("Error while populating inventory data: %s", err.Error())
-		}
+		populateInventory(instanceEntity, con)
 	}
 
 	// Close connection when done

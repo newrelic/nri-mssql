@@ -5,30 +5,62 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/log"
 )
 
-// spConfigQuery query for inventory items
-const spConfigQuery = "EXEC sp_configure"
+const (
+	spConfigQuery  = "EXEC sp_configure"
+	sysConfigQuery = "select name, value from sys.configurations"
+)
 
 // SPConfigRow represents a row in the table returned by spConfigQuery
 type SPConfigRow struct {
 	Name        string `db:"name"`
-	Minimum     int    `db:"minimum"`
-	Maximum     int    `db:"maximum"`
-	ConfigValue int    `db:"config_value"`
+	Minimum     int    `db:"minimum"` // not used but needed in order to unmarshal from query results
+	Maximum     int    `db:"maximum"` // not used but needed in order to unmarshal from query results
+	ConfigValue int    `db:"config_value"` // not used but needed in order to unmarshal from query results
 	RunValue    int    `db:"run_value"`
 }
 
+// ConfigQueryRow represents a row in the table returned by sysConfigQuery
+type ConfigQueryRow struct {
+	Name  string `db:"name"`
+	Value int    `db:"value"`
+}
+
 //populateInventory runs spConfigQuery and populates the return values into the entity
-func populateInventory(instanceEntity *integration.Entity, con *SQLConnection) error {
+func populateInventory(instanceEntity *integration.Entity, con *SQLConnection) {
+	if err := populateSPConfigItems(instanceEntity, con); err != nil {
+		log.Error("Error collecting inventory items from sp_config: %s", err.Error())
+	}
+
+	if err := populateSysConfigItems(instanceEntity, con); err != nil {
+		log.Error("Error collecting inventory items from sys.configurations: %s", err.Error())
+	}
+}
+
+// populateSPConfigItems collects inventory items for sp_configure procedure
+func populateSPConfigItems(instanceEntity *integration.Entity, con *SQLConnection) error {
 	configRows := make([]*SPConfigRow, 0)
 	if err := con.Query(&configRows, spConfigQuery); err != nil {
 		return err
 	}
 
 	for _, row := range configRows {
-		setItemOrLog(instanceEntity, row.Name+"/minimum", row.Minimum)
-		setItemOrLog(instanceEntity, row.Name+"/maximum", row.Maximum)
-		setItemOrLog(instanceEntity, row.Name+"/config_value", row.ConfigValue)
-		setItemOrLog(instanceEntity, row.Name+"/run_value", row.RunValue)
+		itemName := row.Name + "/run_value"
+		setItemOrLog(instanceEntity, itemName, row.RunValue)
+	}
+
+	return nil
+}
+
+// populateSysConfigItems collect inventory items from sys.configurations
+func populateSysConfigItems(instanceEntity *integration.Entity, con *SQLConnection) error {
+	configRows := make([]*ConfigQueryRow, 0)
+	if err := con.Query(&configRows, sysConfigQuery); err != nil {
+		return err
+	}
+
+	for _, row := range configRows {
+		itemName := row.Name + "/config_value"
+		setItemOrLog(instanceEntity, itemName, row.Value)
 	}
 
 	return nil
