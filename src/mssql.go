@@ -40,6 +40,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	_, err = createInstanceEntity(i, con)
+	if err != nil {
+		log.Error("Unable to create entity for instance: %s", err.Error())
+		os.Exit(1)
+	}
+
 	// Close connection when done
 	defer con.Close()
 

@@ -105,3 +105,5 @@ MAX(sys_mem.available_physical_memory_kb * 1024.0) AS available_physical_memory,
 FROM sys.dm_os_process_memory proc_mem,
     sys.dm_os_sys_memory sys_mem,
     sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'
+
+select @@SERVERNAME as instance_name

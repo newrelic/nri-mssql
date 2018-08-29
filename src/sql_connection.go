@@ -34,6 +34,11 @@ func (sc SQLConnection) Close() {
 	}
 }
 
+// Query runs a query and loads results into v
+func (sc SQLConnection) Query(v interface{}, query string) error {
+	return sc.connection.Select(v, query)
+}
+
 // createConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
 func createConnectionURL() string {
