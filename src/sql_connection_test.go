@@ -8,7 +8,7 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func Test_sqlConnection_Close(t *testing.T) {
+func Test_SQLConnection_Close(t *testing.T) {
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Errorf("Unexpected error while mocking: %s", err.Error())
@@ -25,6 +25,46 @@ func Test_sqlConnection_Close(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("close expectation was not met: %s", err.Error())
+	}
+}
+
+func Test_SQLConnection_Query(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Errorf("Unexpected error while mocking: %s", err.Error())
+		t.FailNow()
+	}
+
+	defer mockDB.Close()
+
+	conn := SQLConnection{
+		connection: sqlx.NewDb(mockDB, "sqlmock"),
+	}
+
+	// Temp data structure to store data into
+	temp := []struct {
+		One int `db:"one"`
+		Two int `db:"two"`
+	}{}
+
+	// dummy query to run
+	query := "select one, two from everywhere"
+
+	rows := sqlmock.NewRows([]string{"one", "two"}).AddRow(1, 2)
+	mock.ExpectQuery(query).WillReturnRows(rows)
+
+	if err := conn.Query(&temp, query); err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+		t.FailNow()
+	}
+
+	if length := len(temp); length != 1 {
+		t.Errorf("Expected 1 element got %d", length)
+		t.FailNow()
+	}
+
+	if temp[0].One != 1 || temp[0].Two != 2 {
+		t.Error("Query did not marshal correctly")
 	}
 }
 
