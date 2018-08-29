@@ -603,7 +603,7 @@ type Rows struct {
 
 func (rc *Rows) Close() error {
 	rc.cancel()
-	for _ = range rc.tokchan {
+	for range rc.tokchan {
 	}
 	rc.tokchan = nil
 	return nil

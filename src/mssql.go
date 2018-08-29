@@ -40,10 +40,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err = createInstanceEntity(i, con)
+	// Create the entity for the instance
+	instanceEntity, err := createInstanceEntity(i, con)
 	if err != nil {
 		log.Error("Unable to create entity for instance: %s", err.Error())
 		os.Exit(1)
+	}
+
+	// Inventory collection
+	if args.HasInventory() {
+		if err := populateInventory(instanceEntity, con); err != nil {
+			log.Error("Error while populating inventory data: %s", err.Error())
+		}
 	}
 
 	// Close connection when done
