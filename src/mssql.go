@@ -52,6 +52,11 @@ func main() {
 		populateInventory(instanceEntity, con)
 	}
 
+	// Metric collection
+	if args.HasMetrics() {
+		populateMetrics(instanceEntity, con)
+	}
+
 	// Close connection when done
 	defer con.Close()
 
