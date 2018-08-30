@@ -1,4 +1,4 @@
-select database_id, name from sys.databases
+select name from sys.databases
 
 select 
 t1.instance_name as db_name,
