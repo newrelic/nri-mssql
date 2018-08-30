@@ -6,29 +6,13 @@
 # refer to the Integrations SDK documentation:
 # https://docs.newrelic.com/docs/integrations/integrations-sdk/file-specifications
 
-name: com.newrelic.nri-mssql
-description: Reports status and metrics for nri-mssql service
+name: com.newrelic.mssql
+description: Reports status and metrics for mssql service
 protocol_version: 1
 os: linux
 
 commands:
   all_data:
     command:
-      - ./bin/nr-nri-mssql
-    interval: 15
-  metrics:
-    command:
-      - ./bin/nr-nri-mssql
-      - --metrics
-    interval: 15
-  inventory:
-    command:
-      - ./bin/nr-nri-mssql
-      - --inventory
-    prefix: config/nr-nri-mssql
-    interval: 15
-  events:
-    command:
-    - ./bin/nr-nri-mssql
-    - --events
+      - ./bin/nr-mssql
     interval: 15

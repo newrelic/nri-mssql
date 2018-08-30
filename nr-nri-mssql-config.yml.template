@@ -9,16 +9,18 @@
 integration_name: com.newrelic.nri-mssql
 
 instances:
-  - name: <INSTANCE IDENTIFIER>
-    command: metrics
+  - name: mssql-server
+    command: all_data
     arguments:
-      arg1: <ARG_VALUE>
+      hostname: <Host name or IP address of the SQl Server>
+      username: <Microsoft SQL Server connection user name>
+      password: <Microsoft SQL Server connection password>
+      instance: <The Microsoft SQL Server instance to connect to. Use do not supply port if this is specified>
+      port: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
+      enable_ssl <true or false. Indicates if SSL encryption should be used>
+      trust_server_certificate <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
+      certificate_location: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
+      timeout: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
     labels:
-      key1: <LABEL_VALUE>
-
-  - name: <OTHER INSTANCE IDENTIFIER>
-    command: inventory
-    arguments:
-      arg1: <ARG_VALUE>
-    labels:
-      key1: <LABEL_VALUE>
+      env: production
+      role: mssql
