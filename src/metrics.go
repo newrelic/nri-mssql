@@ -37,5 +37,5 @@ from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_n
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Forced Parameterizations/sec') t15`
 
 func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
-	
+
 }
