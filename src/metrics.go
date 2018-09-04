@@ -3,7 +3,6 @@ package main
 import (
 	"reflect"
 	"sync"
-	"reflect"
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
@@ -68,18 +67,12 @@ func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnecti
 	)
 
 	for _, queryDef := range instanceDefinitions {
-		rows := queryDef.dataModels
-		if err := connection.Query(rows, queryDef.GetQuery()); err != nil {
+		rows := queryDef.GetDataModels()
+		if err := connection.Query(&rows, queryDef.GetQuery()); err != nil {
 			return err
 		}
 
-		rowptr := rows.(*[]interface{})
-		
-
-		log.Info("type of rows: %s", reflect.TypeOf(rows))
-		log.Info("value of rows: %s", reflect.ValueOf(rows))
-
-		err := metricSet.MarshalMetrics((*rowptr)[0])
+		err := metricSet.MarshalMetrics(rows[0])
 		if err != nil {
 			return err
 		}
