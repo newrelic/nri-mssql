@@ -1,6 +1,9 @@
 package main
 
 import (
+	"sync"
+
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 )
 
@@ -36,6 +39,29 @@ from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_n
 (SELECT SUM(cntr_value) as cntr_value FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Transactions/sec') t14,
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Forced Parameterizations/sec') t15`
 
-func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
+func populateInventoryMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
 
+}
+
+func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
+	// dbEntities, err := createDatabaseEntities(i, con)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// dbSetLookup := createDBEntitySetLookup(dbEntities)
+
+	return nil
+}
+
+func dbMetricPopulator(dbSetLookup map[string]*metric.Set, modelChan <-chan interface{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for {
+		_, ok := <-modelChan
+		if !ok {
+			return
+		}
+
+	}
 }

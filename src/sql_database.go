@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 )
 
@@ -29,4 +30,19 @@ func createDatabaseEntities(i *integration.Integration, con *SQLConnection) ([]*
 	}
 
 	return dbEntities, nil
+}
+
+// createDBEntitySetLookup creates a look up of Database entity name to a metric.Set
+func createDBEntitySetLookup(dbEntities []*integration.Entity) map[string]*metric.Set {
+	entitySetLookup := make(map[string]*metric.Set)
+	for _, dbEntity := range dbEntities {
+		set := dbEntity.NewMetricSet("MssqlDatabaseSample",
+			metric.Attribute{Key: "displayName", Value: dbEntity.Metadata.Name},
+			metric.Attribute{Key: "entityName", Value: dbEntity.Metadata.Namespace + ":" + dbEntity.Metadata.Name},
+		)
+
+		entitySetLookup[dbEntity.Metadata.Name] = set
+	}
+
+	return entitySetLookup
 }

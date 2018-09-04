@@ -25,6 +25,7 @@ INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
 LEFT JOIN sys.internal_tables it ON p.object_id = it.object_id
 )
 SELECT
+db_name as db_name,
 max(reserved_space_kb) * 1024 AS reserved_space,
 max(reserved_space_not_used_kb) * 1024 AS reserved_space_not_used
 FROM reserved_space
