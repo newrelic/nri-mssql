@@ -8,7 +8,7 @@ import (
 // data model which has struct tags for metric.Set
 type QueryDefinition struct {
 	query      string
-	dataModels []interface{}
+	dataModels interface{}
 }
 
 // QueryModifier is a function that takes in a query, does any modification
@@ -28,7 +28,7 @@ func (qd QueryDefinition) GetQuery(modifiers ...QueryModifier) string {
 
 // GetDataModels retrieves the DataModels to be passed to the sqlx
 // call for results to be martialed into
-func (qd QueryDefinition) GetDataModels() []interface{} {
+func (qd QueryDefinition) GetDataModels() interface{} {
 	return qd.dataModels
 }
 
