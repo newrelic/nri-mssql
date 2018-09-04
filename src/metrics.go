@@ -2,12 +2,13 @@ package main
 
 import (
 	"sync"
+	"reflect"
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
-	"github.com/newrelic/infra-integrations-sdk/data/metric"
+	"github.com/newrelic/infra-integrations-sdk/log"
 )
-
+/*
 const perfCounterQuery = `select 
 t1.cntr_value as buffer_cache_hit_ratio,
 (t1.cntr_value * 1.0 / t2.cntr_value) * 100.0 as buffer_pool_hit_percent,
@@ -58,21 +59,29 @@ type PerfCounterRow struct {
 	TransactionsSec *int `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"gauge"`
 	ForcedParameterizationsSec *int `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"gauge"`
 }
-
+*/
 func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnection) error {
-	perfCounters := make([]*PerfCounterRow, 0)
-
-	if err := connection.Query(&perfCounters, perfCounterQuery); err != nil {
-		return err
-	}
-
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
 	)
-	err := metricSet.MarshalMetrics(perfCounters[0]) // should only be one row
-	if err != nil {
-		return err
+
+	for _, queryDef := range instanceDefinitions {
+		rows := queryDef.dataModels
+		if err := connection.Query(rows, queryDef.GetQuery()); err != nil {
+			return err
+		}
+
+		rowptr := rows.(*[]interface{})
+		
+
+		log.Info("type of rows: %s", reflect.TypeOf(rows))
+		log.Info("value of rows: %s", reflect.ValueOf(rows))
+
+		err := metricSet.MarshalMetrics((*rowptr)[0])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

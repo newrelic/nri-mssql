@@ -60,7 +60,7 @@ func main() {
 			}
 		}()
 
-		populateInventoryMetrics(instanceEntity, con)
+		populateMetrics(instanceEntity, con)
 	}
 
 	// Close connection when done
