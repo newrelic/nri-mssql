@@ -1,10 +1,8 @@
 package main
 
 import (
-	"reflect"
 	"sync"
 
-	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
 )
@@ -64,28 +62,25 @@ func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) err
 	return nil
 }
 
-func dbMetricPopulator(dbSetLookup map[string]*metric.Set, modelChan <-chan []interface{}, wg *sync.WaitGroup) {
+func dbMetricPopulator(dbSetLookup DBMetricSetLookup, modelChan <-chan []interface{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
-		dataModel, ok := <-modelChan
+		dataModels, ok := <-modelChan
 		if !ok {
 			return
 		}
 
-		dbName := getDatabaseName(dataModel)
-		if dbName == "" {
-			log.Error("Unable to determine database name")
+		for _, model := range dataModels {
+			metricSet, ok := dbSetLookup.MetricSetFromModel(model)
+			if !ok {
+				log.Error("Unable to determine database name")
+				continue
+			}
+
+			if err := metricSet.MarshalMetrics(model); err != nil {
+				log.Error("Error setting database metrics: %s", err.Error())
+			}
 		}
 	}
-}
-
-func getDatabaseName(dataModel interface{}) string {
-	v := reflect.ValueOf(dataModel)
-	modeler, ok := v.Interface().(DatabaseDataModeler)
-	if !ok {
-		return ""
-	}
-
-	return modeler.GetDBName()
 }
