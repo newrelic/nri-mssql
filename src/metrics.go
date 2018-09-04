@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 )
 
 const perfCounterQuery = `select 
@@ -17,7 +18,7 @@ t9.cntr_value as deadlocks_sec,
 t10.cntr_value as user_errors,
 t11.cntr_value as kill_connection_errors,
 t12.cntr_value as batch_request_sec,
-t13.cntr_value as page_life_expectancy_sec,
+(t13.cntr_value * 1000.0) as page_life_expectancy_ms,
 t14.cntr_value as transactions_sec,
 t15.cntr_value as forced_parameterizations_sec
 from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Buffer cache hit ratio') t1,
@@ -36,6 +37,40 @@ from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_n
 (SELECT SUM(cntr_value) as cntr_value FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Transactions/sec') t14,
 (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Forced Parameterizations/sec') t15`
 
-func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
-	
+// PerfCounterRow struct for holding the perfCounterQuery results
+type PerfCounterRow struct {
+	BufferCacheHitRatio *int `db:"buffer_cache_hit_ratio" metric_name:"buffer.cacheHitRatio" source_type:"gauge"`
+	BufferPoolHitPercent *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHit" source_type:"gauge"`
+	SQLCompilations *int `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
+	SQLRecompilations *int `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
+	UserConnections *int `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
+	LockWaitTimeMs *int `db:"lock_wait_time_ms" metric_name:"stats.lockWaitsPerSecond" source_type:"gauge"`
+	PageSplitsSec *int `db:"page_splits_sec" metric_name:"access.pageSplitsPerSecond" source_type:"gauge"`
+	CheckpointPagesSec *int `db:"checkpoint_pages_sec" metric_name:"buffer.checkpointPagesPerSecond" source_type:"gauge"`
+	DeadlocksSec *int `db:"deadlocks_sec" metric_name:"stats.deadlocksPerSecond" source_type:"gauge"`
+	UserErrors *int `db:"user_errors" metric_name:"stats.userErrorsPerSecond" source_type:"rate"`
+	KillConnectionErrors *int `db:"kill_connection_errors" metric_name:"stats.killConnectionErrorsPerSecond" source_type:"rate"`
+	BatchRequestSec *int `db:"batch_request_sec" metric_name:"bufferpool.batchRequestsPerSecond" source_type:"gauge"`
+	PageLifeExpectancySec *float64 `db:"page_life_expectancy_ms" metric_name:"bufferpool.pageLifeExpectancyInMilliseconds" source_type:"gauge"`
+	TransactionsSec *int `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"gauge"`
+	ForcedParameterizationsSec *int `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"gauge"`
+}
+
+func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnection) error {
+	perfCounters := make([]*PerfCounterRow, 0)
+
+	if err := connection.Query(&perfCounters, perfCounterQuery); err != nil {
+		return err
+	}
+
+	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
+		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
+		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+	)
+	err := metricSet.MarshalMetrics(perfCounters[0]) // should only be one row
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

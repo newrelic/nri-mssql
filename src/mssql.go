@@ -54,7 +54,10 @@ func main() {
 
 	// Metric collection
 	if args.HasMetrics() {
-		populateMetrics(instanceEntity, con)
+		err = populateMetrics(instanceEntity, con)
+		if err != nil {
+			log.Error("Unable to collect metrics: %s", err.Error())
+		}
 	}
 
 	// Close connection when done
