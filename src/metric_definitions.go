@@ -28,8 +28,8 @@ func (qd QueryDefinition) GetQuery(modifiers ...QueryModifier) string {
 
 // GetDataModels retrieves the DataModels to be passed to the sqlx
 // call for results to be martialed into
-func (qd QueryDefinition) GetDataModels() interface{} {
-	return &qd.dataModels
+func (qd QueryDefinition) GetDataModels() []interface{} {
+	return qd.dataModels
 }
 
 // copyToInterfaceSlice is a utility function to copy a anonymous struct slice
