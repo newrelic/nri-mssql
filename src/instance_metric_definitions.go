@@ -33,7 +33,7 @@ var instanceDefinitions = []*QueryDefinition{
 		(SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t13,
 		(SELECT SUM(cntr_value) as cntr_value FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Transactions/sec') t14,
 		(SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Forced Parameterizations/sec') t15`,
-		dataModels: copyToInterfaceSlice([]struct {
+		dataModels: &[]struct {
 			BufferCacheHitRatio *int `db:"buffer_cache_hit_ratio" metric_name:"buffer.cacheHitRatio" source_type:"gauge"`
 			BufferPoolHitPercent *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHit" source_type:"gauge"`
 			SQLCompilations *int `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
@@ -49,7 +49,7 @@ var instanceDefinitions = []*QueryDefinition{
 			PageLifeExpectancySec *float64 `db:"page_life_expectancy_ms" metric_name:"bufferpool.pageLifeExpectancyInMilliseconds" source_type:"gauge"`
 			TransactionsSec *int `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"gauge"`
 			ForcedParameterizationsSec *int `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"gauge"`
-		}{}),
+		}{},
 	},
 	{
 		query: `SELECT
@@ -71,14 +71,104 @@ var instanceDefinitions = []*QueryDefinition{
 		N'DIRTY_PAGE_POLL',  N'SP_SERVER_DIAGNOSTICS_SLEEP')`,
 		dataModels: &[]struct {
 			WaitTime *int `db:"wait_time" metric_name:"system.waitTimeInMillisecondsPerSecond" source_type:"rate"`
-		},
+		}{},
 	},
 	{
-		query: `SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count
-		FROM sys.dm_os_wait_stats wait_stats
-		WHERE wait_time_ms != 0`,
+		query: `SELECT
+		MAX(CASE WHEN sessions.status = 'preconnect' then counts else 0 end) AS preconnect,
+		MAX(CASE WHEN sessions.status = 'background' then counts else 0 end) AS background,
+		MAX(CASE WHEN sessions.status = 'dormant' then counts else 0 end) AS dormant,
+		MAX(CASE WHEN sessions.status = 'runnable' then counts else 0 end) AS runnable,
+		MAX(CASE WHEN sessions.status = 'suspended' then counts else 0 end) AS suspended,
+		MAX(CASE WHEN sessions.status = 'running' then counts else 0 end) AS running,
+		MAX(CASE WHEN sessions.status = 'blocked' then counts else 0 end) AS blocked,
+		MAX(CASE WHEN sessions.status = 'sleeping' then counts else 0 end) AS sleeping
+		FROM (SELECT status, count(*) counts FROM (
+				SELECT CASE WHEN req.status IS NOT NULL THEN
+						CASE WHEN req.blocking_session_id <> 0 THEN 'blocked' ELSE req.status END
+					ELSE sess.status END status, req.blocking_session_id
+				FROM sys.dm_exec_sessions sess
+				LEFT JOIN sys.dm_exec_requests req
+				on sess.session_id = req.session_id
+				WHERE sess.session_id > 50 ) statuses
+			GROUP BY status) sessions`,
 		dataModels: &[]struct {
-			
-		}
-	}
+			Preconnect *int `db:"preconnect" metric_name:"instance.preconnectProcessesCount" source_type:"gauge"`
+			Background *int `db:"background" metric_name:"instance.backgroundProcessesCount" source_type:"gauge"`
+			Dormant *int `db:"dormant" metric_name:"instance.dormantProcessesCount" source_type:"gauge"`
+			Runnable *int `db:"runnable" metric_name:"instance.runnableProcessesCount" source_type:"gauge"`
+			Suspended *int `db:"suspended" metric_name:"instance.suspendedProcessesCount" source_type:"gauge"`
+			Running *int `db:"running" metric_name:"instance.runningProcessesCount" source_type:"gauge"`
+			Blocked *int `db:"blocked" metric_name:"instance.blockedProcessesCount" source_type:"gauge"`
+			Sleeping *int `db:"sleeping" metric_name:"instance.sleepingProcessesCount" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `select Sum(total_bytes) AS total_disk_space from (
+			select DISTINCT
+			dovs.volume_mount_point,
+			dovs.available_bytes available_bytes,
+			dovs.total_bytes total_bytes
+			FROM sys.master_files mf
+			CROSS APPLY sys.dm_os_volume_stats(mf.database_id, mf.FILE_ID) dovs
+			) drives`,
+		dataModels: &[]struct {
+			TotalDiskSpace *int `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `select SUM(runnable_tasks_count) AS runnable_tasks_count
+		from sys.dm_os_schedulers
+		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'`,
+		dataModels: &[]struct {
+			RunnableTasksCount *int `db:"runnable_tasks_count" metric_name:"instance.runnableTasks" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `SELECT SUM(db.buffer_pool_size) as instance_buffer_pool_size from (
+			SELECT
+			COUNT_BIG(*) * (8*1024) AS buffer_pool_size
+			FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
+			WHERE database_id <> 32767 -- ResourceDB
+			GROUP BY database_id) db`,
+		dataModels: &[]struct {
+			InstanceBufferPoolSize *int `db:"instance_buffer_pool_size" metric_name:"bufferpool.sizeInBytes" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `SELECT SUM(db.active_connections) as instance_active_connections from (
+			SELECT
+			COUNT(syssp.dbid) AS active_connections
+			FROM sys.databases db WITH (NOLOCK)
+			LEFT JOIN sys.sysprocesses syssp WITH (NOLOCK) ON syssp.dbid = db.database_id
+			GROUP BY db.name) db`,
+		dataModels: &[]struct {
+			InstanceActiveConnections *int `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `select
+		MAX(sys_mem.total_physical_memory_kb * 1024.0) AS total_physical_memory,
+		MAX(sys_mem.available_physical_memory_kb * 1024.0) AS available_physical_memory,
+		(Max(proc_mem.physical_memory_in_use_kb) / (Max(sys_mem.total_physical_memory_kb) * 1.0)) * 100 as memory_utilization
+		FROM sys.dm_os_process_memory proc_mem,
+			sys.dm_os_sys_memory sys_mem,
+			sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'`,
+		dataModels: &[]struct {
+			TotalPhysicalMemory *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
+			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
+			MemoryUtilization *float64 `db:"memory_utilization" metric_name:"memoryUtilization" source_type:"gauge"`
+		}{},
+	},
+}
+
+var waitTimeDefinition = QueryDefinition{
+	query: `SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count
+		  FROM sys.dm_os_wait_stats wait_stats
+		  WHERE wait_time_ms != 0`,
+	dataModels: &[]struct {
+		WaitType *string `db:"wait_type"`
+		WaitTime *int `db:"wait_time"`
+		WaitCount *int `db:"waiting_tasks_count"`
+	}{},
 }
