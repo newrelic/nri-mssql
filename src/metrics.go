@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"sync"
 	"reflect"
 
@@ -92,24 +93,46 @@ func populateInventoryMetrics(instanceEntity *integration.Entity, connection *SQ
 }
 
 func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
-	// dbEntities, err := createDatabaseEntities(i, con)
-	// if err != nil {
-	// 	return err
-	// }
+	dbEntities, err := createDatabaseEntities(i, con)
+	if err != nil {
+		return err
+	}
 
-	// dbSetLookup := createDBEntitySetLookup(dbEntities)
+	dbSetLookup := createDBEntitySetLookup(dbEntities)
+
+	modelChan := make(chan []interface{}, 10)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
+
+	wg.Wait()
 
 	return nil
 }
 
-func dbMetricPopulator(dbSetLookup map[string]*metric.Set, modelChan <-chan interface{}, wg *sync.WaitGroup) {
+func dbMetricPopulator(dbSetLookup map[string]*metric.Set, modelChan <-chan []interface{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
-		_, ok := <-modelChan
+		dataModel, ok := <-modelChan
 		if !ok {
 			return
 		}
 
+		dbName := getDatabaseName(dataModel)
+		if dbName == "" {
+			log.Error("Unable to determine database name")
+		}
 	}
+}
+
+func getDatabaseName(dataModel interface{}) string {
+	v := reflect.ValueOf(dataModel)
+	modeler, ok := v.Interface().(DatabaseDataModeler)
+	if !ok {
+		return ""
+	}
+
+	return modeler.GetDBName()
 }
