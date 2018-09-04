@@ -48,7 +48,7 @@ func Test_QueryDefinition_GetDataModels(t *testing.T) {
 	}
 
 	out := def.GetDataModels()
-	if !reflect.DeepEqual(out, &expected) {
+	if !reflect.DeepEqual(out, expected) {
 		t.Errorf("Expected %+v got %+v", &expected, out)
 	}
 }
