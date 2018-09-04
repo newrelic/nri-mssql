@@ -1,6 +1,9 @@
 package main
 
 import (
+	"sync"
+
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 )
@@ -73,4 +76,31 @@ func populateMetrics(instanceEntity *integration.Entity, connection *SQLConnecti
 	}
 
 	return nil
+}
+
+func populateInventoryMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
+
+}
+
+func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
+	// dbEntities, err := createDatabaseEntities(i, con)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// dbSetLookup := createDBEntitySetLookup(dbEntities)
+
+	return nil
+}
+
+func dbMetricPopulator(dbSetLookup map[string]*metric.Set, modelChan <-chan interface{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for {
+		_, ok := <-modelChan
+		if !ok {
+			return
+		}
+
+	}
 }
