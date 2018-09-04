@@ -59,21 +59,26 @@ func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) err
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
 	for _, queryDef := range databaseDefinitions {
-		wg.Add(1)
-		go dbQuerier(con, queryDef, modelChan, &wg)
+		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
 	}
 
+	dbNames := dbSetLookup.GetDBNames()
+	for _, queryDef := range specificDatabaseDefinitions {
+		for _, dbName := range dbNames {
+			query := queryDef.GetQuery(dbNameReplace(dbName))
+			makeDBQuery(con, query, queryDef.GetDataModels(), modelChan)
+		}
+	}
+
+	close(modelChan)
 	wg.Wait()
 
 	return nil
 }
 
-func dbQuerier(con *SQLConnection, queryDef *QueryDefinition, modelChan chan<- interface{}, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	models := queryDef.GetDataModels()
-	if err := con.Query(models, queryDef.GetQuery()); err != nil {
-		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), queryDef.GetQuery())
+func makeDBQuery(con *SQLConnection, query string, models interface{}, modelChan chan<- interface{}) {
+	if err := con.Query(models, query); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), query)
 		return
 	}
 
@@ -102,7 +107,7 @@ func dbMetricPopulator(dbSetLookup DBMetricSetLookup, modelChan <-chan interface
 
 		metricSet, ok := dbSetLookup.MetricSetFromModel(model)
 		if !ok {
-			log.Error("Unable to determine database name")
+			log.Error("Unable to determine database name, %+v", model)
 			continue
 		}
 

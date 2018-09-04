@@ -53,6 +53,16 @@ func (l DBMetricSetLookup) MetricSetFromModel(model interface{}) (set *metric.Se
 	return
 }
 
+// GetDBNames retrieves all names of databases in lookup
+func (l DBMetricSetLookup) GetDBNames() []string {
+	dbNames := make([]string, 0, len(l))
+	for name := range l {
+		dbNames = append(dbNames, name)
+	}
+
+	return dbNames
+}
+
 func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	v := reflect.ValueOf(model)
 	modeler, ok := v.Interface().(DatabaseDataModeler)
