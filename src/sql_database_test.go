@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -130,5 +131,44 @@ func Test_DBMetricSetLookup_MetricSetFromModel_Found(t *testing.T) {
 		t.Errorf("Expected ok 'true' got %t", ok)
 	} else if !reflect.DeepEqual(set, expectedSet) {
 		t.Errorf("Expected %+v got %+v", expectedSet, set)
+	}
+}
+
+func Test_createDBEntitySetLookUp(t *testing.T) {
+	i, err := integration.New("test", "1.0.0")
+	if err != nil {
+		t.Errorf("Unexpected error %s", err.Error())
+		t.FailNow()
+	}
+
+	entities := make([]*integration.Entity, 0, 2)
+
+	masterEntity, err := i.Entity("master", "database")
+	if err != nil {
+		t.Errorf("Unexpected error %s", err.Error())
+		t.FailNow()
+	}
+	tempdbEntity, err := i.Entity("tempdb", "database")
+	if err != nil {
+		t.Errorf("Unexpected error %s", err.Error())
+		t.FailNow()
+	}
+
+	entities = append(entities, masterEntity, tempdbEntity)
+
+	expected := DBMetricSetLookup{
+		"master": masterEntity.NewMetricSet("MssqlDatabaseSample",
+			metric.Attribute{Key: "displayName", Value: "master"},
+			metric.Attribute{Key: "entityName", Value: "database:master"},
+		),
+		"tempdb": tempdbEntity.NewMetricSet("MssqlDatabaseSample",
+			metric.Attribute{Key: "displayName", Value: "tempdb"},
+			metric.Attribute{Key: "entityName", Value: "database:tempdb"},
+		),
+	}
+
+	out := createDBEntitySetLookup(entities)
+	if !reflect.DeepEqual(out, expected) {
+		t.Errorf("Expected %+v got %+v", expected, out)
 	}
 }

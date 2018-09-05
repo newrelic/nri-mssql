@@ -77,7 +77,7 @@ func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 
 // createDBEntitySetLookup creates a look up of Database entity name to a metric.Set
 func createDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
-	entitySetLookup := make(map[string]*metric.Set)
+	entitySetLookup := make(DBMetricSetLookup)
 	for _, dbEntity := range dbEntities {
 		set := dbEntity.NewMetricSet("MssqlDatabaseSample",
 			metric.Attribute{Key: "displayName", Value: dbEntity.Metadata.Name},
