@@ -9,7 +9,7 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 )
 
-func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQLConnection) error {
+func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
@@ -18,18 +18,55 @@ func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQL
 	for _, queryDef := range instanceDefinitions {
 		rows := queryDef.GetDataModels()
 		if err := connection.Query(rows, queryDef.GetQuery()); err != nil {
-			return err
+			log.Error("Could not execute query: %s", err.Error())
+			continue
 		}
 
 		vp := reflect.Indirect(reflect.ValueOf(rows))
 		vpInterface := vp.Index(0).Interface()
 		err := metricSet.MarshalMetrics(vpInterface)
 		if err != nil {
-			return err
+			log.Error("Could not parse metrics from query result: %s", err.Error())
 		}
 	}
 
-	return nil
+	populateWaitTimeMetrics(instanceEntity, connection)
+}
+
+func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
+	rows := make([]waitTimeRows, 0)
+	if err := connection.Query(&rows, waitTimeQuery); err != nil {
+		log.Error("Could not execute query: %s", err.Error())
+		return
+	}
+
+	for _, row := range rows {
+		metricSet := instanceEntity.NewMetricSet("MssqlWaitSample",
+			metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
+			metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+			metric.Attribute{Key: "waitType", Value: *row.WaitType},
+		)
+
+		metrics := []struct{
+			metricName string
+			metricValue int
+			metricType metric.SourceType
+		}{
+			{
+				"system.waitTimeCount", *row.WaitCount, metric.GAUGE,
+			},
+			{
+				"system.waitTimeInMillisecondsPerSecond", *row.WaitTime, metric.GAUGE,
+			},
+		}
+
+		for _, metric := range metrics {
+			err := metricSet.SetMetric(metric.metricName, metric.metricValue, metric.metricType)
+			if err != nil {
+				log.Error("Could not set wait time metric: %s", err.Error())
+			}
+		}
+	}
 }
 
 func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {

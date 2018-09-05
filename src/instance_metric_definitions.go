@@ -162,13 +162,12 @@ var instanceDefinitions = []*QueryDefinition{
 	},
 }
 
-var waitTimeDefinition = QueryDefinition{
-	query: `SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count
-		  FROM sys.dm_os_wait_stats wait_stats
-		  WHERE wait_time_ms != 0`,
-	dataModels: &[]struct {
-		WaitType *string `db:"wait_type"`
-		WaitTime *int `db:"wait_time"`
-		WaitCount *int `db:"waiting_tasks_count"`
-	}{},
+var waitTimeQuery = `SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count
+FROM sys.dm_os_wait_stats wait_stats
+WHERE wait_time_ms != 0`
+		  
+type waitTimeRows struct {
+	WaitType *string `db:"wait_type"`
+	WaitTime *int `db:"wait_time"`
+	WaitCount *int `db:"waiting_tasks_count"`
 }

@@ -54,19 +54,13 @@ func main() {
 
 	// Metric collection
 	if args.HasMetrics() {
+		populateInstanceMetrics(instanceEntity, con)
 		
-		err := populateInstanceMetrics(instanceEntity, con)
-		if err != nil {
-			log.Error("Unable to populate instance metrics: %s", err.Error())
-		}
-		
-		/*
 		go func() {
 			if err := populateDatabaseMetrics(i, con); err != nil {
 				log.Error("Unable to create entities for databases: %s", err.Error())
 			}
 		}()
-		*/
 	}
 
 	// Close connection when done
