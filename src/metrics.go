@@ -58,22 +58,31 @@ func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) err
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
+	// run queries that are not specific to a database
+	processGeneralDBDefinitions(con, modelChan)
+
+	// run queries that are specific to a database
+	processSpecificDBDefinitions(con, dbSetLookup.GetDBNames(), modelChan)
+
+	close(modelChan)
+	wg.Wait()
+
+	return nil
+}
+
+func processGeneralDBDefinitions(con *SQLConnection, modelChan chan<- interface{}) {
 	for _, queryDef := range databaseDefinitions {
 		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
 	}
+}
 
-	dbNames := dbSetLookup.GetDBNames()
+func processSpecificDBDefinitions(con *SQLConnection, dbNames []string, modelChan chan<- interface{}) {
 	for _, queryDef := range specificDatabaseDefinitions {
 		for _, dbName := range dbNames {
 			query := queryDef.GetQuery(dbNameReplace(dbName))
 			makeDBQuery(con, query, queryDef.GetDataModels(), modelChan)
 		}
 	}
-
-	close(modelChan)
-	wg.Wait()
-
-	return nil
 }
 
 func makeDBQuery(con *SQLConnection, query string, models interface{}, modelChan chan<- interface{}) {
@@ -83,10 +92,10 @@ func makeDBQuery(con *SQLConnection, query string, models interface{}, modelChan
 	}
 
 	// Send models off to populator
-	feedModelsDownChannel(modelChan, models)
+	sendModelsToPopulator(modelChan, models)
 }
 
-func feedModelsDownChannel(modelChan chan<- interface{}, models interface{}) {
+func sendModelsToPopulator(modelChan chan<- interface{}, models interface{}) {
 	v := reflect.ValueOf(models)
 	vp := reflect.Indirect(v)
 

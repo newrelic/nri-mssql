@@ -36,7 +36,6 @@ func Test_SQLConnection_Close(t *testing.T) {
 
 func Test_SQLConnection_Query(t *testing.T) {
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	// Temp data structure to store data into
 	temp := []struct {

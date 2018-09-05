@@ -24,7 +24,6 @@ func Test_populateInventory(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	// SPConfig expect
 	spConfigRows := sqlmock.NewRows([]string{"name", "minimum", "maximum", "config_value", "run_value"}).
@@ -82,7 +81,6 @@ func Test_populateInventory_SPConfigError(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	// SPConfig expect
 	mock.ExpectQuery(spConfigQuery).WillReturnError(errors.New("error"))
@@ -135,7 +133,6 @@ func Test_populateInventory_SysConfigError(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	// SPConfig expect
 	spConfigRows := sqlmock.NewRows([]string{"name", "minimum", "maximum", "config_value", "run_value"}).

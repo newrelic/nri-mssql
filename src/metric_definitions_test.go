@@ -52,19 +52,3 @@ func Test_QueryDefinition_GetDataModels(t *testing.T) {
 		t.Errorf("Expected %+v got %+v", &expected, out)
 	}
 }
-
-func Test_copyToInterfaceSlice(t *testing.T) {
-	input := []int{1, 2, 3, 4}
-
-	expected := make([]interface{}, len(input))
-
-	for i, num := range input {
-		expected[i] = num
-	}
-
-	out := copyToInterfaceSlice(input)
-
-	if !reflect.DeepEqual(expected, out) {
-		t.Errorf("Expected %+v got %+v", expected, out)
-	}
-}

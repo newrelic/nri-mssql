@@ -63,6 +63,8 @@ func (l DBMetricSetLookup) GetDBNames() []string {
 	return dbNames
 }
 
+// getDatabaseName takes in a model and if it implements DatabaseDataModeler
+// then retrieve the name of the database from that model
 func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	v := reflect.ValueOf(model)
 	modeler, ok := v.Interface().(DatabaseDataModeler)
