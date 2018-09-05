@@ -45,11 +45,13 @@ func populateInventoryMetrics(instanceEntity *integration.Entity, connection *SQ
 }
 
 func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
+	// create database entities
 	dbEntities, err := createDatabaseEntities(i, con)
 	if err != nil {
 		return err
 	}
 
+	// create database entities lookup for fast metric set
 	dbSetLookup := createDBEntitySetLookup(dbEntities)
 
 	modelChan := make(chan interface{}, 10)
