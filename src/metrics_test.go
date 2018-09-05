@@ -22,18 +22,32 @@ func updateGoldenFile(data []byte, sourceFile string) {
 	}
 }
 
-func Test_populateMetrics(t *testing.T) {
+func createTestEntity(t *testing.T) (i *integration.Integration, e *integration.Entity) {
 	i, err := integration.New("test", "1.0.0")
 	if err != nil {
 		t.Errorf("Unexpected error %s", err.Error())
 		t.FailNow()
 	}
 
-	e, err := i.Entity("test", "instance")
+	e, err = i.Entity("test", "instance")
 	if err != nil {
 		t.Errorf("Unexpected error %s", err.Error())
 		t.FailNow()
 	}
+	return
+}
+
+func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
+	expectedData, err := ioutil.ReadFile(expectedFile)
+	if err != nil {
+		t.Errorf("Could not read expected file: %v", err.Error())
+	}
+
+	assert.Equal(t, data, expectedData)
+}
+
+func Test_populateMetrics(t *testing.T) {
+	i, e := createTestEntity(t)
 
 	conn, mock := createMockSQL(t)
 	defer conn.Close()
@@ -50,7 +64,29 @@ func Test_populateMetrics(t *testing.T) {
 	expectedFile := filepath.Join("testdata", "perfCounter.json.golden")
 	updateGoldenFile(actual, expectedFile)
 
-	expectedData, _ := ioutil.ReadFile(expectedFile)
+	checkAgainstFile(t, actual, expectedFile)
+}
 
-	assert.Equal(t, actual, expectedData)
+func Test_populateWaitTimeMetrics(t *testing.T) {
+	i, e := createTestEntity(t)
+
+	conn, mock := createMockSQL(t)
+	defer conn.Close()
+
+	waitTimeRows := sqlmock.NewRows([]string{"wait_type", "wait_time", "waiting_tasks_count"}).
+		AddRow("LCK_M_S", 638, 1).
+		AddRow("CHKPT", 1142, 1).
+		AddRow("LAZYWRITER_SLEEP", 1118786296, 1126388).
+		AddRow("PREEMPTIVE_OS_DEVICEOPS", 119, 90)
+		
+	// only match the performance counter query
+	mock.ExpectQuery(`SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count\s*FROM sys.dm_os_wait_stats wait_stats\s*WHERE wait_time_ms != 0`).WillReturnRows(waitTimeRows)
+
+	populateWaitTimeMetrics(e, conn)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("testdata", "waitTime.json.golden")
+	updateGoldenFile(actual, expectedFile)
+
+	checkAgainstFile(t, actual, expectedFile)
 }
