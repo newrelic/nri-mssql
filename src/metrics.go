@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
-	"github.com/newrelic/infra-integrations-sdk/data/metric"
 )
 
 func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
@@ -47,10 +47,10 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQL
 			metric.Attribute{Key: "waitType", Value: *row.WaitType},
 		)
 
-		metrics := []struct{
-			metricName string
+		metrics := []struct {
+			metricName  string
 			metricValue int
-			metricType metric.SourceType
+			metricType  metric.SourceType
 		}{
 			{
 				"system.waitTimeCount", *row.WaitCount, metric.GAUGE,
