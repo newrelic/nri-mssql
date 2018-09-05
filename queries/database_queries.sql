@@ -1,7 +1,7 @@
 select name as db_name from sys.databases
 
 select 
-t1.instance_name as db_name,
+RTRIM(t1.instance_name) as db_name,
 t1.cntr_value as log_growth
 from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE object_name = 'SQLServer:Databases' and counter_name = 'Log Growths' and instance_name NOT IN ('_Total', 'mssqlsystemresource')) t1
 

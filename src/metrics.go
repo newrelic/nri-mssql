@@ -70,11 +70,13 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQL
 }
 
 func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
+	// create database entities
 	dbEntities, err := createDatabaseEntities(i, con)
 	if err != nil {
 		return err
 	}
 
+	// create database entities lookup for fast metric set
 	dbSetLookup := createDBEntitySetLookup(dbEntities)
 
 	modelChan := make(chan interface{}, 10)
@@ -83,30 +85,44 @@ func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) err
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
-	for _, queryDef := range databaseDefinitions {
-		wg.Add(1)
-		go dbQuerier(con, queryDef, modelChan, &wg)
-	}
+	// run queries that are not specific to a database
+	processGeneralDBDefinitions(con, modelChan)
 
+	// run queries that are specific to a database
+	processSpecificDBDefinitions(con, dbSetLookup.GetDBNames(), modelChan)
+
+	close(modelChan)
 	wg.Wait()
 
 	return nil
 }
 
-func dbQuerier(con *SQLConnection, queryDef *QueryDefinition, modelChan chan<- interface{}, wg *sync.WaitGroup) {
-	defer wg.Done()
+func processGeneralDBDefinitions(con *SQLConnection, modelChan chan<- interface{}) {
+	for _, queryDef := range databaseDefinitions {
+		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
+	}
+}
 
-	models := queryDef.GetDataModels()
-	if err := con.Query(models, queryDef.GetQuery()); err != nil {
-		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), queryDef.GetQuery())
+func processSpecificDBDefinitions(con *SQLConnection, dbNames []string, modelChan chan<- interface{}) {
+	for _, queryDef := range specificDatabaseDefinitions {
+		for _, dbName := range dbNames {
+			query := queryDef.GetQuery(dbNameReplace(dbName))
+			makeDBQuery(con, query, queryDef.GetDataModels(), modelChan)
+		}
+	}
+}
+
+func makeDBQuery(con *SQLConnection, query string, models interface{}, modelChan chan<- interface{}) {
+	if err := con.Query(models, query); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), query)
 		return
 	}
 
 	// Send models off to populator
-	feedModelsDownChannel(modelChan, models)
+	sendModelsToPopulator(modelChan, models)
 }
 
-func feedModelsDownChannel(modelChan chan<- interface{}, models interface{}) {
+func sendModelsToPopulator(modelChan chan<- interface{}, models interface{}) {
 	v := reflect.ValueOf(models)
 	vp := reflect.Indirect(v)
 
@@ -127,7 +143,7 @@ func dbMetricPopulator(dbSetLookup DBMetricSetLookup, modelChan <-chan interface
 
 		metricSet, ok := dbSetLookup.MetricSetFromModel(model)
 		if !ok {
-			log.Error("Unable to determine database name")
+			log.Error("Unable to determine database name, %+v", model)
 			continue
 		}
 

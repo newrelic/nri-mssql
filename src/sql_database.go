@@ -53,6 +53,18 @@ func (l DBMetricSetLookup) MetricSetFromModel(model interface{}) (set *metric.Se
 	return
 }
 
+// GetDBNames retrieves all names of databases in lookup
+func (l DBMetricSetLookup) GetDBNames() []string {
+	dbNames := make([]string, 0, len(l))
+	for name := range l {
+		dbNames = append(dbNames, name)
+	}
+
+	return dbNames
+}
+
+// getDatabaseName takes in a model and if it implements DatabaseDataModeler
+// then retrieve the name of the database from that model
 func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	v := reflect.ValueOf(model)
 	modeler, ok := v.Interface().(DatabaseDataModeler)
@@ -65,7 +77,7 @@ func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 
 // createDBEntitySetLookup creates a look up of Database entity name to a metric.Set
 func createDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
-	entitySetLookup := make(map[string]*metric.Set)
+	entitySetLookup := make(DBMetricSetLookup)
 	for _, dbEntity := range dbEntities {
 		set := dbEntity.NewMetricSet("MssqlDatabaseSample",
 			metric.Attribute{Key: "displayName", Value: dbEntity.Metadata.Name},
