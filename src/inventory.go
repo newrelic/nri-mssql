@@ -26,20 +26,20 @@ type ConfigQueryRow struct {
 }
 
 //populateInventory runs spConfigQuery and populates the return values into the entity
-func populateInventory(instanceEntity *integration.Entity, con *SQLConnection) {
-	if err := populateSPConfigItems(instanceEntity, con); err != nil {
+func populateInventory(instanceEntity *integration.Entity, connection *SQLConnection) {
+	if err := populateSPConfigItems(instanceEntity, connection); err != nil {
 		log.Error("Error collecting inventory items from sp_config: %s", err.Error())
 	}
 
-	if err := populateSysConfigItems(instanceEntity, con); err != nil {
+	if err := populateSysConfigItems(instanceEntity, connection); err != nil {
 		log.Error("Error collecting inventory items from sys.configurations: %s", err.Error())
 	}
 }
 
 // populateSPConfigItems collects inventory items for sp_configure procedure
-func populateSPConfigItems(instanceEntity *integration.Entity, con *SQLConnection) error {
+func populateSPConfigItems(instanceEntity *integration.Entity, connection *SQLConnection) error {
 	configRows := make([]*SPConfigRow, 0)
-	if err := con.Query(&configRows, spConfigQuery); err != nil {
+	if err := connection.Query(&configRows, spConfigQuery); err != nil {
 		return err
 	}
 
@@ -52,9 +52,9 @@ func populateSPConfigItems(instanceEntity *integration.Entity, con *SQLConnectio
 }
 
 // populateSysConfigItems collect inventory items from sys.configurations
-func populateSysConfigItems(instanceEntity *integration.Entity, con *SQLConnection) error {
+func populateSysConfigItems(instanceEntity *integration.Entity, connection *SQLConnection) error {
 	configRows := make([]*ConfigQueryRow, 0)
-	if err := con.Query(&configRows, sysConfigQuery); err != nil {
+	if err := connection.Query(&configRows, sysConfigQuery); err != nil {
 		return err
 	}
 

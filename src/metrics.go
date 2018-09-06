@@ -16,17 +16,17 @@ func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQL
 	)
 
 	for _, queryDef := range instanceDefinitions {
-		rows := queryDef.GetDataModels()
-		if err := connection.Query(rows, queryDef.GetQuery()); err != nil {
-			log.Error("Could not execute query: %s", err.Error())
+		models := queryDef.GetDataModels()
+		if err := connection.Query(models, queryDef.GetQuery()); err != nil {
+			log.Error("Could not execute instance query: %s", err.Error())
 			continue
 		}
 
-		vp := reflect.Indirect(reflect.ValueOf(rows))
+		vp := reflect.Indirect(reflect.ValueOf(models))
 		vpInterface := vp.Index(0).Interface()
 		err := metricSet.MarshalMetrics(vpInterface)
 		if err != nil {
-			log.Error("Could not parse metrics from query result: %s", err.Error())
+			log.Error("Could not parse metrics from instance query result: %s", err.Error())
 		}
 	}
 
@@ -34,17 +34,17 @@ func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQL
 }
 
 func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
-	rows := make([]waitTimeRows, 0)
-	if err := connection.Query(&rows, waitTimeQuery); err != nil {
+	models := make([]waitTimeModel, 0)
+	if err := connection.Query(&models, waitTimeQuery); err != nil {
 		log.Error("Could not execute query: %s", err.Error())
 		return
 	}
 
-	for _, row := range rows {
+	for _, model := range models {
 		metricSet := instanceEntity.NewMetricSet("MssqlWaitSample",
 			metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 			metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
-			metric.Attribute{Key: "waitType", Value: *row.WaitType},
+			metric.Attribute{Key: "waitType", Value: *model.WaitType},
 		)
 
 		metrics := []struct {
@@ -53,25 +53,25 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQL
 			metricType  metric.SourceType
 		}{
 			{
-				"system.waitTimeCount", *row.WaitCount, metric.GAUGE,
+				"system.waitTimeCount", *model.WaitCount, metric.GAUGE,
 			},
 			{
-				"system.waitTimeInMillisecondsPerSecond", *row.WaitTime, metric.GAUGE,
+				"system.waitTimeInMillisecondsPerSecond", *model.WaitTime, metric.GAUGE,
 			},
 		}
 
 		for _, metric := range metrics {
 			err := metricSet.SetMetric(metric.metricName, metric.metricValue, metric.metricType)
 			if err != nil {
-				log.Error("Could not set wait time metric: %s", err.Error())
+				log.Error("Could not set wait time metric [%s] for wait type [%s]: %s", metric.metricName, model.WaitType, err.Error())
 			}
 		}
 	}
 }
 
-func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) error {
+func populateDatabaseMetrics(i *integration.Integration, connection *SQLConnection) error {
 	// create database entities
-	dbEntities, err := createDatabaseEntities(i, con)
+	dbEntities, err := createDatabaseEntities(i, connection)
 	if err != nil {
 		return err
 	}
@@ -86,10 +86,10 @@ func populateDatabaseMetrics(i *integration.Integration, con *SQLConnection) err
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
 	// run queries that are not specific to a database
-	processGeneralDBDefinitions(con, modelChan)
+	processGeneralDBDefinitions(connection, modelChan)
 
 	// run queries that are specific to a database
-	processSpecificDBDefinitions(con, dbSetLookup.GetDBNames(), modelChan)
+	processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
 
 	close(modelChan)
 	wg.Wait()
