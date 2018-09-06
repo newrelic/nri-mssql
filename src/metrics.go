@@ -63,7 +63,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQL
 		for _, metric := range metrics {
 			err := metricSet.SetMetric(metric.metricName, metric.metricValue, metric.metricType)
 			if err != nil {
-				log.Error("Could not set wait time metric [%s] for wait type [%s]: %s", metric.metricName, model.WaitType, err.Error())
+				log.Error("Could not set wait time metric '%s' for wait type '%s': %s", metric.metricName, model.WaitType, err.Error())
 			}
 		}
 	}
