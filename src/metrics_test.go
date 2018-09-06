@@ -48,6 +48,36 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 	assert.Equal(t, data, expectedData)
 }
 
+func Test_populateDatabaseMetrics(t *testing.T) {
+	i, _ := createTestEntity(t)
+
+	conn, mock := createMockSQL(t)
+	defer conn.Close()
+
+	databaseRows := sqlmock.NewRows([]string{"db_name"}).
+		AddRow("master").
+		AddRow("otherdb")
+	logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
+		AddRow("master", 0).
+		AddRow("otherdb", 1)
+
+	// only match the performance counter query
+	mock.ExpectQuery(`select name as db_name from sys\.databases`).
+		WillReturnRows(databaseRows)
+
+	mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
+		WillReturnRows(logGrowthRows)
+
+	mock.ExpectClose()
+
+	populateDatabaseMetrics(i, conn)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("testdata", "databaseMetrics.json.golden")
+	updateGoldenFile(actual, expectedFile)
+	checkAgainstFile(t, actual, expectedFile)
+}
+
 func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 	modelChan := make(chan interface{}, 10)
 	var wg sync.WaitGroup
@@ -103,7 +133,7 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 	}
 }
 
-func Test_populateMetrics(t *testing.T) {
+func Test_populateInstanceMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 
 	conn, mock := createMockSQL(t)
@@ -114,6 +144,7 @@ func Test_populateMetrics(t *testing.T) {
 
 	// only match the performance counter query
 	mock.ExpectQuery(`select\s+t1.cntr_value as buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+	mock.ExpectClose()
 
 	populateInstanceMetrics(e, conn)
 
@@ -138,6 +169,7 @@ func Test_populateWaitTimeMetrics(t *testing.T) {
 
 	// only match the performance counter query
 	mock.ExpectQuery(`SELECT wait_type, wait_time_ms AS wait_time, waiting_tasks_count\s*FROM sys.dm_os_wait_stats wait_stats\s*WHERE wait_time_ms != 0`).WillReturnRows(waitTimeRows)
+	mock.ExpectClose()
 
 	populateWaitTimeMetrics(e, conn)
 
