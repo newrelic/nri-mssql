@@ -16,7 +16,6 @@ func Test_createInstanceEntity_QueryError(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	mock.ExpectQuery(instanceNameQuery).WillReturnError(errors.New("error"))
 
@@ -33,7 +32,6 @@ func Test_createInstanceEntity_RowError(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	rows := sqlmock.NewRows([]string{"instance_name"}).
 		AddRow("my-instance").
@@ -53,7 +51,6 @@ func Test_createInstanceEntity(t *testing.T) {
 	}
 
 	conn, mock := createMockSQL(t)
-	defer conn.Close()
 
 	// set up sql mock
 	instanceName := "my-instance"

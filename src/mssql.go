@@ -52,6 +52,15 @@ func main() {
 		populateInventory(instanceEntity, con)
 	}
 
+	// Metric collection
+	if args.HasMetrics() {
+		if err := populateDatabaseMetrics(i, con); err != nil {
+			log.Error("Error collecting metrics for databases: %s", err.Error())
+		}
+
+		populateInstanceMetrics(instanceEntity, con)
+	}
+
 	// Close connection when done
 	defer con.Close()
 
