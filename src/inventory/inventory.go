@@ -1,8 +1,9 @@
-package main
+package inventory
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/nri-mssql/src/util"
 )
 
 const (
@@ -25,8 +26,8 @@ type ConfigQueryRow struct {
 	Value int    `db:"value"`
 }
 
-//populateInventory runs spConfigQuery and populates the return values into the entity
-func populateInventory(instanceEntity *integration.Entity, connection *SQLConnection) {
+// PopulateInventory runs spConfigQuery and populates the return values into the entity
+func PopulateInventory(instanceEntity *integration.Entity, connection *util.SQLConnection) {
 	if err := populateSPConfigItems(instanceEntity, connection); err != nil {
 		log.Error("Error collecting inventory items from sp_config: %s", err.Error())
 	}
@@ -37,7 +38,7 @@ func populateInventory(instanceEntity *integration.Entity, connection *SQLConnec
 }
 
 // populateSPConfigItems collects inventory items for sp_configure procedure
-func populateSPConfigItems(instanceEntity *integration.Entity, connection *SQLConnection) error {
+func populateSPConfigItems(instanceEntity *integration.Entity, connection *util.SQLConnection) error {
 	configRows := make([]*SPConfigRow, 0)
 	if err := connection.Query(&configRows, spConfigQuery); err != nil {
 		return err
@@ -52,7 +53,7 @@ func populateSPConfigItems(instanceEntity *integration.Entity, connection *SQLCo
 }
 
 // populateSysConfigItems collect inventory items from sys.configurations
-func populateSysConfigItems(instanceEntity *integration.Entity, connection *SQLConnection) error {
+func populateSysConfigItems(instanceEntity *integration.Entity, connection *util.SQLConnection) error {
 	configRows := make([]*ConfigQueryRow, 0)
 	if err := connection.Query(&configRows, sysConfigQuery); err != nil {
 		return err

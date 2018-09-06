@@ -1,4 +1,4 @@
-package main
+package args
 
 import (
 	"testing"
@@ -7,12 +7,12 @@ import (
 func TestValidate(t *testing.T) {
 	testCases := []struct {
 		name      string
-		arg       *argumentList
+		arg       *ArgumentList
 		wantError bool
 	}{
 		{
 			"No Errors",
-			&argumentList{
+			&ArgumentList{
 				Username: "user",
 				Hostname: "localhost",
 				Port:     "90",
@@ -21,7 +21,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			"No Username",
-			&argumentList{
+			&ArgumentList{
 				Username: "",
 				Hostname: "localhost",
 				Port:     "90",
@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			"No Hostname",
-			&argumentList{
+			&ArgumentList{
 				Username: "user",
 				Hostname: "",
 				Port:     "90",
@@ -39,7 +39,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			"No Port or Instance",
-			&argumentList{
+			&ArgumentList{
 				Username: "user",
 				Hostname: "localhost",
 			},
@@ -47,7 +47,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			"Port and Instance",
-			&argumentList{
+			&ArgumentList{
 				Username: "user",
 				Hostname: "localhost",
 				Port:     "90",
@@ -57,7 +57,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			"SSL and No Server Certificate",
-			&argumentList{
+			&ArgumentList{
 				Username:               "user",
 				Hostname:               "localhost",
 				Port:                   "90",

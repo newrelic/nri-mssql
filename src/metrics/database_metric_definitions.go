@@ -1,8 +1,10 @@
-package main
+package metrics
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/newrelic/nri-mssql/src/util"
 )
 
 // databasePlaceHolder placeholder for Database name in a query
@@ -16,21 +18,6 @@ func dbNameReplace(dbName string) QueryModifier {
 	}
 }
 
-// DatabaseDataModeler represents a data model for a database query
-type DatabaseDataModeler interface {
-	GetDBName() string
-}
-
-// DatabaseDataModel implements DatabaseDataModeler interface
-type DatabaseDataModel struct {
-	DBName string `db:"db_name"`
-}
-
-// GetDBName retrieves the DBName field
-func (dm DatabaseDataModel) GetDBName() string {
-	return dm.DBName
-}
-
 // databaseDefinitions definitions for Database Queries
 var databaseDefinitions = []*QueryDefinition{
 	{
@@ -39,7 +26,7 @@ var databaseDefinitions = []*QueryDefinition{
 		t1.cntr_value as log_growth
 		from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE object_name = 'SQLServer:Databases' and counter_name = 'Log Growths' and instance_name NOT IN ('_Total', 'mssqlsystemresource')) t1`,
 		dataModels: &[]struct {
-			DatabaseDataModel
+			util.DatabaseDataModel
 			LogGrowth int `db:"log_growth" metric_name:"log.transactionGrowth" source_type:"gauge"`
 		}{},
 	}, {
@@ -49,7 +36,7 @@ var databaseDefinitions = []*QueryDefinition{
 		FROM sys.dm_io_virtual_file_stats(null,null)
 		GROUP BY database_id`,
 		dataModels: &[]struct {
-			DatabaseDataModel
+			util.DatabaseDataModel
 			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
 		}{},
 	},
@@ -61,7 +48,7 @@ var databaseDefinitions = []*QueryDefinition{
 		WHERE database_id <> 32767 -- ResourceDB
 		GROUP BY database_id`,
 		dataModels: &[]struct {
-			DatabaseDataModel
+			util.DatabaseDataModel
 			IOStalls int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
 		}{},
 	},
@@ -88,7 +75,7 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 		FROM reserved_space
 		GROUP BY db_name`, databasePlaceHolder),
 		dataModels: &[]struct {
-			DatabaseDataModel
+			util.DatabaseDataModel
 			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
 			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
 		}{},

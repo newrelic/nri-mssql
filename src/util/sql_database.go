@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"reflect"
@@ -15,7 +15,23 @@ type DatabaseNameRow struct {
 	DBName string `db:"db_name"`
 }
 
-func createDatabaseEntities(i *integration.Integration, con *SQLConnection) ([]*integration.Entity, error) {
+// DatabaseDataModeler represents a data model for a database query
+type DatabaseDataModeler interface {
+	GetDBName() string
+}
+
+// DatabaseDataModel implements DatabaseDataModeler interface
+type DatabaseDataModel struct {
+	DBName string `db:"db_name"`
+}
+
+// GetDBName retrieves the DBName field
+func (dm DatabaseDataModel) GetDBName() string {
+	return dm.DBName
+}
+
+// CreateDatabaseEntities instantiates an entity for each database we're collecting
+func CreateDatabaseEntities(i *integration.Integration, con *SQLConnection) ([]*integration.Entity, error) {
 	databaseRows := make([]*DatabaseNameRow, 0)
 	if err := con.Query(&databaseRows, databaseNameQuery); err != nil {
 		return nil, err
@@ -75,8 +91,8 @@ func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	return modeler.GetDBName()
 }
 
-// createDBEntitySetLookup creates a look up of Database entity name to a metric.Set
-func createDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
+// CreateDBEntitySetLookup creates a look up of Database entity name to a metric.Set
+func CreateDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
 	entitySetLookup := make(DBMetricSetLookup)
 	for _, dbEntity := range dbEntities {
 		set := dbEntity.NewMetricSet("MssqlDatabaseSample",

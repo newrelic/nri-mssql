@@ -1,4 +1,4 @@
-package main
+package metrics
 
 // QueryDefinition defines a single query with it's associated
 // data model which has struct tags for metric.Set

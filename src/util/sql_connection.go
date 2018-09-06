@@ -1,47 +1,48 @@
-package main
+package util
 
 import (
 	"fmt"
 	"net/url"
 	"strconv"
 
-	_ "github.com/denisenkom/go-mssqldb"
+	//"github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/nri-mssql/src/args"
 )
 
 // SQLConnection represents a wrapper around a SQL Server connection
 type SQLConnection struct {
-	connection *sqlx.DB
+	Connection *sqlx.DB
 }
 
-// newConnection creates a new sqlConnection from args
-func newConnection() (*SQLConnection, error) {
-	db, err := sqlx.Connect("mssql", createConnectionURL())
+// NewConnection creates a new sqlConnection from args
+func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
+	db, err := sqlx.Connect("mssql", CreateConnectionURL(args))
 	if err != nil {
 		return nil, err
 	}
 	return &SQLConnection{
-		connection: db,
+		Connection: db,
 	}, nil
 }
 
 // Close closes the SQL connection. If an error occurs
 // it is logged as a warning.
 func (sc SQLConnection) Close() {
-	if err := sc.connection.Close(); err != nil {
+	if err := sc.Connection.Close(); err != nil {
 		log.Warn("Unable to close SQL Connection: %s", err.Error())
 	}
 }
 
 // Query runs a query and loads results into v
 func (sc SQLConnection) Query(v interface{}, query string) error {
-	return sc.connection.Select(v, query)
+	return sc.Connection.Select(v, query)
 }
 
-// createConnectionURL tags in args and creates the connection string.
+// CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
-func createConnectionURL() string {
+func CreateConnectionURL(args *args.ArgumentList) string {
 	connectionURL := &url.URL{
 		Scheme: "sqlserver",
 		User:   url.UserPassword(args.Username, args.Password),

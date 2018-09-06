@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"reflect"
@@ -7,9 +7,11 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/nri-mssql/src/util"
 )
 
-func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
+// PopulateInstanceMetrics creates instance-level metrics
+func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *util.SQLConnection) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
@@ -33,7 +35,7 @@ func populateInstanceMetrics(instanceEntity *integration.Entity, connection *SQL
 	populateWaitTimeMetrics(instanceEntity, connection)
 }
 
-func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQLConnection) {
+func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *util.SQLConnection) {
 	models := make([]waitTimeModel, 0)
 	if err := connection.Query(&models, waitTimeQuery); err != nil {
 		log.Error("Could not execute query: %s", err.Error())
@@ -69,15 +71,16 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *SQL
 	}
 }
 
-func populateDatabaseMetrics(i *integration.Integration, connection *SQLConnection) error {
+// PopulateDatabaseMetrics collects per-database metrics
+func PopulateDatabaseMetrics(i *integration.Integration, connection *util.SQLConnection) error {
 	// create database entities
-	dbEntities, err := createDatabaseEntities(i, connection)
+	dbEntities, err := util.CreateDatabaseEntities(i, connection)
 	if err != nil {
 		return err
 	}
 
 	// create database entities lookup for fast metric set
-	dbSetLookup := createDBEntitySetLookup(dbEntities)
+	dbSetLookup := util.CreateDBEntitySetLookup(dbEntities)
 
 	modelChan := make(chan interface{}, 10)
 	var wg sync.WaitGroup
@@ -97,13 +100,13 @@ func populateDatabaseMetrics(i *integration.Integration, connection *SQLConnecti
 	return nil
 }
 
-func processGeneralDBDefinitions(con *SQLConnection, modelChan chan<- interface{}) {
+func processGeneralDBDefinitions(con *util.SQLConnection, modelChan chan<- interface{}) {
 	for _, queryDef := range databaseDefinitions {
 		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
 	}
 }
 
-func processSpecificDBDefinitions(con *SQLConnection, dbNames []string, modelChan chan<- interface{}) {
+func processSpecificDBDefinitions(con *util.SQLConnection, dbNames []string, modelChan chan<- interface{}) {
 	for _, queryDef := range specificDatabaseDefinitions {
 		for _, dbName := range dbNames {
 			query := queryDef.GetQuery(dbNameReplace(dbName))
@@ -112,7 +115,7 @@ func processSpecificDBDefinitions(con *SQLConnection, dbNames []string, modelCha
 	}
 }
 
-func makeDBQuery(con *SQLConnection, query string, models interface{}, modelChan chan<- interface{}) {
+func makeDBQuery(con *util.SQLConnection, query string, models interface{}, modelChan chan<- interface{}) {
 	if err := con.Query(models, query); err != nil {
 		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), query)
 		return
@@ -132,7 +135,7 @@ func sendModelsToPopulator(modelChan chan<- interface{}, models interface{}) {
 	}
 }
 
-func dbMetricPopulator(dbSetLookup DBMetricSetLookup, modelChan <-chan interface{}, wg *sync.WaitGroup) {
+func dbMetricPopulator(dbSetLookup util.DBMetricSetLookup, modelChan <-chan interface{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {

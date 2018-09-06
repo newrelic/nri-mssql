@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"errors"
@@ -18,11 +18,11 @@ func Test_createDatabaseEntities_QueryError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := createMockSQL(t)
+	conn, mock := CreateMockSQL(t)
 
 	mock.ExpectQuery(databaseNameQuery).WillReturnError(errors.New("error"))
 
-	if _, err := createDatabaseEntities(i, conn); err == nil {
+	if _, err := CreateDatabaseEntities(i, conn); err == nil {
 		t.Error("Did not return expected error")
 	}
 }
@@ -34,14 +34,14 @@ func Test_createDatabaseEntities(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := createMockSQL(t)
+	conn, mock := CreateMockSQL(t)
 
 	rows := sqlmock.NewRows([]string{"db_name"}).
 		AddRow("master").
 		AddRow("tempdb")
 	mock.ExpectQuery(databaseNameQuery).WillReturnRows(rows)
 
-	dbEntities, err := createDatabaseEntities(i, conn)
+	dbEntities, err := CreateDatabaseEntities(i, conn)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		t.FailNow()
@@ -167,7 +167,7 @@ func Test_createDBEntitySetLookUp(t *testing.T) {
 		),
 	}
 
-	out := createDBEntitySetLookup(entities)
+	out := CreateDBEntitySetLookup(entities)
 	if !reflect.DeepEqual(out, expected) {
 		t.Errorf("Expected %+v got %+v", expected, out)
 	}

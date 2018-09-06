@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ type InstanceNameRow struct {
 	Name string `db:"instance_name"`
 }
 
-// createInstanceEntity runs a query to get the instance
-func createInstanceEntity(i *integration.Integration, con *SQLConnection) (*integration.Entity, error) {
+// CreateInstanceEntity runs a query to get the instance
+func CreateInstanceEntity(i *integration.Integration, con *SQLConnection) (*integration.Entity, error) {
 	instaceRows := make([]*InstanceNameRow, 0)
 	if err := con.Query(&instaceRows, instanceNameQuery); err != nil {
 		return nil, err

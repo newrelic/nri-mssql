@@ -1,4 +1,4 @@
-package main
+package metrics
 
 var instanceDefinitions = []*QueryDefinition{
 	{
