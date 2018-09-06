@@ -54,7 +54,7 @@ compile-only: deps-only
 
 test: deps
 	@echo "=== $(INTEGRATION) === [ test ]: Running unit tests..."
-	@gocov test $(GO_FILES)... | gocov-xml > coverage.xml
+	@gocov test -race $(GO_FILES)... | gocov-xml > coverage.xml
 
 # Include thematic Makefiles
 include Makefile-*.mk
