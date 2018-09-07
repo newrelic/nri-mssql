@@ -5,7 +5,8 @@ import (
 	"net/url"
 	"strconv"
 
-	//"github.com/denisenkom/go-mssqldb"
+	// go-mssqldb is required for mssql driver but isn't used in code
+	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/log"
 	"github.com/newrelic/nri-mssql/src/args"
