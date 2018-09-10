@@ -39,16 +39,16 @@ var instanceDefinitions = []*QueryDefinition{
 			SQLCompilations            *int     `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
 			SQLRecompilations          *int     `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
 			UserConnections            *int     `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
-			LockWaitTimeMs             *int     `db:"lock_wait_time_ms" metric_name:"stats.lockWaitsPerSecond" source_type:"gauge"`
-			PageSplitsSec              *int     `db:"page_splits_sec" metric_name:"access.pageSplitsPerSecond" source_type:"gauge"`
-			CheckpointPagesSec         *int     `db:"checkpoint_pages_sec" metric_name:"buffer.checkpointPagesPerSecond" source_type:"gauge"`
-			DeadlocksSec               *int     `db:"deadlocks_sec" metric_name:"stats.deadlocksPerSecond" source_type:"gauge"`
+			LockWaitTimeMs             *int     `db:"lock_wait_time_ms" metric_name:"stats.lockWaitsPerSecond" source_type:"rate"`
+			PageSplitsSec              *int     `db:"page_splits_sec" metric_name:"access.pageSplitsPerSecond" source_type:"rate"`
+			CheckpointPagesSec         *int     `db:"checkpoint_pages_sec" metric_name:"buffer.checkpointPagesPerSecond" source_type:"rate"`
+			DeadlocksSec               *int     `db:"deadlocks_sec" metric_name:"stats.deadlocksPerSecond" source_type:"rate"`
 			UserErrors                 *int     `db:"user_errors" metric_name:"stats.userErrorsPerSecond" source_type:"rate"`
 			KillConnectionErrors       *int     `db:"kill_connection_errors" metric_name:"stats.killConnectionErrorsPerSecond" source_type:"rate"`
 			BatchRequestSec            *int     `db:"batch_request_sec" metric_name:"bufferpool.batchRequestsPerSecond" source_type:"rate"`
 			PageLifeExpectancySec      *float64 `db:"page_life_expectancy_ms" metric_name:"bufferpool.pageLifeExpectancyInMilliseconds" source_type:"gauge"`
-			TransactionsSec            *int     `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"gauge"`
-			ForcedParameterizationsSec *int     `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"gauge"`
+			TransactionsSec            *int     `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"rate"`
+			ForcedParameterizationsSec *int     `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"rate"`
 		}{},
 	},
 	{
