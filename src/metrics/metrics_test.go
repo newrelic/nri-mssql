@@ -145,7 +145,7 @@ func Test_populateInstanceMetrics(t *testing.T) {
 		AddRow(22, 100, 4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
 
 	// only match the performance counter query
-	mock.ExpectQuery(`select\s+t1.cntr_value as buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
 	mock.ExpectClose()
 
 	PopulateInstanceMetrics(e, conn)

@@ -6,9 +6,10 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
 	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
-	"github.com/newrelic/nri-mssql/src/util"
 )
 
 const (
@@ -35,14 +36,14 @@ func main() {
 	}
 
 	// Create a new connection
-	con, err := util.NewConnection(&args)
+	con, err := connection.NewConnection(&args)
 	if err != nil {
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		os.Exit(1)
 	}
 
 	// Create the entity for the instance
-	instanceEntity, err := util.CreateInstanceEntity(i, con)
+	instanceEntity, err := instance.CreateInstanceEntity(i, con)
 	if err != nil {
 		log.Error("Unable to create entity for instance: %s", err.Error())
 		os.Exit(1)
