@@ -1,4 +1,4 @@
-package util
+package database
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
@@ -18,7 +19,7 @@ func Test_createDatabaseEntities_QueryError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 
 	mock.ExpectQuery(databaseNameQuery).WillReturnError(errors.New("error"))
 
@@ -34,7 +35,7 @@ func Test_createDatabaseEntities(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 
 	rows := sqlmock.NewRows([]string{"db_name"}).
 		AddRow("master").
@@ -115,9 +116,9 @@ func Test_DBMetricSetLookup_MetricSetFromModel_Found(t *testing.T) {
 	}
 
 	model := struct {
-		DatabaseDataModel
+		DataModel
 	}{
-		DatabaseDataModel{
+		DataModel{
 			DBName: "one",
 		},
 	}

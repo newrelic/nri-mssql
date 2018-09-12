@@ -8,19 +8,19 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/data/inventory"
 	"github.com/newrelic/infra-integrations-sdk/integration"
-	"github.com/newrelic/nri-mssql/src/util"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-// CreateMockSQL creates a Test SQLConnection. Must Close con when done
-func CreateMockSQL(t *testing.T) (con *util.SQLConnection, mock sqlmock.Sqlmock) {
+// CreateMockSQL creates a Test SQLConnection.
+func CreateMockSQL(t *testing.T) (con *connection.SQLConnection, mock sqlmock.Sqlmock) {
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Errorf("Unexpected error while mocking: %s", err.Error())
 		t.FailNow()
 	}
 
-	con = &util.SQLConnection{
+	con = &connection.SQLConnection{
 		Connection: sqlx.NewDb(mockDB, "sqlmock"),
 	}
 

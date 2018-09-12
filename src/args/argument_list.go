@@ -1,3 +1,4 @@
+// Package args contains the argument list, defined as a struct, along with a method that validates passed-in args
 package args
 
 import (

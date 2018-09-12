@@ -1,10 +1,11 @@
-package util
+package instance
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
@@ -15,7 +16,7 @@ func Test_createInstanceEntity_QueryError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 
 	mock.ExpectQuery(instanceNameQuery).WillReturnError(errors.New("error"))
 
@@ -31,7 +32,7 @@ func Test_createInstanceEntity_RowError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 
 	rows := sqlmock.NewRows([]string{"instance_name"}).
 		AddRow("my-instance").
@@ -50,7 +51,7 @@ func Test_createInstanceEntity(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 
 	// set up sql mock
 	instanceName := "my-instance"

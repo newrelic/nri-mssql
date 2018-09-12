@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/newrelic/nri-mssql/src/util"
+	"github.com/newrelic/nri-mssql/src/database"
 )
 
 // databasePlaceHolder placeholder for Database name in a query
@@ -26,7 +26,7 @@ var databaseDefinitions = []*QueryDefinition{
 		t1.cntr_value as log_growth
 		from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE object_name = 'SQLServer:Databases' and counter_name = 'Log Growths' and instance_name NOT IN ('_Total', 'mssqlsystemresource')) t1`,
 		dataModels: &[]struct {
-			util.DatabaseDataModel
+			database.DataModel
 			LogGrowth int `db:"log_growth" metric_name:"log.transactionGrowth" source_type:"gauge"`
 		}{},
 	}, {
@@ -36,7 +36,7 @@ var databaseDefinitions = []*QueryDefinition{
 		FROM sys.dm_io_virtual_file_stats(null,null)
 		GROUP BY database_id`,
 		dataModels: &[]struct {
-			util.DatabaseDataModel
+			database.DataModel
 			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
 		}{},
 	},
@@ -48,7 +48,7 @@ var databaseDefinitions = []*QueryDefinition{
 		WHERE database_id <> 32767 -- ResourceDB
 		GROUP BY database_id`,
 		dataModels: &[]struct {
-			util.DatabaseDataModel
+			database.DataModel
 			IOStalls int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
 		}{},
 	},
@@ -75,7 +75,7 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 		FROM reserved_space
 		GROUP BY db_name`, databasePlaceHolder),
 		dataModels: &[]struct {
-			util.DatabaseDataModel
+			database.DataModel
 			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
 			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
 		}{},

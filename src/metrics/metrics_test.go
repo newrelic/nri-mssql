@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
-	"github.com/newrelic/nri-mssql/src/util"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/database"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -19,21 +19,6 @@ import (
 var (
 	update = flag.Bool("update", false, "update .golden files")
 )
-
-// CreateMockSQL creates a Test SQLConnection. Must Close con when done
-func CreateMockSQL(t *testing.T) (con *util.SQLConnection, mock sqlmock.Sqlmock) {
-	mockDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Errorf("Unexpected error while mocking: %s", err.Error())
-		t.FailNow()
-	}
-
-	con = &util.SQLConnection{
-		Connection: sqlx.NewDb(mockDB, "sqlmock"),
-	}
-
-	return
-}
 
 func updateGoldenFile(data []byte, sourceFile string) {
 	if *update {
@@ -68,7 +53,7 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 func Test_populateDatabaseMetrics(t *testing.T) {
 	i, _ := createTestEntity(t)
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	databaseRows := sqlmock.NewRows([]string{"db_name"}).
@@ -115,7 +100,7 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 	// used to make sure the number of attributes does not change
 	expectedNumAttributes := len(metricSet.Metrics)
 
-	lookup := util.DBMetricSetLookup{"master": metricSet}
+	lookup := database.DBMetricSetLookup{"master": metricSet}
 
 	model := struct {
 		Metric int
@@ -153,7 +138,7 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 func Test_populateInstanceMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
@@ -175,7 +160,7 @@ func Test_populateInstanceMetrics(t *testing.T) {
 func Test_populateWaitTimeMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 
-	conn, mock := CreateMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	waitTimeRows := sqlmock.NewRows([]string{"wait_type", "wait_time", "waiting_tasks_count"}).

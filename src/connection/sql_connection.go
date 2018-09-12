@@ -1,4 +1,5 @@
-package util
+// Package connection contains the SQLConnection type and methods for manipulating and querying the connection
+package connection
 
 import (
 	"fmt"
@@ -17,7 +18,7 @@ type SQLConnection struct {
 	Connection *sqlx.DB
 }
 
-// NewConnection creates a new sqlConnection from args
+// NewConnection creates a new SQLConnection from args
 func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
 	db, err := sqlx.Connect("mssql", CreateConnectionURL(args))
 	if err != nil {
