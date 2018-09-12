@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"flag"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/database"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -51,7 +53,7 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 func Test_populateDatabaseMetrics(t *testing.T) {
 	i, _ := createTestEntity(t)
 
-	conn, mock := createMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	databaseRows := sqlmock.NewRows([]string{"db_name"}).
@@ -70,10 +72,10 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 
 	mock.ExpectClose()
 
-	populateDatabaseMetrics(i, conn)
+	PopulateDatabaseMetrics(i, conn)
 
 	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("testdata", "databaseMetrics.json.golden")
+	expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
 	updateGoldenFile(actual, expectedFile)
 	checkAgainstFile(t, actual, expectedFile)
 }
@@ -98,7 +100,7 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 	// used to make sure the number of attributes does not change
 	expectedNumAttributes := len(metricSet.Metrics)
 
-	lookup := DBMetricSetLookup{"master": metricSet}
+	lookup := database.DBMetricSetLookup{"master": metricSet}
 
 	model := struct {
 		Metric int
@@ -136,20 +138,20 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 func Test_populateInstanceMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 
-	conn, mock := createMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
 		AddRow(22, 100, 4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
 
 	// only match the performance counter query
-	mock.ExpectQuery(`select\s+t1.cntr_value as buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
 	mock.ExpectClose()
 
-	populateInstanceMetrics(e, conn)
+	PopulateInstanceMetrics(e, conn)
 
 	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("testdata", "perfCounter.json.golden")
+	expectedFile := filepath.Join("..", "testdata", "perfCounter.json.golden")
 	updateGoldenFile(actual, expectedFile)
 
 	checkAgainstFile(t, actual, expectedFile)
@@ -158,7 +160,7 @@ func Test_populateInstanceMetrics(t *testing.T) {
 func Test_populateWaitTimeMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 
-	conn, mock := createMockSQL(t)
+	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
 	waitTimeRows := sqlmock.NewRows([]string{"wait_type", "wait_time", "waiting_tasks_count"}).
@@ -174,7 +176,7 @@ func Test_populateWaitTimeMetrics(t *testing.T) {
 	populateWaitTimeMetrics(e, conn)
 
 	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("testdata", "waitTime.json.golden")
+	expectedFile := filepath.Join("..", "testdata", "waitTime.json.golden")
 	updateGoldenFile(actual, expectedFile)
 
 	checkAgainstFile(t, actual, expectedFile)

@@ -1,14 +1,31 @@
-package main
+package inventory
 
 import (
 	"errors"
 	"reflect"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/data/inventory"
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
+
+// CreateMockSQL creates a Test SQLConnection.
+func CreateMockSQL(t *testing.T) (con *connection.SQLConnection, mock sqlmock.Sqlmock) {
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Errorf("Unexpected error while mocking: %s", err.Error())
+		t.FailNow()
+	}
+
+	con = &connection.SQLConnection{
+		Connection: sqlx.NewDb(mockDB, "sqlmock"),
+	}
+
+	return
+}
 
 func Test_populateInventory(t *testing.T) {
 	i, err := integration.New("test", "1.0.0")
@@ -23,7 +40,7 @@ func Test_populateInventory(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := createMockSQL(t)
+	conn, mock := CreateMockSQL(t)
 
 	// SPConfig expect
 	spConfigRows := sqlmock.NewRows([]string{"name", "minimum", "maximum", "config_value", "run_value"}).
@@ -37,7 +54,7 @@ func Test_populateInventory(t *testing.T) {
 		AddRow("allow updates", 1)
 	mock.ExpectQuery(sysConfigQuery).WillReturnRows(sysConfigRows)
 
-	populateInventory(e, conn)
+	PopulateInventory(e, conn)
 
 	// expected inventory.Items map to be set
 	expected := map[string]inventory.Item{
@@ -80,7 +97,7 @@ func Test_populateInventory_SPConfigError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := createMockSQL(t)
+	conn, mock := CreateMockSQL(t)
 
 	// SPConfig expect
 	mock.ExpectQuery(spConfigQuery).WillReturnError(errors.New("error"))
@@ -91,7 +108,7 @@ func Test_populateInventory_SPConfigError(t *testing.T) {
 		AddRow("allow updates", 1)
 	mock.ExpectQuery(sysConfigQuery).WillReturnRows(sysConfigRows)
 
-	populateInventory(e, conn)
+	PopulateInventory(e, conn)
 
 	// expected inventory.Items map to be set
 	expected := map[string]inventory.Item{
@@ -132,7 +149,7 @@ func Test_populateInventory_SysConfigError(t *testing.T) {
 		t.FailNow()
 	}
 
-	conn, mock := createMockSQL(t)
+	conn, mock := CreateMockSQL(t)
 
 	// SPConfig expect
 	spConfigRows := sqlmock.NewRows([]string{"name", "minimum", "maximum", "config_value", "run_value"}).
@@ -143,7 +160,7 @@ func Test_populateInventory_SysConfigError(t *testing.T) {
 	// sys.configurations expect
 	mock.ExpectQuery(sysConfigQuery).WillReturnError(errors.New("error"))
 
-	populateInventory(e, conn)
+	PopulateInventory(e, conn)
 
 	// expected inventory.Items map to be set
 	expected := map[string]inventory.Item{

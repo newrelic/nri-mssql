@@ -1,4 +1,5 @@
-package main
+// Package args contains the argument list, defined as a struct, along with a method that validates passed-in args
+package args
 
 import (
 	"errors"
@@ -6,7 +7,8 @@ import (
 	sdkArgs "github.com/newrelic/infra-integrations-sdk/args"
 )
 
-type argumentList struct {
+// ArgumentList struct that holds all MSSQL arguments
+type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
 	Username               string `default:"" help:"The Microsoft SQL Server connection user name"`
 	Password               string `default:"" help:"The Microsoft SQL Server connection password"`
@@ -20,7 +22,7 @@ type argumentList struct {
 }
 
 // Validate validates SQL specific arguments
-func (al argumentList) Validate() error {
+func (al ArgumentList) Validate() error {
 	if al.Username == "" {
 		return errors.New("invalid configuration: must specify a username")
 	}

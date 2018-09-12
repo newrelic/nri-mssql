@@ -1,22 +1,40 @@
-package main
+// Package database contains helper methods for retrieving data about each database in the target environment
+package database
 
 import (
 	"reflect"
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/connection"
 )
 
 // databaseNameQuery gets all database names
 const databaseNameQuery = "select name as db_name from sys.databases"
 
-// DatabaseNameRow is a row result in the databaseNameQuery
-type DatabaseNameRow struct {
+// NameRow is a row result in the databaseNameQuery
+type NameRow struct {
 	DBName string `db:"db_name"`
 }
 
-func createDatabaseEntities(i *integration.Integration, con *SQLConnection) ([]*integration.Entity, error) {
-	databaseRows := make([]*DatabaseNameRow, 0)
+// DataModeler represents a data model for a database query
+type DataModeler interface {
+	GetDBName() string
+}
+
+// DataModel implements DatabaseDataModeler interface
+type DataModel struct {
+	DBName string `db:"db_name"`
+}
+
+// GetDBName retrieves the DBName field
+func (dm DataModel) GetDBName() string {
+	return dm.DBName
+}
+
+// CreateDatabaseEntities instantiates an entity for each database we're collecting
+func CreateDatabaseEntities(i *integration.Integration, con *connection.SQLConnection) ([]*integration.Entity, error) {
+	databaseRows := make([]*NameRow, 0)
 	if err := con.Query(&databaseRows, databaseNameQuery); err != nil {
 		return nil, err
 	}
@@ -67,7 +85,7 @@ func (l DBMetricSetLookup) GetDBNames() []string {
 // then retrieve the name of the database from that model
 func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	v := reflect.ValueOf(model)
-	modeler, ok := v.Interface().(DatabaseDataModeler)
+	modeler, ok := v.Interface().(DataModeler)
 	if !ok {
 		return ""
 	}
@@ -75,8 +93,8 @@ func (l DBMetricSetLookup) getDatabaseName(model interface{}) string {
 	return modeler.GetDBName()
 }
 
-// createDBEntitySetLookup creates a look up of Database entity name to a metric.Set
-func createDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
+// CreateDBEntitySetLookup creates a look up of Database entity name to a metric.Set
+func CreateDBEntitySetLookup(dbEntities []*integration.Entity) DBMetricSetLookup {
 	entitySetLookup := make(DBMetricSetLookup)
 	for _, dbEntity := range dbEntities {
 		set := dbEntity.NewMetricSet("MssqlDatabaseSample",

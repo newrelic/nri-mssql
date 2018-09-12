@@ -15,4 +15,5 @@ commands:
   all_data:
     command:
       - ./bin/nr-mssql
+    prefix: config/mssql
     interval: 15
