@@ -13,7 +13,6 @@ MS SQL,stats.userErrorsPerSecond,Rate,true,Number of user errors per second sinc
 MS SQL,stats.killConnectionErrorsPerSecond,Rate,true,Number of kill connection errors per second since last restart
 MS SQL,log.transactionGrowth,Gauge,true,Total number of times the transaction log for the database has been expanded last restart
 MS SQL,iO.stallInMiliseconds,Gauge,true,Wait time of stall since last restart in Miliseconds
-MS SQL,pageFault,Rate,true,Numbe of page fault since last restart
 MS SQL,memoryUtilization,Gauge,true,Percentage of Memory Utilization
 MS SQL,memoryTotal,Gauge,true,Total Physical memory in Bytes
 MS SQL,memoryAvailable,Gauge,true,Available physical memory in Bytes
@@ -43,4 +42,3 @@ MS SQL,bufferpool.sizeInBytes,Gauge,true,The size of the buffer pool
 MS SQL,bufferpool.pageLifeExptancyInMiliseconds,Gauge,true,The life expectancy of a page in the buffer pool
 MS SQL,bufferpool.batchRequestsPerSecond,Rate,true,The number of batch requests per second on the buffer pool
 MS SQL,database.sizePerDatabaseInBytes,Gauge,true,The size of the buffer pool per database
-MS SQL,downtimePercentage,Gauge,true,The percentage of times during the downtime tracking window during which the system has been unavailable
