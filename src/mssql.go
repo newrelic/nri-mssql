@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	integrationName    = "com.newrelic.nri-mssql"
+	integrationName    = "com.newrelic.mssql"
 	integrationVersion = "0.1.0"
 )
 
