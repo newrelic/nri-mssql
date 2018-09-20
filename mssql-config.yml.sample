@@ -17,8 +17,8 @@ instances:
       password: <Microsoft SQL Server connection password>
       instance: <The Microsoft SQL Server instance to connect to. Use do not supply port if this is specified>
       port: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
-      enable_ssl <true or false. Indicates if SSL encryption should be used>
-      trust_server_certificate <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
+      enable_ssl: <true or false. Indicates if SSL encryption should be used>
+      trust_server_certificate: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
       certificate_location: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
       timeout: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
     labels:
