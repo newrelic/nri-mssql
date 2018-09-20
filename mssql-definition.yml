@@ -7,7 +7,7 @@
 # https://docs.newrelic.com/docs/integrations/integrations-sdk/file-specifications
 
 name: com.newrelic.mssql
-description: Reports status and metrics for mssql service
+description: Reports status and metrics for MSSQL service
 protocol_version: 1
 os: linux
 
