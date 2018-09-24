@@ -37,18 +37,18 @@ func Test_QueryDefinition_GetQuery_WithMod(t *testing.T) {
 func Test_QueryDefinition_GetDataModels(t *testing.T) {
 	input := []int{1, 2, 3, 4}
 
-	expected := make([]interface{}, len(input))
+	control := make([]interface{}, len(input))
 
 	for i, num := range input {
-		expected[i] = num
+		control[i] = num
 	}
 
 	def := QueryDefinition{
-		dataModels: expected,
+		dataModels: &control,
 	}
 
 	out := def.GetDataModels()
-	if !reflect.DeepEqual(out, expected) {
-		t.Errorf("Expected %+v got %+v", &expected, out)
+	if reflect.DeepEqual(out, control) {
+		t.Errorf("Expected %+v to not equal %+v", out, control)
 	}
 }
