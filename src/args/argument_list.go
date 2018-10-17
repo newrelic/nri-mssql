@@ -14,7 +14,7 @@ type ArgumentList struct {
 	Password               string `default:"" help:"The Microsoft SQL Server connection password"`
 	Instance               string `default:"" help:"The Microsoft SQL Server instance to connect to"`
 	Hostname               string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
-	Port                   string `default:"1433" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
+	Port                   string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
 	EnableSSL              bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation    string `default:"" help:"Certificate file to verify SSL encryption against"`
