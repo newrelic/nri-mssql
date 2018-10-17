@@ -31,7 +31,7 @@ func main() {
 
 	// Validate arguments
 	if err := args.Validate(); err != nil {
-		log.Error("Configuration error: %s", args)
+		log.Error("Configuration error: %s", err)
 		os.Exit(1)
 	}
 
