@@ -46,15 +46,15 @@ validate-all: deps
 
 compile: deps
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
-	@go build -o bin/$(BINARY_NAME) $(GO_FILE)
+	@go build -o bin/$(BINARY_NAME) $(GO_FILES)
 
 compile-only: deps-only
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
-	@go build -o bin/$(BINARY_NAME) $(GO_FILE)
+	@go build -o bin/$(BINARY_NAME) $(GO_FILES)
 
 test: deps
 	@echo "=== $(INTEGRATION) === [ test ]: Running unit tests..."
-	@gocov test $(GO_FILES)... | gocov-xml > coverage.xml
+	@gocov test -race $(GO_FILES)... | gocov-xml > coverage.xml
 
 # Include thematic Makefiles
 include Makefile-*.mk

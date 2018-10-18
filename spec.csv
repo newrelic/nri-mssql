@@ -1,0 +1,44 @@
+integration,metric_name,metric_type,metric_enabled,metric_description
+MS SQL,buffer.cacheHitRatio,Gauge,true,The ratio of data pages found and read from the buffer cache over all data page requests.
+MS SQL,stats.sqlCompilations,Rate,true,The number of SQL compilations per second.
+MS SQL,stats.sqlRecompilationsPerSecond,Rate,true,The number of SQL re-compilations per second.
+MS SQL,stats.connections,gauge,true,The number of user connections.
+MS SQL,stats.lockWaitsPerSecond,gauge,true,The number of times per second that SQL Server is unable to retain a lock right away for a resource.
+MS SQL,access.pageSplitsPerSecond,Rate,true,The number of page splits per second.
+MS SQL,stats.procsBlocked,gauge,true,The number of processes blocked.
+MS SQL,buffer.checkpointPagesPerSecond,Rate,true,The number of pages flushed to disk per second by a checkpoint or other operation that require all dirty pages to be flushed.
+MS SQL,activeConnections,Gauge,true,Number of Active Connections
+MS SQL,stats.deadlocksPerSecond,Rate,true,Number of lock requests per second that resulted in a deadlock since last restart
+MS SQL,stats.userErrorsPerSecond,Rate,true,Number of user errors per second since last restart
+MS SQL,stats.killConnectionErrorsPerSecond,Rate,true,Number of kill connection errors per second since last restart
+MS SQL,log.transactionGrowth,Gauge,true,Total number of times the transaction log for the database has been expanded last restart
+MS SQL,iO.stallInMiliseconds,Gauge,true,Wait time of stall since last restart in Miliseconds
+MS SQL,memoryUtilization,Gauge,true,Percentage of Memory Utilization
+MS SQL,memoryTotal,Gauge,true,Total Physical memory in Bytes
+MS SQL,memoryAvailable,Gauge,true,Available physical memory in Bytes
+MS SQL,pageFileTotal,Gauge,true,Total Page File in Bytes
+MS SQL,pageFileAvailable,Gauge,true,Availbe page file in Bytes
+MS SQL,system.bufferPoolHit,Gauge,true,The percentage of buffer pools hits on the instance
+MS SQL,system.waitTimeInMilisecondsPerSecond,Rate,true,The number of milliseconds per second second waiting across the instance
+MS SQL,system.waitTimeType,String,true,Name of the wait type.
+MS SQL,system.waitTimeInMilisecondsPerSecond,Gauge,true,Number of waits on this wait type. This counter is incremented at the start of each wait.
+MS SQL,system.waitTimeCount,Gauge,true,Total wait time for this wait type in milliseconds. This time is inclusive of signal_wait_time_ms.
+MS SQL,instance.compilationsPerSecond,Rate,true,The number of compilations per second on the instance
+MS SQL,instance.recompilationsPerSecond,Rate,true,The number of re-compilations per second on the instance
+MS SQL,instance.preconnectProcessesCount,Gauge,true,The number of Preconnect processes on the instance
+MS SQL,instance.backgroundProcessesCount,Gauge,true,The number of Background processes on the instance
+MS SQL,instance.dormantProcessesCount,Gauge,true,The number of Dormant processes on the instance
+MS SQL,instance.runnableProcessesCount,Gauge,true,The number of Runnable processes on the instance
+MS SQL,instance.suspendedProcessesCount,Gauge,true,The number of Suspended processes on the instance
+MS SQL,instance.runningProcessesCount,Gauge,true,The number of Running processes on the instance
+MS SQL,instance.blockedProcessesCount,Gauge,true,The number of Blocked processes on the instance
+MS SQL,instance.sleepingProcessesCount,Gauge,true,The number of Sleeping processes on the instance
+MS SQL,instance.diskInBytes,Gauge,true,The amount of Disk Space on the instance
+MS SQL,instance.runnableTasks,Gauge,true,The number of runnable tasks on the instance
+MS SQL,instance.transactionsPerSecond,Rate,true,The number of transactions per second on the instance
+MS SQL,instance.pageSplitsPerSecond,Rate,true,The number of page splits per second on the instance
+MS SQL,instance.forcedParameterizationsPerSecond,Rate,true,The number of forced parameterizations per second on the instance
+MS SQL,bufferpool.sizeInBytes,Gauge,true,The size of the buffer pool
+MS SQL,bufferpool.pageLifeExptancyInMiliseconds,Gauge,true,The life expectancy of a page in the buffer pool
+MS SQL,bufferpool.batchRequestsPerSecond,Rate,true,The number of batch requests per second on the buffer pool
+MS SQL,database.sizePerDatabaseInBytes,Gauge,true,The size of the buffer pool per database
