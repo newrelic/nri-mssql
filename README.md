@@ -18,7 +18,6 @@ CREATE LOGIN newrelic WITH PASSWORD = 'tmppassword';
 CREATE USER newrelic FOR LOGIN newrelic;
 GRANT CONNECT SQL TO newrelic;
 GRANT VIEW SERVER STATE TO newrelic;
-GO
 
 -- Goes through each user database and adds public permissions
 DECLARE @name NVARCHAR(max)
