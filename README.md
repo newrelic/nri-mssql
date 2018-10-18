@@ -24,7 +24,7 @@ DECLARE @name NVARCHAR(max)
 DECLARE db_cursor CURSOR FOR
 SELECT NAME
 FROM master.dbo.sysdatabases
-WHERE NAME NOT IN ('master','msdb','tempdb')
+WHERE NAME NOT IN ('master','msdb','tempdb','model')
 OPEN db_cursor
 FETCH NEXT FROM db_cursor INTO @name WHILE @@FETCH_STATUS = 0
 BEGIN
