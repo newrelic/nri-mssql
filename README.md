@@ -28,7 +28,7 @@ WHERE NAME NOT IN ('master','msdb','tempdb','model')
 OPEN db_cursor
 FETCH NEXT FROM db_cursor INTO @name WHILE @@FETCH_STATUS = 0
 BEGIN
-	EXECUTE('USE ' + @name + '; CREATE USER newrelic FOR LOGIN newrelic;' );
+	EXECUTE('USE "' + @name + '"; CREATE USER newrelic FOR LOGIN newrelic;' );
 	FETCH next FROM db_cursor INTO @name
 END
 CLOSE db_cursor
