@@ -43,7 +43,7 @@ func TestValidate(t *testing.T) {
 				Username: "user",
 				Hostname: "localhost",
 			},
-			true,
+			false,
 		},
 		{
 			"Port and Instance",

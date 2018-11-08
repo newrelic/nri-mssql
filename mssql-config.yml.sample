@@ -7,7 +7,7 @@ instances:
       hostname: <Host name or IP address of the SQl Server>
       username: <Microsoft SQL Server connection user name>
       password: <Microsoft SQL Server connection password>
-      instance: <The Microsoft SQL Server instance to connect to. Use do not supply port if this is specified>
+      instance: <The Microsoft SQL Server instance to connect to. Do not supply port if this is specified>
       port: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
       enable_ssl: <true or false. Indicates if SSL encryption should be used>
       trust_server_certificate: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
