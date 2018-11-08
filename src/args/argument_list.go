@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	sdkArgs "github.com/newrelic/infra-integrations-sdk/args"
+	"github.com/newrelic/infra-integrations-sdk/log"
 )
 
 // ArgumentList struct that holds all MSSQL arguments
@@ -31,8 +32,11 @@ func (al ArgumentList) Validate() error {
 		return errors.New("invalid configuration: must specify a hostname")
 	}
 
-	if (al.Port != "" && al.Instance != "") || (al.Port == "" && al.Instance == "") {
-		return errors.New("invalid configuration: must specify one of port or instance")
+	if al.Port != "" && al.Instance != "" {
+		return errors.New("invalid configuration: specify either port or instance but not both")
+	} else if al.Port == "" && al.Instance == "" {
+		log.Info("Both port and instance were not specified using default port of 1433")
+		al.Port = "1433"
 	}
 
 	if al.EnableSSL && (!al.TrustServerCertificate && al.CertificateLocation == "") {
