@@ -34,7 +34,7 @@
     <Import Project="$(WixTargetsPath)"/>
     <Target Name="SignInstaller">
         <Exec Command="&quot;$(SignToolPath)signtool.exe&quot; sign /d &quot;New Relic Infrastructure Integration for Microsoft SQL Server&quot; /a &quot;$(OutputPath)$(OutputName).msi&quot;"/>
-        <Copy SourceFiles="$(OutputPath)$(OutputName).msi" DestinationFiles="$(OutputPath)$(OutputName).1.0.NNN.msi"/>
+        <Copy SourceFiles="$(OutputPath)$(OutputName).msi" DestinationFiles="$(OutputPath)$(OutputName).x.y.z.msi"/>
         <!-- <Delete Files="$(OutputPath)$(OutputName).msi" /> -->
     </Target>
     <Target Name="AfterBuild" DependsOnTargets="SignInstaller"/>
