@@ -78,7 +78,7 @@
                        NeverOverwrite="yes" Permanent="yes">
                 <File Id="FILE_NRI_MSSQL_DEFINITION_YML"
                       Name="mssql-definition.yml"
-                      Source="$(var.ProjectRootPath)mssql-definition.yml"
+                      Source="$(var.ProjectRootPath)mssql-win-definition.yml"
                       KeyPath="yes"/>
             </Component>
         </ComponentGroup>
