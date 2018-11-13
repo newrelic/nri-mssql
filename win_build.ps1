@@ -1,28 +1,38 @@
 <#
     .SYNOPSIS
-        This script verifies, tests, builds and packages the New Relic Infrastructure Agent
+        This script verifies, tests, builds and packages the New Relic Infrastructure MS SQL Server Integration
 #>
 param (
     # Target architecture: amd64 (default) or 386
     [ValidateSet("amd64", "386")]
     [string]$arch="amd64",
-    # Build number (to be attached to the agent version)
-    [string]$buildNum="dev",
+    [string]$version="0.0.0",
     # Creates a signed installer
     [switch]$installer=$false,
     # Skip tests
     [switch]$skipTests=$false
 )
 
-echo "--- Configuring version for artifacts"
+$artifactName = "nri-mssql"
+$executable = "nr-mssql.exe"
 
-# If the build number is numeric
-if ([System.Int32]::TryParse($buildNum, [ref]0)) {
-    .\windows_set_version.ps1 -patch $buildNum
-} else {
-    echo " - setting 1.0.0 as development version"
-    .\windows_set_version.ps1 -patch 0
+# verifying version number format
+$v = $version.Split(".")
+
+if ($v.Length -ne 3) {
+    echo "-version must follow a numeric major.minor.patch semantic versioning schema (received: $version)"
+    exit -1
 }
+
+$wrong = $v | ? { (-Not [System.Int32]::TryParse($_, [ref]0)) -or ( $_.Length -eq 0) -or ([int]$_ -lt 0)} | % { 1 }
+if ($wrong.Length  -ne 0) {
+    echo "-version major, minor and patch must be valid positive integers (received: $version)"
+    exit -1
+}
+
+echo "--- Configuring version $version for artifacts"
+
+.\windows_set_version.ps1 -major $v[0] -minor $v[1] -patch $v[2]
 
 echo "--- Checking dependencies"
 
@@ -83,22 +93,15 @@ if (-not $?)
 echo "--- Collecting Go main files"
 
 $packages = go list -f "{{.ImportPath}} {{.Name}}" ./...  | ConvertFrom-String -PropertyNames Path, Name
-$goMains = $packages | ? { $_.Name -eq 'main' } | % { $_.Path }
+$mainPackage = $packages | ? { $_.Name -eq 'main' } | % { $_.Path }
 
-Foreach ($pkg in $goMains)
-{
-    echo "generating $pkg"
-    go generate $pkg
-}
+echo "generating mssql"
+go generate $mainPackage
 
-echo "--- Running Full Build"
+$fileName = ([io.fileinfo]$mainPackage).BaseName
 
-Foreach ($pkg in $goMains)
-{
-    $fileName = ([io.fileinfo]$pkg).BaseName
-    echo "creating $fileName"
-    go build -ldflags "-X main.buildVersion=1.0.$buildNum" -o ".\target\bin\windows_$arch\$fileName.exe" $pkg
-}
+echo "creating mssql.exe"
+go build -ldflags "-X main.buildVersion=$version" -o ".\target\bin\windows_$arch\$executable" $mainPackage
 
 If (-Not $installer) {
     exit 0
@@ -106,9 +109,9 @@ If (-Not $installer) {
 
 echo "--- Building Installer"
 
-Push-Location -Path "pkg\windows\newrelic-infra-$arch-installer\newrelic-infra"
+Push-Location -Path "pkg\windows\nri-mssql-$arch-installer"
 
-. $msBuild/MSBuild.exe newrelic-infra-installer.wixproj
+. $msBuild/MSBuild.exe nri-mssql-installer.wixproj
 
 if (-not $?)
 {
@@ -121,7 +124,7 @@ echo "Making versioned installed copy"
 
 cd bin\Release
 
-cp newrelic-infra-$arch.msi newrelic-infra-$arch.1.0.$buildNum.msi
-cp newrelic-infra-$arch.msi newrelic-infra.msi
+cp "$artifactName-$arch.msi" "$artifactName-$arch.$version.msi"
+cp "$artifactName-$arch.msi" "$artifactName.msi"
 
 Pop-Location

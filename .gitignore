@@ -41,3 +41,6 @@ debug
 
 *.syso
 **/versioninfo.json
+**/Product.wxs
+pkg/windows/**/bin
+pkg/windows/**/obj

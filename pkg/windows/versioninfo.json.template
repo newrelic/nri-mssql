@@ -30,7 +30,7 @@
 		"LegalTrademarks": "",
 		"OriginalFilename": "newrelic-infra.exe",
 		"PrivateBuild": "",
-		"ProductName": "New Relic Infrastructure Agent",
+		"ProductName": "New Relic Infastructure Integration for Microsoft SQL Server",
 		"ProductVersion": "{MajorVersion}.{MinorVersion}.{PatchVersion}.{BuildVersion}",
 		"SpecialBuild": ""
 	},
