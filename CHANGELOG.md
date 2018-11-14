@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 0.1.4 - 2018-11-14
+### Changed
+- Made sub query for Instance errors more generic
+
 ## 0.1.3 - 2018-11-14
 ### Fixed
 - Issue where if no rows were returned for an instance query then a panic would occur
