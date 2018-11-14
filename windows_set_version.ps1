@@ -23,7 +23,7 @@ $versionInfo = $versionInfo -replace "{PatchVersion}", $patch
 $versionInfo = $versionInfo -replace "{BuildVersion}", $build
 Set-Content -Path $versionInfoPath -Value $versionInfo
 
-#$wix386Path = Join-Path -Path projectRootPath -ChildPath "pkg\windows\nri-mssql-386-installer\Product.wxs"
+$wix386Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-mssql-386-installer\Product.wxs"
 $wixAmd64Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-mssql-amd64-installer\Product.wxs"
 
 Function ProcessProductFile($productPath) {
@@ -37,5 +37,5 @@ Function ProcessProductFile($productPath) {
 	Set-Content -Value $product -Path $productPath
 }
 
-#ProcessProductFile($wix386Path)
+ProcessProductFile($wix386Path)
 ProcessProductFile($wixAmd64Path)
