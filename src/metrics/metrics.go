@@ -81,7 +81,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
-func PopulateDatabaseMetrics(i *integration.Integration, connection *connection.SQLConnection) error {
+func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection) error {
 	// create database entities
 	dbEntities, err := database.CreateDatabaseEntities(i, connection)
 	if err != nil {
@@ -89,7 +89,7 @@ func PopulateDatabaseMetrics(i *integration.Integration, connection *connection.
 	}
 
 	// create database entities lookup for fast metric set
-	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities)
+	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName)
 
 	modelChan := make(chan interface{}, 10)
 	var wg sync.WaitGroup
