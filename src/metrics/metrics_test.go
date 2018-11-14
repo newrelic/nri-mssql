@@ -157,6 +157,27 @@ func Test_populateInstanceMetrics(t *testing.T) {
 	checkAgainstFile(t, actual, expectedFile)
 }
 
+func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
+	i, e := createTestEntity(t)
+
+	conn, mock := connection.CreateMockSQL(t)
+	defer conn.Close()
+
+	perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"})
+
+	// only match the performance counter query
+	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+	mock.ExpectClose()
+
+	PopulateInstanceMetrics(e, conn)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("..", "testdata", "empty.json.golden")
+	updateGoldenFile(actual, expectedFile)
+
+	checkAgainstFile(t, actual, expectedFile)
+}
+
 func Test_populateWaitTimeMetrics(t *testing.T) {
 	i, e := createTestEntity(t)
 

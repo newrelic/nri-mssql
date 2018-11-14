@@ -1,0 +1,1 @@
+{"name":"test","protocol_version":"2","integration_version":"1.0.0","data":[{"entity":{"name":"test","type":"instance"},"metrics":[{"displayName":"test","entityName":"instance:test","event_type":"MssqlInstanceSample"}],"inventory":{},"events":[]}]}
