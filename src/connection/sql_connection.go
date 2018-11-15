@@ -16,6 +16,7 @@ import (
 // SQLConnection represents a wrapper around a SQL Server connection
 type SQLConnection struct {
 	Connection *sqlx.DB
+	Host       string
 }
 
 // NewConnection creates a new SQLConnection from args
@@ -26,6 +27,7 @@ func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
 	}
 	return &SQLConnection{
 		Connection: db,
+		Host:       args.Hostname,
 	}, nil
 }
 

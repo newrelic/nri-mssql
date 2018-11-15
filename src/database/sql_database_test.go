@@ -162,15 +162,17 @@ func Test_createDBEntitySetLookUp(t *testing.T) {
 			metric.Attribute{Key: "displayName", Value: "master"},
 			metric.Attribute{Key: "entityName", Value: "database:master"},
 			metric.Attribute{Key: "instance", Value: "MSSQL"},
+			metric.Attribute{Key: "host", Value: "myHost"},
 		),
 		"tempdb": tempdbEntity.NewMetricSet("MssqlDatabaseSample",
 			metric.Attribute{Key: "displayName", Value: "tempdb"},
 			metric.Attribute{Key: "entityName", Value: "database:tempdb"},
 			metric.Attribute{Key: "instance", Value: "MSSQL"},
+			metric.Attribute{Key: "host", Value: "myHost"},
 		),
 	}
 
-	out := CreateDBEntitySetLookup(entities, "MSSQL")
+	out := CreateDBEntitySetLookup(entities, "MSSQL", "myHost")
 	if !reflect.DeepEqual(out, expected) {
 		t.Errorf("Expected %+v got %+v", expected, out)
 	}

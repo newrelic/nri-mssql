@@ -17,6 +17,7 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+		metric.Attribute{Key: "host", Value: connection.Host},
 	)
 
 	for _, queryDef := range instanceDefinitions {
@@ -56,6 +57,8 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 			metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 			metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
 			metric.Attribute{Key: "waitType", Value: *model.WaitType},
+			metric.Attribute{Key: "host", Value: connection.Host},
+			metric.Attribute{Key: "instance", Value: instanceEntity.Metadata.Name},
 		)
 
 		metrics := []struct {
@@ -89,7 +92,7 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	}
 
 	// create database entities lookup for fast metric set
-	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName)
+	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName, connection.Host)
 
 	modelChan := make(chan interface{}, 10)
 	var wg sync.WaitGroup
