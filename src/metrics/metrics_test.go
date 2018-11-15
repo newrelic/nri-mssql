@@ -72,7 +72,7 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 
 	mock.ExpectClose()
 
-	PopulateDatabaseMetrics(i, conn)
+	PopulateDatabaseMetrics(i, "MSSQL", conn)
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
