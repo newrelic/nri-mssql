@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Instance as an attribute to WaitGroup and Instance samples
 - Host as an attribute to all samples
-
+    
 ## 0.1.4 - 2018-11-14
 ### Changed
 - Made sub query for Instance errors more generic
