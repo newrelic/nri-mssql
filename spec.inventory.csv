@@ -1,0 +1,3 @@
+entity type, inventory source, inventory path
+instance,config/mssql,
+database,,
