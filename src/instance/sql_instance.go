@@ -28,6 +28,6 @@ func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnect
 	}
 
 
-  endpointIDAttr := integration.NewIDAttribute("endpoint", con.Host)
-	return i.EntityReportedVia(con.Host, instanceRows[0].Name, "ms-instance", endpointIDAttr)
+  instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name)
+	return i.EntityReportedVia(con.Host, con.Host, "ms-instance", instanceNameIDAttr)
 }

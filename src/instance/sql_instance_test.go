@@ -54,7 +54,7 @@ func Test_createInstanceEntity(t *testing.T) {
 	conn, mock := connection.CreateMockSQL(t)
 
 	// set up sql mock
-	instanceName := "my-instance"
+	instanceName := "testhost"
 	rows := sqlmock.NewRows([]string{"instance_name"}).
 		AddRow(instanceName)
 	mock.ExpectQuery(instanceNameQuery).WillReturnRows(rows)
