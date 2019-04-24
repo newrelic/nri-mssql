@@ -18,14 +18,16 @@ type NameRow struct {
 
 // CreateInstanceEntity runs a query to get the instance
 func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnection) (*integration.Entity, error) {
-	instaceRows := make([]*NameRow, 0)
-	if err := con.Query(&instaceRows, instanceNameQuery); err != nil {
+	instanceRows := make([]*NameRow, 0)
+	if err := con.Query(&instanceRows, instanceNameQuery); err != nil {
 		return nil, err
 	}
 
-	if length := len(instaceRows); length != 1 {
+	if length := len(instanceRows); length != 1 {
 		return nil, fmt.Errorf("expected 1 row for instance name got %d", length)
 	}
 
-	return i.Entity(instaceRows[0].Name, "instance")
+
+  endpointIDAttr := integration.NewIDAttribute("endpoint", con.Host)
+	return i.EntityReportedVia(con.Host, instanceRows[0].Name, "ms-instance", endpointIDAttr)
 }

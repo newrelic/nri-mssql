@@ -53,7 +53,7 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 		Host:   args.Hostname,
 	}
 
-	// If port is present use port if not user instace
+	// If port is present use port if not user instance
 	if args.Port != "" {
 		connectionURL.Host = fmt.Sprintf("%s:%s", connectionURL.Host, args.Port)
 	} else {

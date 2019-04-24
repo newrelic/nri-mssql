@@ -86,7 +86,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 // PopulateDatabaseMetrics collects per-database metrics
 func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection) error {
 	// create database entities
-	dbEntities, err := database.CreateDatabaseEntities(i, connection)
+	dbEntities, err := database.CreateDatabaseEntities(i, connection, instanceName)
 	if err != nil {
 		return err
 	}
