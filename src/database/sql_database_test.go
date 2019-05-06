@@ -23,7 +23,7 @@ func Test_createDatabaseEntities_QueryError(t *testing.T) {
 
 	mock.ExpectQuery(databaseNameQuery).WillReturnError(errors.New("error"))
 
-  instanceName := "testInstanceName"
+	instanceName := "testInstanceName"
 	if _, err := CreateDatabaseEntities(i, conn, instanceName); err == nil {
 		t.Error("Did not return expected error")
 	}
@@ -43,7 +43,7 @@ func Test_createDatabaseEntities(t *testing.T) {
 		AddRow("tempdb")
 	mock.ExpectQuery(databaseNameQuery).WillReturnRows(rows)
 
-  instanceName := "testInstanceName"
+	instanceName := "testInstanceName"
 	dbEntities, err := CreateDatabaseEntities(i, conn, instanceName)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())

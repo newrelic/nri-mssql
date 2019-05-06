@@ -27,7 +27,6 @@ func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnect
 		return nil, fmt.Errorf("expected 1 row for instance name got %d", length)
 	}
 
-
-  instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name)
+	instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name)
 	return i.EntityReportedVia(con.Host, con.Host, "ms-instance", instanceNameIDAttr)
 }

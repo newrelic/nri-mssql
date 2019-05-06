@@ -39,10 +39,10 @@ func CreateDatabaseEntities(i *integration.Integration, con *connection.SQLConne
 		return nil, err
 	}
 
-  instanceIDAttr := integration.NewIDAttribute("instance", instanceName)
+	instanceIDAttr := integration.NewIDAttribute("instance", instanceName)
 	dbEntities := make([]*integration.Entity, 0, len(databaseRows))
 	for _, row := range databaseRows {
-    databaseIDAttr := integration.NewIDAttribute("database", row.DBName)
+		databaseIDAttr := integration.NewIDAttribute("database", row.DBName)
 		dbEntity, err := i.EntityReportedVia(con.Host, con.Host, "ms-database", instanceIDAttr, databaseIDAttr)
 		if err != nil {
 			return nil, err
