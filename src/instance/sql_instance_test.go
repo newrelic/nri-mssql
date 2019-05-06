@@ -54,7 +54,7 @@ func Test_createInstanceEntity(t *testing.T) {
 	conn, mock := connection.CreateMockSQL(t)
 
 	// set up sql mock
-	instanceName := "my-instance"
+	instanceName := "testhost"
 	rows := sqlmock.NewRows([]string{"instance_name"}).
 		AddRow(instanceName)
 	mock.ExpectQuery(instanceNameQuery).WillReturnRows(rows)
@@ -67,7 +67,7 @@ func Test_createInstanceEntity(t *testing.T) {
 
 	if entity.Metadata.Name != instanceName {
 		t.Errorf("Expected entity name '%s' got '%s'", instanceName, entity.Metadata.Name)
-	} else if entity.Metadata.Namespace != "instance" {
-		t.Errorf("Expected entity namesapce 'instance' got '%s'", entity.Metadata.Namespace)
+	} else if entity.Metadata.Namespace != "ms-instance" {
+		t.Errorf("Expected entity namespace 'instance' got '%s'", entity.Metadata.Namespace)
 	}
 }

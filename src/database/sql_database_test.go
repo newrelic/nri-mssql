@@ -23,7 +23,8 @@ func Test_createDatabaseEntities_QueryError(t *testing.T) {
 
 	mock.ExpectQuery(databaseNameQuery).WillReturnError(errors.New("error"))
 
-	if _, err := CreateDatabaseEntities(i, conn); err == nil {
+  instanceName := "testInstanceName"
+	if _, err := CreateDatabaseEntities(i, conn, instanceName); err == nil {
 		t.Error("Did not return expected error")
 	}
 }
@@ -42,7 +43,8 @@ func Test_createDatabaseEntities(t *testing.T) {
 		AddRow("tempdb")
 	mock.ExpectQuery(databaseNameQuery).WillReturnRows(rows)
 
-	dbEntities, err := CreateDatabaseEntities(i, conn)
+  instanceName := "testInstanceName"
+	dbEntities, err := CreateDatabaseEntities(i, conn, instanceName)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 		t.FailNow()
@@ -50,9 +52,9 @@ func Test_createDatabaseEntities(t *testing.T) {
 
 	for _, entity := range dbEntities {
 		entityName := entity.Metadata.Name
-		if entityName != "master" && entityName != "tempdb" {
+		if entityName != "testhost" {
 			t.Errorf("Incorrect entity name '%s'", entityName)
-		} else if entity.Metadata.Namespace != "database" {
+		} else if entity.Metadata.Namespace != "ms-database" {
 			t.Errorf("Incorrect entity namespace '%s'", entity.Metadata.Namespace)
 		}
 	}

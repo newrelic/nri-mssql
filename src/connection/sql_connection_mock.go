@@ -17,6 +17,7 @@ func CreateMockSQL(t *testing.T) (con *SQLConnection, mock sqlmock.Sqlmock) {
 
 	con = &SQLConnection{
 		Connection: sqlx.NewDb(mockDB, "sqlmock"),
+    Host: "testhost",
 	}
 
 	return

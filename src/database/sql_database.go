@@ -33,15 +33,17 @@ func (dm DataModel) GetDBName() string {
 }
 
 // CreateDatabaseEntities instantiates an entity for each database we're collecting
-func CreateDatabaseEntities(i *integration.Integration, con *connection.SQLConnection) ([]*integration.Entity, error) {
+func CreateDatabaseEntities(i *integration.Integration, con *connection.SQLConnection, instanceName string) ([]*integration.Entity, error) {
 	databaseRows := make([]*NameRow, 0)
 	if err := con.Query(&databaseRows, databaseNameQuery); err != nil {
 		return nil, err
 	}
 
+  instanceIDAttr := integration.NewIDAttribute("instance", instanceName)
 	dbEntities := make([]*integration.Entity, 0, len(databaseRows))
 	for _, row := range databaseRows {
-		dbEntity, err := i.Entity(row.DBName, "database")
+    databaseIDAttr := integration.NewIDAttribute("database", row.DBName)
+		dbEntity, err := i.EntityReportedVia(con.Host, con.Host, "ms-database", instanceIDAttr, databaseIDAttr)
 		if err != nil {
 			return nil, err
 		}
