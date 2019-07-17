@@ -50,9 +50,11 @@ func Test_createDatabaseEntities(t *testing.T) {
 		t.FailNow()
 	}
 
-	for _, entity := range dbEntities {
+	expectedEntities := []string{"master", "tempdb"}
+
+	for i, entity := range dbEntities {
 		entityName := entity.Metadata.Name
-		if entityName != "testhost" {
+		if entityName != expectedEntities[i] {
 			t.Errorf("Incorrect entity name '%s'", entityName)
 		} else if entity.Metadata.Namespace != "ms-database" {
 			t.Errorf("Incorrect entity namespace '%s'", entity.Metadata.Namespace)
