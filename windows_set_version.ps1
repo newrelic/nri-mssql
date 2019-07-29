@@ -5,26 +5,35 @@ param (
 	 [int]$build = 0
 )
 
+$integration = $(Split-Path -Leaf $PSScriptRoot)
+$integrationName = $integration.Replace("nri-", "")
+$executable = "nr-$integrationName.exe"
+
 if (-not (Test-Path env:GOPATH)) {
 	Write-Error "GOPATH not defined."
 }
-$projectRootPath = Join-Path -Path $env:GOPATH -ChildPath "src\github.com\newrelic\nri-mssql"
+$projectRootPath = Join-Path -Path $env:GOPATH -ChildPath "src\github.com\newrelic\$integration"
 
-$versionInfoPath = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\versioninfo.json"
-if ((Test-Path "$versionInfoPath.template" -PathType Leaf) -eq $False) {
-	Write-Error "$versionInfoPath.template not found."
+$versionInfoTempl = Get-Childitem -Path $projectRootPath -Include "versioninfo.json.template" -Recurse -ErrorAction SilentlyContinue
+if ("$versionInfoTempl" -eq "") {
+	Write-Error "$versionInfoTempl not found."
+	exit 0
 }
-Copy-Item -Path "$versionInfoPath.template" -Destination $versionInfoPath -Force
+$versionInfoPath = $versionInfoTempl.DirectoryName + "\versioninfo.json"
+Copy-Item -Path $versionInfoTempl -Destination $versionInfoPath -Force
 
 $versionInfo = Get-Content -Path $versionInfoPath -Encoding UTF8
 $versionInfo = $versionInfo -replace "{MajorVersion}", $major
 $versionInfo = $versionInfo -replace "{MinorVersion}", $minor
 $versionInfo = $versionInfo -replace "{PatchVersion}", $patch
 $versionInfo = $versionInfo -replace "{BuildVersion}", $build
+$versionInfo = $versionInfo -replace "{Integration}", $integration
+$versionInfo = $versionInfo -replace "{IntegrationExe}", $executable
+$versionInfo = $versionInfo -replace "{Year}", (Get-Date).year
 Set-Content -Path $versionInfoPath -Value $versionInfo
 
-$wix386Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-mssql-386-installer\Product.wxs"
-$wixAmd64Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-mssql-amd64-installer\Product.wxs"
+$wix386Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-386-installer\Product.wxs"
+$wixAmd64Path = Join-Path -Path $projectRootPath -ChildPath "pkg\windows\nri-amd64-installer\Product.wxs"
 
 Function ProcessProductFile($productPath) {
 	if ((Test-Path "$productPath.template" -PathType Leaf) -eq $False) {
@@ -34,6 +43,9 @@ Function ProcessProductFile($productPath) {
 
 	$product = Get-Content -Path $productPath -Encoding UTF8
 	$product = $product -replace "{IntegrationVersion}", "$major.$minor.$patch"
+	$product = $product -replace "{Year}", (Get-Date).year
+	$product = $product -replace "{IntegrationExe}", $executable
+	$product = $product -replace "{IntegrationName}", $integrationName
 	Set-Content -Value $product -Path $productPath
 }
 

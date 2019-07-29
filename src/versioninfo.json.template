@@ -21,16 +21,16 @@
 	},
 	"StringFileInfo":
 	{
-		"Comments": "(c) 2018 New Relic, Inc.",
+		"Comments": "(c) {Year} New Relic, Inc.",
 		"CompanyName": "New Relic, Inc.",
 		"FileDescription": "",
 		"FileVersion": "{MajorVersion}.{MinorVersion}.{PatchVersion}.{BuildVersion}",
-		"InternalName": "newrelic-infra",
-		"LegalCopyright": "(c) 2018 New Relic, Inc.",
+		"InternalName": "{Integration}",
+		"LegalCopyright": "(c) {Year} New Relic, Inc.",
 		"LegalTrademarks": "",
-		"OriginalFilename": "newrelic-infra.exe",
+		"OriginalFilename": "{IntegrationExe}",
 		"PrivateBuild": "",
-		"ProductName": "New Relic Infastructure Integration for Microsoft SQL Server",
+		"ProductName": "New Relic Infrastructure Integration, {Integration}",
 		"ProductVersion": "{MajorVersion}.{MinorVersion}.{PatchVersion}.{BuildVersion}",
 		"SpecialBuild": ""
 	},
