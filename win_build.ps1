@@ -1,6 +1,6 @@
 <#
     .SYNOPSIS
-        This script verifies, tests, builds and packages the New Relic Infrastructure MS SQL Server Integration
+        This script verifies, tests, builds and packages a New Relic Infrastructure Integration
 #>
 param (
     # Target architecture: amd64 (default) or 386
@@ -13,8 +13,9 @@ param (
     [switch]$skipTests=$false
 )
 
-$artifactName = "nri-mssql"
-$executable = "nr-mssql.exe"
+$integration = $(Split-Path -Leaf $PSScriptRoot)
+$integrationName = $integration.Replace("nri-", "")
+$executable = "nr-$integrationName.exe"
 
 # verifying version number format
 $v = $version.Split(".")
@@ -95,12 +96,12 @@ echo "--- Collecting Go main files"
 $packages = go list -f "{{.ImportPath}} {{.Name}}" ./...  | ConvertFrom-String -PropertyNames Path, Name
 $mainPackage = $packages | ? { $_.Name -eq 'main' } | % { $_.Path }
 
-echo "generating mssql"
+echo "generating $integrationName"
 go generate $mainPackage
 
 $fileName = ([io.fileinfo]$mainPackage).BaseName
 
-echo "creating mssql.exe"
+echo "creating $executable"
 go build -ldflags "-X main.buildVersion=$version" -o ".\target\bin\windows_$arch\$executable" $mainPackage
 
 If (-Not $installer) {
@@ -109,9 +110,9 @@ If (-Not $installer) {
 
 echo "--- Building Installer"
 
-Push-Location -Path "pkg\windows\nri-mssql-$arch-installer"
-
-. $msBuild/MSBuild.exe nri-mssql-installer.wixproj
+Push-Location -Path "pkg\windows\nri-$arch-installer"
+$env:integration = $integration
+. $msBuild/MSBuild.exe nri-installer.wixproj
 
 if (-not $?)
 {
@@ -124,7 +125,7 @@ echo "Making versioned installed copy"
 
 cd bin\Release
 
-cp "$artifactName-$arch.msi" "$artifactName-$arch.$version.msi"
-cp "$artifactName-$arch.msi" "$artifactName.msi"
+cp "$integration-$arch.msi" "$integration-$arch.$version.msi"
+cp "$integration-$arch.msi" "$integration.msi"
 
 Pop-Location

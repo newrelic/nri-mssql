@@ -5,7 +5,7 @@
     <?define UpgradeCode = "{f42aa489-e590-429d-a1c2-4ebd97cf8c3e}" ?>
 
     <Product Id="$(var.ProductId)"
-             Name="New Relic Infrastructure Integration for Microsoft SQL Server"
+             Name="New Relic Infrastructure Integration, nri-{IntegrationName}"
              Language="1033"
              Version="$(var.Version)"
              Manufacturer="New Relic, Inc."
@@ -14,15 +14,15 @@
                  InstallerVersion="200"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 Platform="x64"
+                 Platform="x86"
                  Manufacturer="New Relic, Inc."
-                 Comments="(c) 2018 New Relic, Inc."
-                 Keywords="infrastructure,MSI,on-host,SQL Server"/>
+                 Comments="(c) {Year} New Relic, Inc."
+                 Keywords="infrastructure,MSI,on-host,{IntegrationName}"/>
 
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."/>
         <MediaTemplate EmbedCab="yes"/>
 
-        <Feature Id="ProductFeature" Title="New Relic Infrastructure Integration for Microsoft SQL Server" Level="1">
+        <Feature Id="ProductFeature" Title="New Relic Infrastructure Integration, nri-{IntegrationName}" Level="1">
             <ComponentRef Id="CMP_V1_PLUGIN_CONFIGS"/>
             <ComponentRef Id="CMP_V1_CUSTOM_PLUGINS"/>
             <ComponentRef Id="CMP_V1_CUSTOM_PLUGINS_BIN"/>
@@ -34,7 +34,7 @@
 
     <Fragment>
         <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="ProgramFiles64Folder">
+            <Directory Id="ProgramFilesFolder">
                 <Directory Id="CompanyFolder" Name="New Relic">
                     <Directory Id="AgentBinaryFolder" Name="newrelic-infra">
                         <Directory Id="PluginConfigsFolder" Name="integrations.d"/>
@@ -67,27 +67,27 @@
 
     <Fragment>
         <ComponentGroup Id="CustomPluginsBinComponent" Directory="CustomPluginsBinFolder">
-            <Component Id="CMP_NRI_MSSQL_EXE" Guid="eea30c6e-7a14-4cc5-97c5-88a742041643" Win64="yes">
-                <File Id="FILE_NRI_MSSQL_EXE"
-                      Source="$(var.BinariesPath)nr-mssql.exe"
+            <Component Id="CMP_NRI_{IntegrationName}_EXE" Guid="c57aeed1-f045-4202-8daa-d806db2e29e4" Win64="no">
+                <File Id="FILE_NRI_{IntegrationName}_EXE"
+                      Source="$(var.BinariesPath){IntegrationExe}"
                       KeyPath="yes"/>
             </Component>
         </ComponentGroup>
         <ComponentGroup Id="CustomPluginsComponent" Directory="CustomPluginsFolder">
-            <Component Id="CMP_NRI_MSSQL_DEFINITION_YML" Guid="35c84fd9-7b1a-4871-a706-390ea19252b1" Win64="yes"
+            <Component Id="CMP_NRI_{IntegrationName}_DEFINITION_YML" Guid="35c84fd9-7b1a-4871-a706-390ea19252b1" Win64="no"
                        NeverOverwrite="yes" Permanent="yes">
-                <File Id="FILE_NRI_MSSQL_DEFINITION_YML"
-                      Name="mssql-definition.yml"
-                      Source="$(var.ProjectRootPath)mssql-win-definition.yml"
+                <File Id="FILE_NRI_{IntegrationName}_DEFINITION_YML"
+                      Name="{IntegrationName}-definition.yml"
+                      Source="$(var.ProjectRootPath){IntegrationName}-win-definition.yml"
                       KeyPath="yes"/>
             </Component>
         </ComponentGroup>
         <ComponentGroup Id="PluginConfigsComponent" Directory="PluginConfigsFolder">
-            <Component Id="CMP_NRI_MSSQL_CONFIG_YML" Guid="ae131e4c-7ec5-42c5-b21b-b454979f28ee" Win64="yes"
+            <Component Id="CMP_NRI_{IntegrationName}_CONFIG_YML" Guid="ae131e4c-7ec5-42c5-b21b-b454979f28ee" Win64="no"
                        NeverOverwrite="yes" Permanent="yes">
-                <File Id="FILE_NRI_MSSQL_CONFIG_YML"
-                      Name="mssql-config.yml.sample"
-                      Source="$(var.ProjectRootPath)mssql-config.yml.sample"
+                <File Id="FILE_NRI_{IntegrationName}_CONFIG_YML"
+                      Name="{IntegrationName}-config.yml.sample"
+                      Source="$(var.ProjectRootPath){IntegrationName}-config.yml.sample"
                       KeyPath="yes"/>
             </Component>
         </ComponentGroup>
