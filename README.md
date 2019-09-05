@@ -4,6 +4,8 @@ The New Relic Infrastructure Integration for MS SQL Server captures critical per
 
 Inventory and metric data is collected via SQL queries to the Instance.
 
+See our [documentation web site](https://docs.newrelic.com/docs/integrations/host-integrations/host-integrations-list/mssql-monitoring-integration) for more details.
+
 ## Requirements
 
 No additional requirements to monitor.
