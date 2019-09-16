@@ -64,9 +64,9 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 			DB_NAME() AS db_name,
 			sum(a.total_pages)*8.0 reserved_space_kb,
 			sum(a.total_pages)*8.0 -sum(a.used_pages)*8.0 reserved_space_not_used_kb
-		FROM sys.partitions p
-		INNER JOIN sys.allocation_units a ON p.partition_id = a.container_id
-		LEFT JOIN sys.internal_tables it ON p.object_id = it.object_id
+		FROM sys.partitions p with (nolock)
+		INNER JOIN sys.allocation_units a WITH (NOLOCK) ON p.partition_id = a.container_id
+		LEFT JOIN sys.internal_tables it WITH (NOLOCK) ON p.object_id = it.object_id
 		)
 		SELECT
 		db_name as db_name,
