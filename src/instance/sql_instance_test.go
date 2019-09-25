@@ -7,6 +7,7 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/nri-mssql/src/connection"
+  "github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
@@ -44,6 +45,7 @@ func Test_createInstanceEntity_RowError(t *testing.T) {
 		t.Error("Did not return expected error")
 	}
 }
+
 func Test_createInstanceEntity(t *testing.T) {
 	// create dummy integration
 	i, err := integration.New("test", "1.0.0")
@@ -55,20 +57,37 @@ func Test_createInstanceEntity(t *testing.T) {
 	conn, mock := connection.CreateMockSQL(t)
 
 	// set up sql mock
-	instanceName := "testhost"
 	rows := sqlmock.NewRows([]string{"instance_name"}).
-		AddRow(instanceName)
+		AddRow("testinstance")
 	mock.ExpectQuery(regexp.QuoteMeta(instanceNameQuery)).WillReturnRows(rows)
 
 	entity, err := CreateInstanceEntity(i, conn)
+  assert.Nil(t, err)
+
+  assert.Equal(t, "testhost", entity.Metadata.Name)
+  assert.Equal(t, "ms-instance", entity.Metadata.Namespace)
+  assert.Len(t, entity.Metadata.IDAttrs, 1)
+}
+
+func Test_createInstanceEntity_NullResponse(t *testing.T) {
+	// create dummy integration
+	i, err := integration.New("test", "1.0.0")
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err.Error())
+		t.Errorf("Unexpected error %s", err.Error())
 		t.FailNow()
 	}
 
-	if entity.Metadata.Name != instanceName {
-		t.Errorf("Expected entity name '%s' got '%s'", instanceName, entity.Metadata.Name)
-	} else if entity.Metadata.Namespace != "ms-instance" {
-		t.Errorf("Expected entity namespace 'instance' got '%s'", entity.Metadata.Namespace)
-	}
+	conn, mock := connection.CreateMockSQL(t)
+
+	// set up sql mock
+	rows := sqlmock.NewRows([]string{"instance_name"}).
+		AddRow(nil)
+	mock.ExpectQuery(regexp.QuoteMeta(instanceNameQuery)).WillReturnRows(rows)
+
+	entity, err := CreateInstanceEntity(i, conn)
+  assert.Nil(t, err)
+
+  assert.Equal(t, "testhost", entity.Metadata.Name)
+  assert.Equal(t, "ms-instance", entity.Metadata.Namespace)
+  assert.Len(t, entity.Metadata.IDAttrs, 0)
 }
