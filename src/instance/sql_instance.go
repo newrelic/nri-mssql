@@ -2,6 +2,7 @@
 package instance
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/newrelic/infra-integrations-sdk/integration"
@@ -9,11 +10,11 @@ import (
 )
 
 // instanceNameQuery gets the instance name
-const instanceNameQuery = "select COALESCE( @@SERVERNAME, SERVERPROPERTY('ServerName'), SERVERPROPERTY('MachineName'), 'MSSQL Server') as instance_name"
+const instanceNameQuery = "select COALESCE( @@SERVERNAME, SERVERPROPERTY('ServerName'), SERVERPROPERTY('MachineName')) as instance_name"
 
 // NameRow is a row result in the instanceNameQuery
 type NameRow struct {
-	Name string `db:"instance_name"`
+	Name sql.NullString `db:"instance_name"`
 }
 
 // CreateInstanceEntity runs a query to get the instance
@@ -27,6 +28,10 @@ func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnect
 		return nil, fmt.Errorf("expected 1 row for instance name got %d", length)
 	}
 
-	instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name)
-	return i.EntityReportedVia(con.Host, con.Host, "ms-instance", instanceNameIDAttr)
+	if instanceRows[0].Name.Valid {
+		instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name.String)
+		return i.EntityReportedVia(con.Host, con.Host, "ms-instance", instanceNameIDAttr)
+	}
+
+	return i.EntityReportedVia(con.Host, con.Host, "ms-instance")
 }
