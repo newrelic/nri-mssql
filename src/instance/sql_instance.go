@@ -9,7 +9,7 @@ import (
 )
 
 // instanceNameQuery gets the instance name
-const instanceNameQuery = "select @@SERVERNAME as instance_name"
+const instanceNameQuery = "select COALESCE( @@SERVERNAME, SERVERPROPERTY('ServerName'), SERVERPROPERTY('MachineName'), 'MSSQL Server') as instance_name"
 
 // NameRow is a row result in the instanceNameQuery
 type NameRow struct {

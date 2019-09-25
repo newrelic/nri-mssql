@@ -2,6 +2,7 @@ package instance
 
 import (
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/newrelic/infra-integrations-sdk/integration"
@@ -57,7 +58,7 @@ func Test_createInstanceEntity(t *testing.T) {
 	instanceName := "testhost"
 	rows := sqlmock.NewRows([]string{"instance_name"}).
 		AddRow(instanceName)
-	mock.ExpectQuery(instanceNameQuery).WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(instanceNameQuery)).WillReturnRows(rows)
 
 	entity, err := CreateInstanceEntity(i, conn)
 	if err != nil {
