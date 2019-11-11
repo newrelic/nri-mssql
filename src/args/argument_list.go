@@ -19,6 +19,7 @@ type ArgumentList struct {
 	EnableSSL              bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation    string `default:"" help:"Certificate file to verify SSL encryption against"`
+	EnableBufferMetrics    bool   `default:"true" help:"Enable collection of buffer space metrics."`
 	Timeout                string `default:"30" help:"Timeout in seconds for a single SQL Query. Set 0 for no timeout"`
 }
 

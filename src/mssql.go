@@ -15,7 +15,7 @@ import (
 
 const (
 	integrationName    = "com.newrelic.mssql"
-	integrationVersion = "2.0.6"
+	integrationVersion = "2.0.7"
 )
 
 func main() {
@@ -57,11 +57,11 @@ func main() {
 
 	// Metric collection
 	if args.HasMetrics() {
-		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con); err != nil {
+		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args); err != nil {
 			log.Error("Error collecting metrics for databases: %s", err.Error())
 		}
 
-		metrics.PopulateInstanceMetrics(instanceEntity, con)
+		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
 
 	// Close connection when done

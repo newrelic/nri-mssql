@@ -125,17 +125,6 @@ var instanceDefinitions = []*QueryDefinition{
 		}{},
 	},
 	{
-		query: `SELECT Sum(db.buffer_pool_size) AS instance_buffer_pool_size FROM (
-			SELECT
-			Count_big(*) * (8*1024) AS buffer_pool_size
-			FROM sys.dm_os_buffer_descriptors WITH (nolock)
-			WHERE database_id <> 32767 -- ResourceDB
-			GROUP BY database_id) db`,
-		dataModels: &[]struct {
-			InstanceBufferPoolSize *int `db:"instance_buffer_pool_size" metric_name:"bufferpool.sizeInBytes" source_type:"gauge"`
-		}{},
-	},
-	{
 		query: `SELECT Sum(db.active_connections) AS instance_active_connections FROM (
 			SELECT
 			Count(syssp.dbid) AS active_connections
@@ -158,6 +147,18 @@ var instanceDefinitions = []*QueryDefinition{
 			TotalPhysicalMemory     *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
 			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
 			MemoryUtilization       *float64 `db:"memory_utilization" metric_name:"memoryUtilization" source_type:"gauge"`
+		}{},
+	},
+}
+
+var instanceBufferDefinitions = []*QueryDefinition{
+	{
+		query: ` SELECT
+      Count_big(*) * (8*1024) AS instance_buffer_pool_size
+      FROM sys.dm_os_buffer_descriptors WITH (nolock)
+      WHERE database_id <> 32767 -- ResourceDB `,
+		dataModels: &[]struct {
+			InstanceBufferPoolSize *int `db:"instance_buffer_pool_size" metric_name:"bufferpool.sizeInBytes" source_type:"gauge"`
 		}{},
 	},
 }

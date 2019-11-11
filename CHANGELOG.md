@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.0.7 - 2019-11-11
+### Changed
+- Add `enable_buffer_metrics` (default true) option, which allows disabling resource-intensive buffer metrics
+
 ## 2.0.6 - 2019-09-26
 ### Fixed
 - Add instance name fallbacks with COALESCE 

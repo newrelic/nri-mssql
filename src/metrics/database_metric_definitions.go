@@ -40,6 +40,10 @@ var databaseDefinitions = []*QueryDefinition{
 			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
 		}{},
 	},
+}
+
+// databaseBufferDefinitions definitions for Database Queries
+var databaseBufferDefinitions = []*QueryDefinition{
 	{
 		query: `SELECT
 		DB_NAME(database_id) AS db_name,
