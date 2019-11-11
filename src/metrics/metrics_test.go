@@ -10,6 +10,7 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/database"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,10 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 
 	mock.ExpectClose()
 
-	PopulateDatabaseMetrics(i, "MSSQL", conn)
+	args := args.ArgumentList{
+		EnableBufferMetrics: true,
+	}
+	PopulateDatabaseMetrics(i, "MSSQL", conn, args)
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
@@ -148,7 +152,10 @@ func Test_populateInstanceMetrics(t *testing.T) {
 	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
 	mock.ExpectClose()
 
-	PopulateInstanceMetrics(e, conn)
+	args := args.ArgumentList{
+		EnableBufferMetrics: true,
+	}
+	PopulateInstanceMetrics(e, conn, args)
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "perfCounter.json.golden")
@@ -169,7 +176,10 @@ func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
 	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
 	mock.ExpectClose()
 
-	PopulateInstanceMetrics(e, conn)
+	args := args.ArgumentList{
+		EnableBufferMetrics: true,
+	}
+	PopulateInstanceMetrics(e, conn, args)
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "empty.json.golden")

@@ -8,17 +8,23 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/database"
 )
 
 // PopulateInstanceMetrics creates instance-level metrics
-func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection) {
+func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
 		metric.Attribute{Key: "host", Value: connection.Host},
 	)
+
+	collectionList := instanceDefinitions
+	if arguments.EnableBufferMetrics {
+		collectionList = append(collectionList, instanceBufferDefinitions...)
+	}
 
 	for _, queryDef := range instanceDefinitions {
 		models := queryDef.GetDataModels()
@@ -84,7 +90,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
-func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection) error {
+func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList) error {
 	// create database entities
 	dbEntities, err := database.CreateDatabaseEntities(i, connection, instanceName)
 	if err != nil {
@@ -103,6 +109,11 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	// run queries that are not specific to a database
 	processGeneralDBDefinitions(connection, modelChan)
 
+	// run queries that are not specific to a database
+	if arguments.EnableBufferMetrics {
+		processDBBufferDefinitions(connection, modelChan)
+	}
+
 	// run queries that are specific to a database
 	processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
 
@@ -114,6 +125,12 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 
 func processGeneralDBDefinitions(con *connection.SQLConnection, modelChan chan<- interface{}) {
 	for _, queryDef := range databaseDefinitions {
+		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
+	}
+}
+
+func processDBBufferDefinitions(con *connection.SQLConnection, modelChan chan<- interface{}) {
+	for _, queryDef := range databaseBufferDefinitions {
 		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
 	}
 }
