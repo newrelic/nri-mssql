@@ -6,6 +6,6 @@ os: windows
 commands:
   all_data:
     command:
-      - .\bin\nr-mssql.exe
+      - .\bin\nri-mssql.exe
     prefix: config/mssql
     interval: 15
