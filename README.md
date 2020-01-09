@@ -54,7 +54,7 @@ You can view your data in Insights by creating your own custom NRQL queries. To 
 
 ## Compatibility
 
-* Supported OS: No Limitations
+* Supported OS: Windows version compatible with the New Relic Infrastructure Agent
 * MS SQL Server versions: SQL Server 2008 R2+
 
 ## Integration Development usage
