@@ -2,6 +2,7 @@
 package metrics
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -49,6 +50,9 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 	}
 
 	populateWaitTimeMetrics(instanceEntity, connection)
+	if arguments.CustomMetricsQuery != "" {
+		populateCustomMetrics(instanceEntity, connection, arguments.CustomMetricsQuery)
+	}
 }
 
 func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection) {
@@ -85,6 +89,82 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 			if err != nil {
 				log.Error("Could not set wait time metric '%s' for wait type '%s': %s", metric.metricName, model.WaitType, err.Error())
 			}
+		}
+	}
+}
+
+func populateCustomMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, query string) {
+
+	rows, err := connection.Queryx(query)
+	if err != nil {
+		log.Error("Could not execute custom query: %s", err.Error())
+		return
+	}
+
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		row := make(map[string]interface{})
+		err := rows.MapScan(row)
+		if err != nil {
+			log.Error("Failed to scan custom query row: %s", err)
+			return
+		}
+
+		nameInterface, ok := row["metric_name"]
+		if !ok {
+			log.Error("Missing required column 'metric_name' in custom query")
+			return
+		}
+		name, ok := nameInterface.(string)
+		if !ok {
+			log.Error("Non-string type %T for custom query 'metric_name' column", nameInterface)
+			continue
+		}
+
+		metricTypeInterface, ok := row["metric_type"]
+		if !ok {
+			log.Error("Missing required column 'metric_type' in custom query")
+			return
+		}
+		metricTypeString, ok := metricTypeInterface.(string)
+		if !ok {
+			log.Error("Non-string type %T for custom query 'metric_type' column", metricTypeInterface)
+			continue
+		}
+		metricType, err := metric.SourceTypeForName(metricTypeString)
+		if err != nil {
+			log.Error("Invalid metric type %s: %s", metricTypeString, err)
+			continue
+		}
+
+		value, ok := row["metric_value"]
+		if !ok {
+			log.Error("Missing required column 'metric_type' in custom query")
+			return
+		}
+
+		attributes := []metric.Attribute{
+			{Key: "displayName", Value: instanceEntity.Metadata.Name},
+			{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+		}
+		for k, v := range row {
+			if k == "metric_name" || k == "metric_type" || k == "metric_value" {
+				continue
+			}
+
+			valString := fmt.Sprintf("%v", v)
+
+			attributes = append(attributes, metric.Attribute{Key: k, Value: valString})
+		}
+
+		ms := instanceEntity.NewMetricSet("MssqlCustomQuerySample", attributes...)
+		err = ms.SetMetric(name, value, metricType)
+		if err != nil {
+			log.Error("Failed to set metric: %s", err)
+			continue
 		}
 	}
 }
