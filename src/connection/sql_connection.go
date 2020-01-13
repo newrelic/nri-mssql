@@ -44,6 +44,11 @@ func (sc SQLConnection) Query(v interface{}, query string) error {
 	return sc.Connection.Select(v, query)
 }
 
+// Queryx runs a query and returns a set of rows
+func (p SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
+	return p.Connection.Queryx(query)
+}
+
 // CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
 func CreateConnectionURL(args *args.ArgumentList) string {

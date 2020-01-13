@@ -18,6 +18,13 @@ instances:
       trust_server_certificate: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
       certificate_location: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
       timeout: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
+      # custom_metrics_query: >-
+      #   select
+      #     'rows_inserted' as "metric_name",
+      #     'delta' as "metric_type",
+      #     sd.tup_inserted as "metric_value",
+      #     sd.datid as "database_id"
+      #   from pg_stat_database sd;
     labels:
       env: production
       role: mssql
