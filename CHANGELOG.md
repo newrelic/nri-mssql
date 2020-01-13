@@ -5,9 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.2.0 (2020-01-13)
+### Added
+- Support for custom metrics with `custom_metrics_query`
+
 ## 2.1.0 (2019-11-18)
 ### Changed
 - Renamed the integration executable from nr-mssql to nri-mssql in order to be consistent with the package naming. **Important Note:** if you have any security module rules (eg. SELinux), alerts or automation that depends on the name of this binary, these will have to be updated.
+ 
 ## 2.0.7 - 2019-11-11
 ### Changed
 - Add `enable_buffer_metrics` (default true) option, which allows disabling resource-intensive buffer metrics
