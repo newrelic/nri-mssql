@@ -142,7 +142,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 
 		value, ok := row["metric_value"]
 		if !ok {
-			log.Error("Missing required column 'metric_type' in custom query")
+			log.Error("Missing required column 'metric_value' in custom query")
 			return
 		}
 
