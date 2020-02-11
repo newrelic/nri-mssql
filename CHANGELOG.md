@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.3.0 (2020-02-11)
+### Added
+- Support for custom metrics query file with `custom_metrics_config`
+
 ## 2.2.1 (2020-01-13)
 ### Fixed
 - Make sample query a valid MSSQL query
@@ -16,14 +20,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 2.1.0 (2019-11-18)
 ### Changed
 - Renamed the integration executable from nr-mssql to nri-mssql in order to be consistent with the package naming. **Important Note:** if you have any security module rules (eg. SELinux), alerts or automation that depends on the name of this binary, these will have to be updated.
- 
+
 ## 2.0.7 - 2019-11-11
 ### Changed
 - Add `enable_buffer_metrics` (default true) option, which allows disabling resource-intensive buffer metrics
 
 ## 2.0.6 - 2019-09-26
 ### Fixed
-- Add instance name fallbacks with COALESCE 
+- Add instance name fallbacks with COALESCE
 
 ## 2.0.4 - 2019-09-16
 ### Fixed
@@ -48,11 +52,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 1.0.1 - 2018-11-29
 ### Changes
-- Fixed MSI install location 
+- Fixed MSI install location
 
 ## 1.0.0 - 2018-11-29
 ### Changes
-- Bumped version for GA release 
+- Bumped version for GA release
 
 ## 0.1.5 - 2018-11-15
 ### Added
