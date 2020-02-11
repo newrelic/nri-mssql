@@ -17,7 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type CustomQuery struct {
+type customQuery struct {
 	Query    string
 	Prefix   string
 	Name     string `yaml:"metric_name"`
@@ -61,24 +61,40 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 	}
 
 	populateWaitTimeMetrics(instanceEntity, connection)
+
 	if len(arguments.CustomMetricsQuery) > 0 {
-		populateCustomMetrics(instanceEntity, connection, []CustomQuery{{Query: arguments.CustomMetricsQuery}})
+		populateCustomMetrics(instanceEntity, connection, customQuery{Query: arguments.CustomMetricsQuery})
 	} else if len(arguments.CustomMetricsConfig) > 0 {
-		// load YAML config file
-		b, err := ioutil.ReadFile(arguments.CustomMetricsConfig)
+		queries, err := parseCustomQueries(arguments)
 		if err != nil {
-			log.Error("Could not read custom_metrics_config: %s", err)
-			return
+			log.Error("Failed to parse custom queries: %s", err)
 		}
-		// parse
-		var c struct{ Queries []CustomQuery }
-		err = yaml.Unmarshal(b, &c)
-		if err != nil {
-			log.Error("Could not read parse %s: %s", arguments.CustomMetricsConfig, err)
-			return
+		var wg sync.WaitGroup
+		for _, query := range queries {
+			wg.Add(1)
+			go func(query customQuery) {
+				defer wg.Done()
+				populateCustomMetrics(instanceEntity, connection, query)
+			}(query)
 		}
-		populateCustomMetrics(instanceEntity, connection, c.Queries)
+		wg.Wait()
 	}
+}
+
+func parseCustomQueries(arguments args.ArgumentList) ([]customQuery, error) {
+	// load YAML config file
+	b, err := ioutil.ReadFile(arguments.CustomMetricsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read custom_metrics_config: %s", err)
+	}
+	// parse
+	var c struct{ Queries []customQuery }
+	err = yaml.Unmarshal(b, &c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse custom_metrics_config: %s", err)
+	}
+
+	return c.Queries, nil
 }
 
 func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection) {
@@ -120,124 +136,121 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 }
 
 // Execute one or more custom queries
-func populateCustomMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, queries []CustomQuery) {
-	// Execute each query in array
-	for _, query := range queries {
-		var prefix string
-		if len(query.Database) > 0 {
-			prefix = "USE " + query.Database + "; "
-		}
+func populateCustomMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, query customQuery) {
+	var prefix string
+	if len(query.Database) > 0 {
+		prefix = "USE " + query.Database + "; "
+	}
 
-		rows, err := connection.Queryx(prefix + query.Query)
+	rows, err := connection.Queryx(prefix + query.Query)
+	if err != nil {
+		log.Error("Could not execute custom query: %s", err)
+		return
+	}
+
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		row := make(map[string]interface{})
+		err := rows.MapScan(row)
 		if err != nil {
-			log.Error("Could not execute custom query: %s", err)
+			log.Error("Failed to scan custom query row: %s", err)
 			return
 		}
 
-		defer func() {
-			_ = rows.Close()
-		}()
+		nameInterface, ok := row["metric_name"]
+		var name string
+		if !ok {
+			if len(query.Name) > 0 {
+				name = query.Name
+			}
+		} else {
+			name, ok = nameInterface.(string)
+			if !ok {
+				log.Error("Non-string type %T for custom query 'metric_name' column", nameInterface)
+				return
+			}
+		}
 
-		for rows.Next() {
-			row := make(map[string]interface{})
-			err := rows.MapScan(row)
+		value, ok := row["metric_value"]
+		var valueString string
+		if !ok {
+			if len(name) > 0 {
+				log.Error("Missing 'metric_value' for %s in custom query", name)
+				return
+			}
+		} else {
+			valueString = fmt.Sprintf("%v", value)
+			if len(name) == 0 {
+				log.Error("Missing 'metric_name' for %s in custom query", valueString)
+				return
+			}
+		}
+
+		if len(query.Prefix) > 0 {
+			name = query.Prefix + name
+		}
+
+		var metricType metric.SourceType
+		metricTypeInterface, ok := row["metric_type"]
+		if !ok {
+			if len(query.Type) > 0 {
+				metricType, err = metric.SourceTypeForName(query.Type)
+				if err != nil {
+					log.Error("Invalid metric type %s in YAML: %s", query.Type, err)
+					return
+				}
+			} else {
+				metricType = detectMetricType(valueString)
+			}
+		} else {
+			// metric type was specified
+			metricTypeString, ok := metricTypeInterface.(string)
+			if !ok {
+				log.Error("Non-string type %T for custom query 'metric_type' column", metricTypeInterface)
+				return
+			}
+			metricType, err = metric.SourceTypeForName(metricTypeString)
 			if err != nil {
-				log.Error("Failed to scan custom query row: %s", err)
+				log.Error("Invalid metric type %s in query 'metric_type' column: %s", metricTypeString, err)
+				return
+			}
+		}
+
+		attributes := []metric.Attribute{
+			{Key: "displayName", Value: instanceEntity.Metadata.Name},
+			{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+			{Key: "host", Value: connection.Host},
+			{Key: "instance", Value: instanceEntity.Metadata.Name},
+		}
+		if len(query.Database) > 0 {
+			attributes = append(attributes, metric.Attribute{Key: "database", Value: query.Database})
+		}
+		ms := instanceEntity.NewMetricSet("MssqlCustomQuerySample", attributes...)
+
+		for k, v := range row {
+			if k == "metric_name" || k == "metric_type" || k == "metric_value" {
 				continue
 			}
-
-			nameInterface, ok := row["metric_name"]
-			var name string
-			if !ok {
-				if len(query.Name) > 0 {
-					name = query.Name
-				}
-			} else {
-				name, ok = nameInterface.(string)
-				if !ok {
-					log.Error("Non-string type %T for custom query 'metric_name' column", nameInterface)
-					break
-				}
-			}
-
-			value, ok := row["metric_value"]
-			var valueString string
-			if !ok {
-				if len(name) > 0 {
-					log.Error("Missing 'metric_value' for %s in custom query", name)
-					return
-				}
-			} else {
-				valueString = fmt.Sprintf("%v", value)
-				if len(name) == 0 {
-					log.Error("Missing 'metric_name' for %s in custom query", valueString)
-					return
-				}
-			}
+			vString := fmt.Sprintf("%v", v)
 
 			if len(query.Prefix) > 0 {
-				name = query.Prefix + name
+				k = query.Prefix + k
 			}
 
-			var metricType metric.SourceType
-			metricTypeInterface, ok := row["metric_type"]
-			if !ok {
-				if len(query.Type) > 0 {
-					metricType, err = metric.SourceTypeForName(query.Type)
-					if err != nil {
-						log.Error("Invalid metric type %s in YAML: %s", query.Type, err)
-						continue
-					}
-				} else {
-					metricType = detectMetricType(valueString)
-				}
-			} else {
-				// metric type was specified
-				metricTypeString, ok := metricTypeInterface.(string)
-				if !ok {
-					log.Error("Non-string type %T for custom query 'metric_type' column", metricTypeInterface)
-					continue
-				}
-				metricType, err = metric.SourceTypeForName(metricTypeString)
-				if err != nil {
-					log.Error("Invalid metric type %s in query 'metric_type' column: %s", metricTypeString, err)
-					continue
-				}
+			err = ms.SetMetric(k, vString, detectMetricType(vString))
+			if err != nil {
+				log.Error("Failed to set metric: %s", err)
+				continue
 			}
+		}
 
-			attributes := []metric.Attribute{
-				{Key: "displayName", Value: instanceEntity.Metadata.Name},
-				{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
-				{Key: "host", Value: connection.Host},
-				{Key: "instance", Value: instanceEntity.Metadata.Name},
-			}
-			if len(query.Database) > 0 {
-				attributes = append(attributes, metric.Attribute{Key: "database", Value: query.Database})
-			}
-			ms := instanceEntity.NewMetricSet("MssqlCustomQuerySample", attributes...)
-
-			for k, v := range row {
-				if k == "metric_name" || k == "metric_type" || k == "metric_value" {
-					continue
-				}
-				vString := fmt.Sprintf("%v", v)
-
-				if len(query.Prefix) > 0 {
-					k = query.Prefix + k
-				}
-
-				err = ms.SetMetric(k, vString, detectMetricType(vString))
-				if err != nil {
-					log.Error("Failed to set metric: %s", err)
-					continue
-				}
-			}
-
-			if len(valueString) > 0 {
-				err = ms.SetMetric(name, valueString, metricType)
-				if err != nil {
-					log.Error("Failed to set metric: %s", err)
-				}
+		if len(valueString) > 0 {
+			err = ms.SetMetric(name, valueString, metricType)
+			if err != nil {
+				log.Error("Failed to set metric: %s", err)
 			}
 		}
 	}
@@ -340,12 +353,9 @@ func dbMetricPopulator(dbSetLookup database.DBMetricSetLookup, modelChan <-chan 
 }
 
 func detectMetricType(value string) metric.SourceType {
-	// Auto-determine metric type
 	if _, err := strconv.ParseFloat(value, 64); err != nil {
-		// String type
 		return metric.ATTRIBUTE
-	} else {
-		// Numeric type
-		return metric.GAUGE
 	}
+
+	return metric.GAUGE
 }
