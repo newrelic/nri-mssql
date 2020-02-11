@@ -67,13 +67,15 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 		// load YAML config file
 		b, err := ioutil.ReadFile(arguments.CustomMetricsConfig)
 		if err != nil {
-			log.Fatal(err)
+			log.Error("Could not read custom_metrics_config: %s", err)
+			return
 		}
 		// parse
 		var c struct {Queries []CustomQuery}
 		err = yaml.Unmarshal(b, &c)
 		if err != nil {
-			log.Fatal(err)
+			log.Error("Could not read parse %s: %s", arguments.CustomMetricsConfig, err)
+			return
 		}
 		populateCustomMetrics(instanceEntity, connection, c.Queries)
 	}
@@ -128,7 +130,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 
 		rows, err := connection.Queryx(prefix + query.Query)
 		if err != nil {
-			log.Error("Could not execute custom query: %s", err.Error())
+			log.Error("Could not execute custom query: %s", err)
 			return
 		}
 
@@ -141,7 +143,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 			err := rows.MapScan(row)
 			if err != nil {
 				log.Error("Failed to scan custom query row: %s", err)
-				return
+				continue
 			}
 
 			nameInterface, ok := row["metric_name"]
@@ -154,7 +156,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 				name, ok = nameInterface.(string)
 				if !ok {
 					log.Error("Non-string type %T for custom query 'metric_name' column", nameInterface)
-					continue
+					break
 				}
 			}
 
@@ -256,7 +258,6 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 			}
 		}
 	}
-	return
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
