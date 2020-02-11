@@ -1,0 +1,10 @@
+queries: 
+    # Example for metric_name / metric_type specified in this config
+  - query: SELECT count(*) AS 'metric_value' FROM sys.databases
+    metric_name: dbCount
+    metric_type: gauge
+    # Example for metric_name from query, metric_type auto-detected, additional attribute 'category_type'
+  - query: SELECT CONCAT('category_', category_id) AS metric_name, name AS metric_value, category_type FROM syscategories
+    database: msdb
+    # Example for stored procedure 'exec dbo.sp_server_info @attribute_id = 2'
+  - query: dbo.sp_server_info @attribute_id = 2

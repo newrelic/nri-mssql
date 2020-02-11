@@ -52,10 +52,45 @@ In order to use the MSSQL Integration it is required to configure `mssql-config.
 
 You can view your data in Insights by creating your own custom NRQL queries. To do so use the **MssqlDatabaseSample**, **MssqlInstanceSample** event type.
 
+## Custom Queries
+
+To add custom queries, use the **-custom_metrics_query** option to provide a single query, or the **-custom_metrics_config** option to specify a YAML file with one or more queries, such as the sample `mssql-custom-query.yml.sample`
+
+### How attributes are named
+
+Each query that returns a table of values will be parsed row by row, adding the **MssqlCustomQuerySample** event as follows:
+
+- The column name is the attribute name
+- Each row value in that column is the attribute value
+- The metric type is auto-detected whether it is a number (type GAUGE), or a string (type ATTRIBUTE)
+
+One customizable attribute in each row can be configured by database values using the following names:
+
+- The column `metric_name` specifies its attribute name
+- The column `metric_value` specifies its attribute value
+- The column `metric_type` specifies its metric type, i.e. `gauge` or `attribute`
+
+For example, the following query makes attributes named `category_0`, `category_1`, `category_2` and so on.
+```sql
+SELECT CONCAT('category_', category_id) AS metric_name, name AS metric_value, category_type FROM syscategories
+```
+
+### Specifying queries in YAML
+
+When using a YAML file containing queries, you can specify the following parameters for each query:
+
+- `query` (required) contains the SQL query
+- `database` (optional) Prepends `USE <database name>; ` to the SQL, and adds the database name as an attribute
+- `prefix` (optional) prefix to prepend to the attribute name
+- `metric_name` (optional) specify the name for the customizable attribute
+- `metric_type` (optional) specify the metric type for the customizable attribute
+
 ## Compatibility
 
 * Supported OS: Windows version compatible with the New Relic Infrastructure Agent
 * MS SQL Server versions: SQL Server 2008 R2+
+
+Note:  It also seems to work on Linux for the containerized Linux version of MSSQL
 
 ## Integration Development usage
 
