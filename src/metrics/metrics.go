@@ -71,7 +71,7 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 			return
 		}
 		// parse
-		var c struct {Queries []CustomQuery}
+		var c struct{ Queries []CustomQuery }
 		err = yaml.Unmarshal(b, &c)
 		if err != nil {
 			log.Error("Could not read parse %s: %s", arguments.CustomMetricsConfig, err)
@@ -125,7 +125,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 	for _, query := range queries {
 		var prefix string
 		if len(query.Database) > 0 {
-			prefix = "USE "+query.Database+"; "
+			prefix = "USE " + query.Database + "; "
 		}
 
 		rows, err := connection.Queryx(prefix + query.Query)
@@ -160,7 +160,6 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 				}
 			}
 
-
 			value, ok := row["metric_value"]
 			var valueString string
 			if !ok {
@@ -190,14 +189,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 						continue
 					}
 				} else {
-					// Auto-determine metric type
-					if _, err = strconv.ParseFloat(valueString, 64); err != nil {
-						// String type
-						metricType = metric.ATTRIBUTE
-					} else {
-						// Numeric type
-						metricType = metric.GAUGE
-					}
+					metricType = detectMetricType(valueString)
 				}
 			} else {
 				// metric type was specified
@@ -229,21 +221,12 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 					continue
 				}
 				vString := fmt.Sprintf("%v", v)
-				var mType metric.SourceType
 
 				if len(query.Prefix) > 0 {
 					k = query.Prefix + k
 				}
 
-				// Auto-determine metric type
-				if _, err = strconv.ParseFloat(vString, 64); err != nil {
-					// String type
-					mType = metric.ATTRIBUTE
-				} else {
-					// Numeric type
-					mType = metric.GAUGE
-				}
-				err = ms.SetMetric(k, vString, mType)
+				err = ms.SetMetric(k, vString, detectMetricType(vString))
 				if err != nil {
 					log.Error("Failed to set metric: %s", err)
 					continue
@@ -353,5 +336,16 @@ func dbMetricPopulator(dbSetLookup database.DBMetricSetLookup, modelChan <-chan 
 		if err := metricSet.MarshalMetrics(model); err != nil {
 			log.Error("Error setting database metrics: %s", err.Error())
 		}
+	}
+}
+
+func detectMetricType(value string) metric.SourceType {
+	// Auto-determine metric type
+	if _, err := strconv.ParseFloat(value, 64); err != nil {
+		// String type
+		return metric.ATTRIBUTE
+	} else {
+		// Numeric type
+		return metric.GAUGE
 	}
 }
