@@ -115,6 +115,12 @@
 			"path": "gopkg.in/DATA-DOG/go-sqlmock.v1",
 			"revision": "d76b18b42f285b792bf985118980ce9eacea9d10",
 			"revisionTime": "2017-09-01T07:34:10Z"
+		},
+		{
+			"checksumSHA1": "dIH8v3OdMGX07t3yJGMODGFUKPg=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "53403b58ad1b561927d19068c655246f2db79d48",
+			"revisionTime": "2020-01-21T17:19:40Z"
 		}
 	],
 	"rootPath": "github.com/newrelic/nri-mssql"
