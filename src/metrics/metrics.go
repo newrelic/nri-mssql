@@ -282,7 +282,9 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	}
 
 	// run queries that are specific to a database
-	processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
+	if arguments.EnableDatabaseReserveMetrics {
+		processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
+	}
 
 	close(modelChan)
 	wg.Wait()
