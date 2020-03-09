@@ -21,19 +21,27 @@ func dbNameReplace(dbName string) QueryModifier {
 // databaseDefinitions definitions for Database Queries
 var databaseDefinitions = []*QueryDefinition{
 	{
-		query: `select 
+		query: `select
 		RTRIM(t1.instance_name) as db_name,
 		t1.cntr_value as log_growth
-		from (SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE object_name = 'SQLServer:Databases' and counter_name = 'Log Growths' and instance_name NOT IN ('_Total', 'mssqlsystemresource')) t1`,
+		from (
+      SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK)
+      WHERE object_name = 'SQLServer:Databases'
+        AND counter_name = 'Log Growths'
+        AND RTRIM(instance_name) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
+        AND instance_name NOT IN ('_Total', 'mssqlsystemresource', 'master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
+    ) t1
+    `,
 		dataModels: &[]struct {
 			database.DataModel
 			LogGrowth int `db:"log_growth" metric_name:"log.transactionGrowth" source_type:"gauge"`
 		}{},
 	}, {
-		query: `select 
+		query: `select
 		DB_NAME(database_id) AS db_name,
 		SUM(io_stall_write_ms) + SUM(num_of_writes) as io_stalls
 		FROM sys.dm_io_virtual_file_stats(null,null)
+    WHERE DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
 		GROUP BY database_id`,
 		dataModels: &[]struct {
 			database.DataModel
@@ -50,6 +58,7 @@ var databaseBufferDefinitions = []*QueryDefinition{
 		COUNT_BIG(*) * (8*1024) AS buffer_pool_size
 		FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
 		WHERE database_id <> 32767 -- ResourceDB
+      AND DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
 		GROUP BY database_id`,
 		dataModels: &[]struct {
 			database.DataModel

@@ -10,7 +10,7 @@ import (
 )
 
 // databaseNameQuery gets all database names
-const databaseNameQuery = "select name as db_name from sys.databases"
+const databaseNameQuery = "select name as db_name from sys.databases where name not in ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')"
 
 // NameRow is a row result in the databaseNameQuery
 type NameRow struct {

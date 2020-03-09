@@ -21,7 +21,7 @@ func Test_createDatabaseEntities_QueryError(t *testing.T) {
 
 	conn, mock := connection.CreateMockSQL(t)
 
-	mock.ExpectQuery(databaseNameQuery).WillReturnError(errors.New("error"))
+	mock.ExpectQuery(`select name as db_name from sys.databases where`).WillReturnError(errors.New("error"))
 
 	instanceName := "testInstanceName"
 	if _, err := CreateDatabaseEntities(i, conn, instanceName); err == nil {
@@ -41,7 +41,7 @@ func Test_createDatabaseEntities(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"db_name"}).
 		AddRow("master").
 		AddRow("tempdb")
-	mock.ExpectQuery(databaseNameQuery).WillReturnRows(rows)
+	mock.ExpectQuery(`select name as db_name from sys.databases where`).WillReturnRows(rows)
 
 	instanceName := "testInstanceName"
 	dbEntities, err := CreateDatabaseEntities(i, conn, instanceName)
