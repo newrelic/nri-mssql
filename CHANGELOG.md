@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## NEXT
+### Changed
+- Skip system databases that we don't get permissions for by default
+
 ## 2.4.0 (2020-03-05)
 ### Added
 - `EnableDatabaseReserveMetrics` argument
