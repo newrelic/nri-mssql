@@ -29,7 +29,7 @@ type ArgumentList struct {
 
 // Validate validates SQL specific arguments
 func (al ArgumentList) Validate() error {
-	if al.Username == "" {
+	if al.Username == "" && al.Password != "" {
 		return errors.New("invalid configuration: must specify a username")
 	}
 

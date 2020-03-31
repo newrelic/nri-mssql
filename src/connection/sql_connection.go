@@ -54,8 +54,10 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 func CreateConnectionURL(args *args.ArgumentList) string {
 	connectionURL := &url.URL{
 		Scheme: "sqlserver",
-		User:   url.UserPassword(args.Username, args.Password),
 		Host:   args.Hostname,
+	}
+	if args.Username != "" {
+		connectionURL.User = url.UserPassword(args.Username, args.Password)
 	}
 
 	// If port is present use port if not user instance
