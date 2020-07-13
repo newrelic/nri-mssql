@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.4.2 (2020-07-13)
+### Changed
+- Rename bufferPoolHit to bufferPoolHitPercent
+
 ## 2.4.1 (2020-03-12)
 ### Changed
 - Skip system databases that we don't get permissions for by default
