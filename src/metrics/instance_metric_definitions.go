@@ -3,7 +3,6 @@ package metrics
 var instanceDefinitions = []*QueryDefinition{
 	{
 		query: `SELECT
-		t1.cntr_value AS buffer_cache_hit_ratio,
 		(t1.cntr_value * 1.0 / t2.cntr_value) * 100.0 AS buffer_pool_hit_percent,
 		t3.cntr_value AS sql_compilations,
 		t4.cntr_value AS sql_recompilations,
@@ -34,8 +33,7 @@ var instanceDefinitions = []*QueryDefinition{
 		(SELECT Sum(cntr_value) AS cntr_value FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Transactions/sec') t14,
 		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t15`,
 		dataModels: &[]struct {
-			BufferCacheHitRatio        *int     `db:"buffer_cache_hit_ratio" metric_name:"buffer.cacheHitRatio" source_type:"gauge"`
-			BufferPoolHitPercent       *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHit" source_type:"gauge"`
+			BufferPoolHitPercent       *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHitPercent" source_type:"gauge"`
 			SQLCompilations            *int     `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
 			SQLRecompilations          *int     `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
 			UserConnections            *int     `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
