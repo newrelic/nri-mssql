@@ -15,10 +15,10 @@
 			"revisionTime": "2018-08-30T19:11:22Z"
 		},
 		{
-			"checksumSHA1": "bdBC4Qd86efNGiz2+YZLBnbRYKc=",
+			"checksumSHA1": "Su5QGXbrZ+/lq6h1oBPtn+c+mRA=",
 			"path": "github.com/denisenkom/go-mssqldb",
-			"revision": "8fac8b954edb5b2b4ade733422de37ced41823c8",
-			"revisionTime": "2018-08-23T17:12:20Z"
+			"revision": "b91950f658ecd54342d783495e1aadf48a55e967",
+			"revisionTime": "2020-06-20T01:31:48Z"
 		},
 		{
 			"checksumSHA1": "wu8t19t2rmyrrfDfdu9v7f/+iag=",
