@@ -29,9 +29,6 @@ type ArgumentList struct {
 
 // Validate validates SQL specific arguments
 func (al ArgumentList) Validate() error {
-	if al.Username == "" {
-		return errors.New("invalid configuration: must specify a username")
-	}
 
 	if al.Hostname == "" {
 		return errors.New("invalid configuration: must specify a hostname")
