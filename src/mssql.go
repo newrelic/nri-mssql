@@ -15,7 +15,7 @@ import (
 
 const (
 	integrationName    = "com.newrelic.mssql"
-	integrationVersion = "2.4.2"
+	integrationVersion = "2.5.0"
 )
 
 func main() {

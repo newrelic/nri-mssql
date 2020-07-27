@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.5.0 (2020-07-13)
+### Changed
+- Updated the MSSQL driver
+- Username is no longer required to open up support for Windows auth
+
 ## 2.4.2 (2020-07-13)
 ### Changed
 - Rename bufferPoolHit to bufferPoolHitPercent
