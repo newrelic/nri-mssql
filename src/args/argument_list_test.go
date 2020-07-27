@@ -26,7 +26,7 @@ func TestValidate(t *testing.T) {
 				Hostname: "localhost",
 				Port:     "90",
 			},
-			true,
+			false,
 		},
 		{
 			"No Hostname",
