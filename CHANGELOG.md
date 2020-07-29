@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.5.1 (2020-07-29)
+### Fixed
+- MSSQL instances were being reported with only the host name instead of the full instance name
+
 ## 2.5.0 (2020-07-13)
 ### Changed
 - Updated the MSSQL driver

@@ -64,7 +64,7 @@ func Test_createInstanceEntity(t *testing.T) {
 	entity, err := CreateInstanceEntity(i, conn)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "testhost", entity.Metadata.Name)
+	assert.Equal(t, "testinstance", entity.Metadata.Name)
 	assert.Equal(t, "ms-instance", entity.Metadata.Namespace)
 	assert.Len(t, entity.Metadata.IDAttrs, 1)
 }
