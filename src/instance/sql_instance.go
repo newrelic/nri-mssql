@@ -30,7 +30,7 @@ func CreateInstanceEntity(i *integration.Integration, con *connection.SQLConnect
 
 	if instanceRows[0].Name.Valid {
 		instanceNameIDAttr := integration.NewIDAttribute("instance", instanceRows[0].Name.String)
-		return i.EntityReportedVia(con.Host, con.Host, "ms-instance", instanceNameIDAttr)
+		return i.EntityReportedVia(con.Host, instanceRows[0].Name.String, "ms-instance", instanceNameIDAttr)
 	}
 
 	return i.EntityReportedVia(con.Host, con.Host, "ms-instance")
