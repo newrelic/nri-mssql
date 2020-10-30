@@ -25,6 +25,7 @@ type ArgumentList struct {
 	Timeout                      string `default:"30" help:"Timeout in seconds for a single SQL Query. Set 0 for no timeout"`
 	CustomMetricsQuery           string `default:"" help:"A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings"`
 	CustomMetricsConfig          string `default:"" help:"YAML configuration with one or more SQL queries to collect custom metrics"`
+	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 }
 
 // Validate validates SQL specific arguments
