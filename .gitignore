@@ -45,6 +45,15 @@ debug
 pkg/windows/**/bin
 pkg/windows/**/obj
 
-dist
-*.gpg
+bin/
+dist/
+
+# Local development tools/files
 .idea
+.env
+.envrc
+*.gpg
+
+# build files
+src/versioninfo.json
+src/resource.syso
