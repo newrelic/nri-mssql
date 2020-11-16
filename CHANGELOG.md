@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.5.2 (2020-11-16)
+### Fixed
+- Add connection timeout to connection params to mitigate a zombie request bug in the driver
+
 ## 2.5.1 (2020-07-29)
 ### Fixed
 - MSSQL instances were being reported with only the host name instead of the full instance name
