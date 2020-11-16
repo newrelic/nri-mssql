@@ -68,6 +68,7 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 	// Format query parameters
 	query := url.Values{}
 	query.Add("dial timeout", args.Timeout)
+	query.Add("connection timeout", args.Timeout)
 
 	if args.EnableSSL {
 		query.Add("encrypt", "true")
