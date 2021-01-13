@@ -23,7 +23,6 @@ env:
   TAG: ${{ github.event.release.tag_name }}
 
 jobs:
-
   validate:
     name: Validate code via linters
     runs-on: ubuntu-20.04
