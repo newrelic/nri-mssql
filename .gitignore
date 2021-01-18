@@ -44,3 +44,16 @@ debug
 **/Product.wxs
 pkg/windows/**/bin
 pkg/windows/**/obj
+
+bin/
+dist/
+
+# Local development tools/files
+.idea
+.env
+.envrc
+*.gpg
+
+# build files
+src/versioninfo.json
+src/resource.syso

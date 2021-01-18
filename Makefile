@@ -1,6 +1,4 @@
 WORKDIR      := $(shell pwd)
-TARGET       := target
-TARGET_DIR    = $(WORKDIR)/$(TARGET)
 NATIVEOS	 := $(shell go version | awk -F '[ /]' '{print $$4}')
 NATIVEARCH	 := $(shell go version | awk -F '[ /]' '{print $$5}')
 INTEGRATION  := mssql
@@ -17,7 +15,7 @@ build: check-version clean validate test compile
 
 clean:
 	@echo "=== $(INTEGRATION) === [ clean ]: Removing binaries and coverage file..."
-	@rm -rfv bin coverage.xml $(TARGET)
+	@rm -rfv bin coverage.xml
 
 tools: check-version
 	@echo "=== $(INTEGRATION) === [ tools ]: Installing tools required by the project..."
@@ -56,7 +54,8 @@ test: deps
 	@gocov test -race $(GO_FILES)... | gocov-xml > coverage.xml
 
 # Include thematic Makefiles
-include Makefile-*.mk
+include $(CURDIR)/build/ci.mk
+include $(CURDIR)/build/release.mk
 
 check-version:
 ifdef GOOS
