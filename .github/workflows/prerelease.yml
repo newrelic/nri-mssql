@@ -12,7 +12,7 @@ env:
   GO_VERSION: '1.9.7'
   GPG_MAIL: 'infrastructure-eng@newrelic.com'
   GPG_PASSPHRASE: ${{ secrets.OHAI_GPG_PASSPHRASE }}
-  GPG_PRIVATE_KEY_BASE64: ${{ secrets. OHAI_GPG_PRIVATE_KEY_BASE64  }} # base64 encoded
+  GPG_PRIVATE_KEY_BASE64: ${{ secrets.OHAI_GPG_PRIVATE_KEY_BASE64 }} # base64 encoded
   INTEGRATION: "mssql"
   ORIGINAL_REPO_NAME: 'newrelic/nri-mssql'
   PFX_CERTIFICATE_BASE64: ${{ secrets.OHAI_PFX_CERTIFICATE_BASE64 }} # base64 encoded
