@@ -52,36 +52,43 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 // CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
 func CreateConnectionURL(args *args.ArgumentList) string {
-	connectionURL := &url.URL{
-		Scheme: "sqlserver",
-		User:   url.UserPassword(args.Username, args.Password),
-		Host:   args.Hostname,
-	}
 
-	// If port is present use port if not user instance
-	if args.Port != "" {
-		connectionURL.Host = fmt.Sprintf("%s:%s", connectionURL.Host, args.Port)
+	connectionString := ""
+	if args.CustomConnectionURL != "" {
+		connectionString = args.CustomConnectionURL
 	} else {
-		connectionURL.Path = args.Instance
-	}
-
-	// Format query parameters
-	query := url.Values{}
-	query.Add("dial timeout", args.Timeout)
-	query.Add("connection timeout", args.Timeout)
-
-	if args.EnableSSL {
-		query.Add("encrypt", "true")
-
-		query.Add("TrustServerCertificate", strconv.FormatBool(args.TrustServerCertificate))
-
-		if !args.TrustServerCertificate {
-			query.Add("certificate", args.CertificateLocation)
+		connectionURL := &url.URL{
+			Scheme: "sqlserver",
+			User:   url.UserPassword(args.Username, args.Password),
+			Host:   args.Hostname,
 		}
+
+		// If port is present use port if not user instance
+		if args.Port != "" {
+			connectionURL.Host = fmt.Sprintf("%s:%s", connectionURL.Host, args.Port)
+		} else {
+			connectionURL.Path = args.Instance
+		}
+
+		// Format query parameters
+		query := url.Values{}
+		query.Add("dial timeout", args.Timeout)
+		query.Add("connection timeout", args.Timeout)
+
+		if args.EnableSSL {
+			query.Add("encrypt", "true")
+
+			query.Add("TrustServerCertificate", strconv.FormatBool(args.TrustServerCertificate))
+
+			if !args.TrustServerCertificate {
+				query.Add("certificate", args.CertificateLocation)
+			}
+		}
+
+		connectionURL.RawQuery = query.Encode()
+
+		connectionString = connectionURL.String()
 	}
 
-	connectionURL.RawQuery = query.Encode()
-
-	connectionString := connectionURL.String()
 	return connectionString
 }
