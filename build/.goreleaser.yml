@@ -107,7 +107,7 @@ archives:
       - nri-win
     name_template: "{{ .ProjectName }}-{{ .Arch }}.{{ .Version }}_dirty"
     files:
-      - mssql-win-config.yml.sample
+      - mssql-config.yml.sample
       - mssql-win-definition.yml
     format: zip
 
