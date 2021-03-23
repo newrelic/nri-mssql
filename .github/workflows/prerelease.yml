@@ -108,6 +108,7 @@ jobs:
         with:
           tag: ${{ env.TAG }}
           integration: nri-${{ env.INTEGRATION }}
+          upgrade: false
 
   package-win:
     name: Create MSI & Upload into GH Release assets
