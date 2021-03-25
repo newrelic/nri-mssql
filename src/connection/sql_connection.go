@@ -54,41 +54,48 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 func CreateConnectionURL(args *args.ArgumentList) string {
 
 	connectionString := ""
-	if args.CustomConnectionURL != "" {
-		connectionString = args.CustomConnectionURL
+
+	connectionURL := &url.URL{
+		Scheme: "sqlserver",
+		User:   url.UserPassword(args.Username, args.Password),
+		Host:   args.Hostname,
+	}
+
+	// If port is present use port if not user instance
+	if args.Port != "" {
+		connectionURL.Host = fmt.Sprintf("%s:%s", connectionURL.Host, args.Port)
 	} else {
-		connectionURL := &url.URL{
-			Scheme: "sqlserver",
-			User:   url.UserPassword(args.Username, args.Password),
-			Host:   args.Hostname,
-		}
+		connectionURL.Path = args.Instance
+	}
 
-		// If port is present use port if not user instance
-		if args.Port != "" {
-			connectionURL.Host = fmt.Sprintf("%s:%s", connectionURL.Host, args.Port)
-		} else {
-			connectionURL.Path = args.Instance
-		}
+	// Format query parameters
+	query := url.Values{}
+	query.Add("dial timeout", args.Timeout)
+	query.Add("connection timeout", args.Timeout)
 
-		// Format query parameters
-		query := url.Values{}
-		query.Add("dial timeout", args.Timeout)
-		query.Add("connection timeout", args.Timeout)
-
-		if args.EnableSSL {
-			query.Add("encrypt", "true")
-
-			query.Add("TrustServerCertificate", strconv.FormatBool(args.TrustServerCertificate))
-
-			if !args.TrustServerCertificate {
-				query.Add("certificate", args.CertificateLocation)
+	if args.ExtraConnectionURLArgs != "" {
+		mockURL, err := url.Parse("http://example.com?" + args.ExtraConnectionURLArgs)
+		if err == nil {
+			extraArgsMap, _ := url.ParseQuery(mockURL.RawQuery)
+			for k, v := range extraArgsMap {
+				query.Add(k, v[0])
 			}
 		}
-
-		connectionURL.RawQuery = query.Encode()
-
-		connectionString = connectionURL.String()
 	}
+
+	if args.EnableSSL {
+		query.Add("encrypt", "true")
+
+		query.Add("TrustServerCertificate", strconv.FormatBool(args.TrustServerCertificate))
+
+		if !args.TrustServerCertificate {
+			query.Add("certificate", args.CertificateLocation)
+		}
+	}
+
+	connectionURL.RawQuery = query.Encode()
+
+	connectionString = connectionURL.String()
 
 	return connectionString
 }

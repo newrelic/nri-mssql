@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 2.5.3 (2020-11-16)
 ### Added
-- `CustomConnectionURL` argument
+- `ExtraConnectionURLArgs` argument
 
 ## 2.5.2 (2020-11-16)
 ### Fixed

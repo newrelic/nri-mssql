@@ -26,7 +26,7 @@ type ArgumentList struct {
 	CustomMetricsQuery           string `default:"" help:"A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings"`
 	CustomMetricsConfig          string `default:"" help:"YAML configuration with one or more SQL queries to collect custom metrics"`
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
-	CustomConnectionURL          string `default:"" help:"Overrides all other connection parameters with a custom connection url. Ex sqlserver://username:password@hostname:port?connection+timeout=30&dial+timeout=30"`
+	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 }
 
 // Validate validates SQL specific arguments
