@@ -73,9 +73,8 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 	query.Add("dial timeout", args.Timeout)
 	query.Add("connection timeout", args.Timeout)
 
-	mockURL, err := url.Parse("http://example.com?" + args.ExtraConnectionURLArgs)
-	if err == nil {
-		extraArgsMap, _ := url.ParseQuery(mockURL.RawQuery)
+	if args.ExtraConnectionURLArgs != "" {
+		extraArgsMap, _ := url.ParseQuery(args.ExtraConnectionURLArgs)
 		for k, v := range extraArgsMap {
 			query.Add(k, v[0])
 		}
