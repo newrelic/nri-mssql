@@ -74,10 +74,15 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 	query.Add("connection timeout", args.Timeout)
 
 	if args.ExtraConnectionURLArgs != "" {
-		extraArgsMap, _ := url.ParseQuery(args.ExtraConnectionURLArgs)
-		for k, v := range extraArgsMap {
-			query.Add(k, v[0])
+		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)
+		if err == nil {
+			for k, v := range extraArgsMap {
+				query.Add(k, v[0])
+			}
+		} else {
+			log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
 		}
+
 	}
 
 	if args.EnableSSL {
