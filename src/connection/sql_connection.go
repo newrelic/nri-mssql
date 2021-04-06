@@ -52,6 +52,9 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 // CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
 func CreateConnectionURL(args *args.ArgumentList) string {
+
+	connectionString := ""
+
 	connectionURL := &url.URL{
 		Scheme: "sqlserver",
 		User:   url.UserPassword(args.Username, args.Password),
@@ -70,6 +73,18 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 	query.Add("dial timeout", args.Timeout)
 	query.Add("connection timeout", args.Timeout)
 
+	if args.ExtraConnectionURLArgs != "" {
+		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)
+		if err == nil {
+			for k, v := range extraArgsMap {
+				query.Add(k, v[0])
+			}
+		} else {
+			log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
+		}
+
+	}
+
 	if args.EnableSSL {
 		query.Add("encrypt", "true")
 
@@ -82,6 +97,7 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 
 	connectionURL.RawQuery = query.Encode()
 
-	connectionString := connectionURL.String()
+	connectionString = connectionURL.String()
+
 	return connectionString
 }

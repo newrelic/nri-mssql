@@ -106,6 +106,19 @@ func Test_createConnectionURL(t *testing.T) {
 			},
 			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=false&certificate=file.ca&connection+timeout=30&dial+timeout=30&encrypt=true",
 		},
+		{
+			"Extra Args",
+			&args.ArgumentList{
+				Username:               "user",
+				Password:               "pass",
+				Hostname:               "localhost",
+				EnableSSL:              false,
+				Port:                   "1443",
+				Timeout:                "30",
+				ExtraConnectionURLArgs: "applicationIntent=true",
+			},
+			"sqlserver://user:pass@localhost:1443?applicationIntent=true&connection+timeout=30&dial+timeout=30",
+		},
 	}
 
 	for _, tc := range testCases {
