@@ -4,6 +4,7 @@ package database
 import (
 	"reflect"
 
+	"github.com/newrelic/infra-integrations-sdk/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/nri-mssql/src/connection"
@@ -100,10 +101,10 @@ func CreateDBEntitySetLookup(dbEntities []*integration.Entity, instanceName, hos
 	entitySetLookup := make(DBMetricSetLookup)
 	for _, dbEntity := range dbEntities {
 		set := dbEntity.NewMetricSet("MssqlDatabaseSample",
-			metric.Attribute{Key: "displayName", Value: dbEntity.Metadata.Name},
-			metric.Attribute{Key: "entityName", Value: dbEntity.Metadata.Namespace + ":" + dbEntity.Metadata.Name},
-			metric.Attribute{Key: "instance", Value: instanceName},
-			metric.Attribute{Key: "host", Value: hostname},
+			attribute.Attribute{Key: "displayName", Value: dbEntity.Metadata.Name},
+			attribute.Attribute{Key: "entityName", Value: dbEntity.Metadata.Namespace + ":" + dbEntity.Metadata.Name},
+			attribute.Attribute{Key: "instance", Value: instanceName},
+			attribute.Attribute{Key: "host", Value: hostname},
 		)
 
 		entitySetLookup[dbEntity.Metadata.Name] = set

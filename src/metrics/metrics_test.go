@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic/infra-integrations-sdk/data/metric"
+	"github.com/newrelic/infra-integrations-sdk/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
@@ -97,8 +97,8 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 	}
 
 	metricSet := masterEntity.NewMetricSet("MssqlDatabaseSample",
-		metric.Attribute{Key: "displayName", Value: "master"},
-		metric.Attribute{Key: "entityName", Value: "database:master"},
+		attribute.Attribute{Key: "displayName", Value: "master"},
+		attribute.Attribute{Key: "entityName", Value: "database:master"},
 	)
 
 	// used to make sure the number of attributes does not change

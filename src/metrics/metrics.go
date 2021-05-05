@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/newrelic/infra-integrations-sdk/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/infra-integrations-sdk/log"
@@ -28,9 +29,9 @@ type customQuery struct {
 // PopulateInstanceMetrics creates instance-level metrics
 func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
-		metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
-		metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
-		metric.Attribute{Key: "host", Value: connection.Host},
+		attribute.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
+		attribute.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+		attribute.Attribute{Key: "host", Value: connection.Host},
 	)
 
 	collectionList := instanceDefinitions
@@ -106,11 +107,11 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 
 	for _, model := range models {
 		metricSet := instanceEntity.NewMetricSet("MssqlWaitSample",
-			metric.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
-			metric.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
-			metric.Attribute{Key: "waitType", Value: *model.WaitType},
-			metric.Attribute{Key: "host", Value: connection.Host},
-			metric.Attribute{Key: "instance", Value: instanceEntity.Metadata.Name},
+			attribute.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
+			attribute.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+			attribute.Attribute{Key: "waitType", Value: *model.WaitType},
+			attribute.Attribute{Key: "host", Value: connection.Host},
+			attribute.Attribute{Key: "instance", Value: instanceEntity.Metadata.Name},
 		)
 
 		metrics := []struct {
@@ -219,14 +220,14 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 			}
 		}
 
-		attributes := []metric.Attribute{
+		attributes := []attribute.Attribute{
 			{Key: "displayName", Value: instanceEntity.Metadata.Name},
 			{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
 			{Key: "host", Value: connection.Host},
 			{Key: "instance", Value: instanceEntity.Metadata.Name},
 		}
 		if len(query.Database) > 0 {
-			attributes = append(attributes, metric.Attribute{Key: "database", Value: query.Database})
+			attributes = append(attributes, attribute.Attribute{Key: "database", Value: query.Database})
 		}
 		ms := instanceEntity.NewMetricSet("MssqlCustomQuerySample", attributes...)
 

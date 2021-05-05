@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/newrelic/infra-integrations-sdk/data/metric"
+	"github.com/newrelic/infra-integrations-sdk/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/integration"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -163,16 +163,16 @@ func Test_createDBEntitySetLookUp(t *testing.T) {
 
 	expected := DBMetricSetLookup{
 		"master": masterEntity.NewMetricSet("MssqlDatabaseSample",
-			metric.Attribute{Key: "displayName", Value: "master"},
-			metric.Attribute{Key: "entityName", Value: "database:master"},
-			metric.Attribute{Key: "instance", Value: "MSSQL"},
-			metric.Attribute{Key: "host", Value: "myHost"},
+			attribute.Attribute{Key: "displayName", Value: "master"},
+			attribute.Attribute{Key: "entityName", Value: "database:master"},
+			attribute.Attribute{Key: "instance", Value: "MSSQL"},
+			attribute.Attribute{Key: "host", Value: "myHost"},
 		),
 		"tempdb": tempdbEntity.NewMetricSet("MssqlDatabaseSample",
-			metric.Attribute{Key: "displayName", Value: "tempdb"},
-			metric.Attribute{Key: "entityName", Value: "database:tempdb"},
-			metric.Attribute{Key: "instance", Value: "MSSQL"},
-			metric.Attribute{Key: "host", Value: "myHost"},
+			attribute.Attribute{Key: "displayName", Value: "tempdb"},
+			attribute.Attribute{Key: "entityName", Value: "database:tempdb"},
+			attribute.Attribute{Key: "instance", Value: "MSSQL"},
+			attribute.Attribute{Key: "host", Value: "myHost"},
 		),
 	}
 
