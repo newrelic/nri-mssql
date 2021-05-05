@@ -101,8 +101,6 @@ If you want to know more about usage of `./bin/nri-mssql`, pass the `-help` para
 $ ./bin/nri-mssql -help
 ```
 
-External dependencies are managed through the [govendor tool](https://github.com/kardianos/govendor). Locking all external dependencies to a specific version (if possible) into the vendor directory is required.
-
 ## Testing
 
 To run the tests execute:

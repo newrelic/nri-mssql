@@ -4,8 +4,7 @@ NATIVEARCH	 := $(shell go version | awk -F '[ /]' '{print $$5}')
 INTEGRATION  := mssql
 BINARY_NAME   = nri-$(INTEGRATION)
 GO_FILES     := ./src/
-GOTOOLS       = github.com/kardianos/govendor \
-		gopkg.in/alecthomas/gometalinter.v2 \
+GOTOOLS       = gopkg.in/alecthomas/gometalinter.v2 \
 		github.com/axw/gocov/gocov \
 		github.com/AlekSi/gocov-xml \
 
@@ -19,33 +18,29 @@ clean:
 
 tools: check-version
 	@echo "=== $(INTEGRATION) === [ tools ]: Installing tools required by the project..."
-	@go get $(GOTOOLS)
-	@gometalinter.v2 --install
+	@GO111MODULE=off go get $(GOTOOLS)
+	@GO111MODULE=off gometalinter.v2 --install
 
 tools-update: check-version
 	@echo "=== $(INTEGRATION) === [ tools-update ]: Updating tools required by the project..."
-	@go get -u $(GOTOOLS)
-	@gometalinter.v2 --install
+	@GO111MODULE=off go get -u $(GOTOOLS)
+	@GO111MODULE=off gometalinter.v2 --install
 
-deps: tools deps-only
+deps: tools
 
-deps-only:
-	@echo "=== $(INTEGRATION) === [ deps ]: Installing package dependencies required by the project..."
-	@govendor sync
-
-validate: deps
+validate: 
 	@echo "=== $(INTEGRATION) === [ validate ]: Validating source code running gometalinter..."
-	@gometalinter.v2 --config=.gometalinter.json $(GO_FILES)...
+	@GO111MODULE=off gometalinter.v2 --config=.gometalinter.json $(GO_FILES)...
 
-validate-all: deps
+validate-all: 
 	@echo "=== $(INTEGRATION) === [ validate ]: Validating source code running gometalinter..."
-	@gometalinter.v2 --config=.gometalinter.json --enable=interfacer --enable=gosimple $(GO_FILES)...
+	@GO111MODULE=off gometalinter.v2 --config=.gometalinter.json --enable=interfacer --enable=gosimple $(GO_FILES)...
 
-compile: deps
+compile: 
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
 	@go build -o bin/$(BINARY_NAME) $(GO_FILES)
 
-compile-only: deps-only
+compile-only: 
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
 	@go build -o bin/$(BINARY_NAME) $(GO_FILES)
 
