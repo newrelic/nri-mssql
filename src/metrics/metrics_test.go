@@ -49,7 +49,7 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 		t.Errorf("Could not read expected file: %v", err.Error())
 	}
 
-	assert.Equal(t, data, expectedData)
+	assert.JSONEq(t, string(expectedData), string(data))
 }
 
 func Test_populateDatabaseMetrics(t *testing.T) {
@@ -64,6 +64,9 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 	logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
 		AddRow("master", 0).
 		AddRow("otherdb", 1)
+	bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
+		AddRow("master", 0).
+		AddRow("otherdb", 1)
 
 	// only match the performance counter query
 	mock.ExpectQuery(`select name as db_name from sys\.databases`).
@@ -71,6 +74,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 
 	mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
 		WillReturnRows(logGrowthRows)
+
+	mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, COUNT_BIG\(\*\) \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
 
 	mock.ExpectClose()
 
