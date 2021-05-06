@@ -21,10 +21,11 @@ var (
 	update = flag.Bool("update", false, "update .golden files")
 )
 
-func updateGoldenFile(data []byte, sourceFile string) {
+func updateGoldenFile(data []byte, sourceFile string) error {
 	if *update {
-		ioutil.WriteFile(sourceFile, data, 0644)
+		return ioutil.WriteFile(sourceFile, data, 0644)
 	}
+	return nil
 }
 
 func createTestEntity(t *testing.T) (i *integration.Integration, e *integration.Entity) {
@@ -76,11 +77,11 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 	args := args.ArgumentList{
 		EnableBufferMetrics: true,
 	}
-	PopulateDatabaseMetrics(i, "MSSQL", conn, args)
+	assert.NoError(t, PopulateDatabaseMetrics(i, "MSSQL", conn, args))
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
-	updateGoldenFile(actual, expectedFile)
+	assert.NoError(t, updateGoldenFile(actual, expectedFile))
 	checkAgainstFile(t, actual, expectedFile)
 }
 
@@ -159,7 +160,7 @@ func Test_populateInstanceMetrics(t *testing.T) {
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "perfCounter.json.golden")
-	updateGoldenFile(actual, expectedFile)
+	assert.NoError(t, updateGoldenFile(actual, expectedFile))
 
 	checkAgainstFile(t, actual, expectedFile)
 }
@@ -183,7 +184,7 @@ func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "empty.json.golden")
-	updateGoldenFile(actual, expectedFile)
+	assert.NoError(t, updateGoldenFile(actual, expectedFile))
 
 	checkAgainstFile(t, actual, expectedFile)
 }
@@ -208,7 +209,7 @@ func Test_populateWaitTimeMetrics(t *testing.T) {
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "waitTime.json.golden")
-	updateGoldenFile(actual, expectedFile)
+	assert.NoError(t, updateGoldenFile(actual, expectedFile))
 
 	checkAgainstFile(t, actual, expectedFile)
 }

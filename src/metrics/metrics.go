@@ -39,7 +39,7 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 		collectionList = append(collectionList, instanceBufferDefinitions...)
 	}
 
-	for _, queryDef := range instanceDefinitions {
+	for _, queryDef := range collectionList {
 		models := queryDef.GetDataModels()
 		if err := connection.Query(models, queryDef.GetQuery()); err != nil {
 			log.Error("Could not execute instance query: %s", err.Error())
