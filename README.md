@@ -1,4 +1,4 @@
-[![New Relic Community Plus header](https://raw.githubusercontent.com/newrelic/open-source-office/master/examples/categories/images/Community_Plus.png)](https://opensource.newrelic.com/oss-category/#community-plus)
+[![Community Plus header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Community_Plus.png)](https://opensource.newrelic.com/oss-category/#community-plus)
 
 # New Relic integration for Microsoft SQL Server
 
@@ -100,8 +100,6 @@ If you want to know more about usage of `./bin/nri-mssql`, pass the `-help` para
 ```bash
 $ ./bin/nri-mssql -help
 ```
-
-External dependencies are managed through the [govendor tool](https://github.com/kardianos/govendor). Locking all external dependencies to a specific version (if possible) into the vendor directory is required.
 
 ## Testing
 
