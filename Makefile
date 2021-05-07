@@ -23,6 +23,12 @@ test:
 	@echo "=== $(INTEGRATION) === [ test ]: Running unit tests..."
 	@go run $(GOFLAGS) $(GOCOV) test ./... | go run $(GOFLAGS) $(GOCOV_XML) > coverage.xml
 
+integration-test:
+	@echo "=== $(INTEGRATION) === [ test ]: running integration tests..."
+	@docker-compose -f tests/docker-compose.yml pull
+	@go test -v -tags=integration ./tests/. || (ret=$$?; docker-compose -f tests/docker-compose.yml down && exit $$ret)
+	@docker-compose -f tests/docker-compose.yml down
+
 compile: 
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."
 	@go build -o bin/$(BINARY_NAME) $(GO_FILES)
