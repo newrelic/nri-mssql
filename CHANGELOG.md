@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 2.6.1 (2021-06-08)
-## Changed
+### Changed
 - Support for ARM
 
 ## 2.6.0 (2021-06-05)
-## Changed
+### Changed
 - Update Go to v1.16.
 - Migrate to Go Modules
 - Update Infrastracture SDK to v3.6.7.
