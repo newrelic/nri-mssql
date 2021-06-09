@@ -5,13 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## 2.6.0 (2021-10-05)
-## Changed
+## 2.6.1 (2021-06-08)
+### Changed
+- Support for ARM
+
+## 2.6.0 (2021-06-05)
+### Changed
 - Update Go to v1.16.
 - Migrate to Go Modules
 - Update Infrastracture SDK to v3.6.7.
 - Update other dependecies.
-
 ## 2.5.4 (2021-04-06)
 ### Added
 - `ExtraConnectionURLArgs` argument allowing to specify custom connection strings
