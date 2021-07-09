@@ -5,13 +5,14 @@ package tests
 import (
 	"flag"
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/newrelic/infra-integrations-sdk/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
-	"time"
 )
 
 const (
@@ -35,7 +36,7 @@ func waitForMSSQLIsUpAndRunning(maxTries int) bool {
 		"MSSQL_PID=Developer",
 	}
 	ports := []string{"1433:1433"}
-	stdout,stderr, err := dockerComposeRunMode(mssqlEnvVars, ports, dbContainerName, true)
+	stdout, stderr, err := dockerComposeRunMode(mssqlEnvVars, ports, dbContainerName, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,6 +76,7 @@ func TestSuccessConnection(t *testing.T) {
 		fmt.Sprintf("PASSWORD=%s", dbPassword),
 	}
 	stdout, _, err := dockerComposeRun(envVars, containerName)
+	t.Log(stdout)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, stdout)
 	err = validateJSONSchema(schema, stdout)
