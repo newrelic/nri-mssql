@@ -159,7 +159,7 @@
                       "type": "integer"
                     },
                     "system.bufferPoolHitPercent": {
-                      "type": "integer"
+                      "type": "number"
                     },
                     "system.waitTimeInMillisecondsPerSecond": {
                       "type": "integer"
