@@ -28,8 +28,8 @@ var databaseDefinitions = []*QueryDefinition{
       SELECT * FROM sys.dm_os_performance_counters WITH (NOLOCK)
       WHERE object_name = 'SQLServer:Databases'
         AND counter_name = 'Log Growths'
-        AND RTRIM(instance_name) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
-        AND instance_name NOT IN ('_Total', 'mssqlsystemresource', 'master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
+        AND RTRIM(instance_name) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+        AND instance_name NOT IN ('_Total', 'mssqlsystemresource', 'master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
     ) t1
     `,
 		dataModels: &[]struct {
@@ -41,7 +41,7 @@ var databaseDefinitions = []*QueryDefinition{
 		DB_NAME(database_id) AS db_name,
 		SUM(io_stall_write_ms) + SUM(num_of_writes) as io_stalls
 		FROM sys.dm_io_virtual_file_stats(null,null)
-    WHERE DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
+    WHERE DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
 		GROUP BY database_id`,
 		dataModels: &[]struct {
 			database.DataModel
@@ -58,7 +58,7 @@ var databaseBufferDefinitions = []*QueryDefinition{
 		COUNT_BIG(*) * (8*1024) AS buffer_pool_size
 		FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
 		WHERE database_id <> 32767 -- ResourceDB
-      AND DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution')
+      AND DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
 		GROUP BY database_id`,
 		dataModels: &[]struct {
 			database.DataModel
