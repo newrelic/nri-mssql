@@ -1,31 +1,40 @@
-integration_name: com.newrelic.mssql
+integrations:
+- name: nri-mssql
+  env:
+    HOSTNAME: <Host name or IP address of the SQl Server>
+    USERNAME: <Microsoft SQL Server connection user name>
+    PASSWORD: <Microsoft SQL Server connection password>
 
-instances:
-  - name: mssql-server
-    command: all_data
-    arguments:
-      hostname: <Host name or IP address of the SQl Server>
-      username: <Microsoft SQL Server connection user name>
-      password: <Microsoft SQL Server connection password>
+    # Both port and instance can be omitted to use a default port of 1433
+    PORT: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
+    # EXTRA_CONNECTION_URL_ARGS: ""
 
-      # Both port and instance can be omitted to use a default port of 1433
-      port: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
+    # Only use instance instead of port if SQL Browser is enabled
+    INSTANCE: <The Microsoft SQL Server instance to connect to. Do not supply port if this is specified>
 
-      # Only use instance instead of port if SQL Browser is enabled
-      instance: <The Microsoft SQL Server instance to connect to. Do not supply port if this is specified>
+    ENABLE_SSL: <true or false. Indicates if SSL encryption should be used>
+    TRUST_SERVER_CERTIFICATE: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
+    CERTIFICATE_LOCATION: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
+    TIMEOUT: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
 
-      enable_ssl: <true or false. Indicates if SSL encryption should be used>
-      trust_server_certificate: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
-      certificate_location: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
-      timeout: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
-      # custom_metrics_query: >-
-      #   SELECT
-      #     'instance_buffer_pool_size' AS metric_name,
-      #     Count_big(*) * (8*1024) AS metric_value,
-      #     'gauge' as metric_type,
-      #     database_id
-      #   FROM sys.dm_os_buffer_descriptors WITH (nolock)
-      #   GROUP BY database_id
-    labels:
-      env: production
-      role: mssql
+    # ENABLE_BUFFER_METRICS: true
+    # ENABLE_DATABASE_RESERVE_METRICS: true 
+
+    # YAML configuration with one or more SQL queries to collect custom metrics
+    # CUSTOM_METRICS_CONFIG: ""
+    # A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings
+    # CUSTOM_METRICS_QUERY: >-
+    #   SELECT
+    #     'instance_buffer_pool_size' AS metric_name,
+    #     Count_big(*) * (8*1024) AS metric_value,
+    #     'gauge' as metric_type,
+    #     database_id
+    #   FROM sys.dm_os_buffer_descriptors WITH (nolock)
+    #   GROUP BY database_id
+  interval: 15s
+  labels:
+    env: production
+    role: mssql
+  inventory_source: config/mssql
+
+
