@@ -1,5 +1,5 @@
 name: com.newrelic.mssql
-description: Reports status and metrics for MSSQL service. Legacy file kept for compatibility.
+description: Reports status and metrics for MSSQL service
 protocol_version: 2
 os: linux
 

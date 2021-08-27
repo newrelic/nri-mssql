@@ -7,6 +7,7 @@ integrations:
 
     # Both port and instance can be omitted to use a default port of 1433
     PORT: <Microsoft SQL Server port to connect to. Only needed when instance not specified>
+    # EXTRA_CONNECTION_URL_ARGS: ""
 
     # Only use instance instead of port if SQL Browser is enabled
     INSTANCE: <The Microsoft SQL Server instance to connect to. Do not supply port if this is specified>
@@ -16,6 +17,12 @@ integrations:
     CERTIFICATE_LOCATION: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
     TIMEOUT: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
 
+    # ENABLE_BUFFER_METRICS: true
+    # ENABLE_DATABASE_RESERVE_METRICS: true 
+
+    # YAML configuration with one or more SQL queries to collect custom metrics
+    # CUSTOM_METRICS_CONFIG: ""
+    # A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings
     # CUSTOM_METRICS_QUERY: >-
     #   SELECT
     #     'instance_buffer_pool_size' AS metric_name,
