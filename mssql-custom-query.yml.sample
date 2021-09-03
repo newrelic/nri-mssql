@@ -1,4 +1,5 @@
-queries: 
+queries:
+
     # Example for metric_name / metric_type specified in this config
   - query: SELECT count(*) AS 'metric_value' FROM sys.databases
     metric_name: dbCount
@@ -8,3 +9,318 @@ queries:
     database: msdb
     # Example for stored procedure 'exec dbo.sp_server_info @attribute_id = 2'
   - query: dbo.sp_server_info @attribute_id = 2
+
+# Example for showing active processes
+# NRQL:
+#  FROM MssqlCustomQuerySample 
+#  SELECT activeProcesses_session_id, activeProcesses_sql_hostname, 
+#  activeProcesses_sql_command, activeProcesses_cpu_time, 
+#  activeProcesses_logical_read_count, activeProcesses_open_transaction_count, 
+#  activeProcesses_blocking_session_id, activeProcesses_database_name, 
+#  activeProcesses_login_name, activeProcesses_last_batch_time, 
+#  activeProcesses_spid_status, activeProcesses_wait_time, 
+#  activeProcesses_last_wait_type, activeProcesses_query_text,
+#  activeProcesses_program_name, activeProcesses_start_time 
+#  WHERE activeProcesses_session_id IS NOT NULL
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        [es].[session_Id] AS [session_id],
+        [sysp].[hostname] AS [sql_hostname],
+        [sysp].[cmd] AS [sql_command],
+        [sysp].[cpu] AS [cpu_time],
+        [es].[logical_reads] AS [logical_read_count],
+        [sysp].[open_tran] AS [open_transaction_count],
+        [sysp].[blocked] AS [blocking_session_id],
+        DB_NAME([sysp].dbid) AS [database_name],
+        [sysp].[loginame] AS [login_name],
+        [sysp].[last_batch] AS [last_batch_time],
+        [sysp].[status] AS [spid_status],
+        [sysp].[waittime] AS [wait_time],
+        [sysp].[lastwaittype] AS [last_wait_type],
+        [qt].[text] AS [query_text],
+        [sysp].[program_name] AS [program_name],
+        [es].[last_request_start_time] AS [start_time]
+      FROM master.sys.sysprocesses AS sysp
+      INNER JOIN master.sys.dm_exec_sessions AS es ON [sysp].spid = [es].session_id
+      CROSS APPLY master.sys.dm_exec_sql_text([sysp].sql_handle) AS qt
+      WHERE session_Id > 50
+      AND session_Id NOT IN (@@SPID)
+      AND (
+        [sysp].open_tran != 0
+        OR
+        [sysp].cmd != 'AWAITING COMMAND'
+      );
+    prefix: activeProcesses_
+
+# Example for parsing Error Log
+# NOTE: This requires elevated permissions as follows: 
+# USE [master]
+# GO
+# CREATE USER [newrelic] FOR LOGIN [newrelic] WITH DEFAULT_SCHEMA=[dbo]
+# GO
+# GRANT execute on sp_readErrorLog to newrelic
+# GO
+# NRQL:
+#  FROM MssqlCustomQuerySample 
+#  SELECT errorLog_LogDate, errorLog_ProcessInfo, errorLog_Text
+#  WHERE errorLog_LogDate IS NOT NULL
+#  - query: >-
+#      EXEC master.dbo.sp_readerrorlog 0, 1, NULL, NULL;
+#    prefix: errorLog_
+
+# Example for querying busiest databases by logical R/W
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT busiestDatabases_database_name, busiestDatabases_total_page_reads, busiestDatabases_total_page_writes
+#  WHERE busiestDatabases_database_name IS NOT NULL
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        SUM(deqs.total_logical_reads) AS [total_page_reads],
+        SUM(deqs.total_logical_writes) AS [total_page_writes],
+        CASE
+          WHEN DB_NAME(dest.dbid) IS NULL THEN 'TechOps'
+          ELSE DB_NAME(dest.dbid) 
+        END AS [database_name]
+      FROM sys.dm_exec_query_stats deqs
+      CROSS APPLY sys.dm_exec_sql_text(deqs.sql_handle) AS dest
+      GROUP BY DB_NAME(dest.dbid);
+    database: master
+    prefix: busiestDatabases_
+
+# Example for checking database log space
+# You would wand to repeat this query for every target. i.e.;  database: master 
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT `logSpace_Database Name`, `logSpace_Log Size (MB)`,
+#  `logSpace_Log Space Used (%)`, logSpace_Status
+#  WHERE logSpace_database_name IS NOT NULL
+  - query: DBCC SQLPERF(LOGSPACE);
+    prefix: logSpace_
+
+# Example for querying all wait types where count > 0
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT waitTypes_sql_hostname, waitTypes_wait_type, waitTypes_wait_seconds, waitTypes_resource_seconds,
+#  waitTypes_signal_seconds, waitTypes_wait_count, waitTypes_wait_percentage,
+#  waitTypes_avg_wait_seconds, waitTypes_avg_resource_seconds, waitTypes_avg_signal_seconds
+#  WHERE waitTypes_wait_type IS NOT NULL
+  - query: >-
+      WITH [Waits] AS
+      (SELECT
+        @@SERVERNAME AS [sql_hostname],
+        [wait_type],
+        [wait_time_ms] / 1000.0 AS [wait_seconds],
+        ([wait_time_ms] - [signal_wait_time_ms]) / 1000.0 AS [resource_seconds],
+        [signal_wait_time_ms] / 1000.0 AS [signal_seconds],
+        [waiting_tasks_count] AS [wait_count],
+        100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER() AS [wait_percentage],
+        ROW_NUMBER() OVER(ORDER BY [wait_time_ms] DESC) AS [row_number]
+      FROM sys.dm_os_wait_stats
+      WHERE [waiting_tasks_count] > 0
+      )
+      SELECT
+        MAX([W1].[sql_hostname]) AS [sql_hostname],
+        MAX([W1].[wait_type]) AS [wait_type],
+        CAST(MAX([W1].[wait_seconds]) AS INT) AS [wait_seconds],
+        CAST(MAX([W1].[resource_seconds]) AS INT) AS [resource_seconds],
+        CAST(MAX([W1].[signal_seconds]) AS INT) AS [signal_seconds],
+        MAX([W1].[wait_count]) AS [wait_count],
+        CAST(MAX([W1].[wait_percentage]) AS INT) AS [wait_percentage],
+        CAST((MAX([W1].[wait_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_wait_seconds],
+        CAST((MAX([W1].[resource_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_resource_seconds],
+        CAST((MAX([W1].[signal_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_signal_seconds]	    
+      FROM [Waits] AS [W1]
+      INNER JOIN [Waits] AS [W2] ON [W2].[row_number] <= [W1].[row_number]
+      GROUP BY [W1].[row_number];
+    prefix: waitTypes_
+
+# Example for top 15 longest running queries 
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT longRunning_sql_hostname, longRunning_database_name, longRunning_short_text,
+#  longRunning_execution_count, longRunning_cpu_time_total_ms, longRunning_cpu_time_avg_ms,
+#  longRunning_physical_reads_total, longRunning_physical_reads_avg, longRunning_logical_reads_total,
+#  longRunning_logical_reads_avg, longRunning_writes_total, longRunning_logical_writes_avg,
+#  longRunning_duration_total_ms, longRunning_duration_avg_ms, longRunning_creation_time, longRunning_complete_text
+#  WHERE longRunning_execution_count IS NOT NULL
+  - query: >-
+      SELECT TOP 15
+        @@SERVERNAME AS [sql_hostname],
+        ISNULL(DB_NAME(t.dbid),'') AS [database_name],
+        LEFT(t.[text], 50) AS [short_text], 
+        qs.execution_count AS [execution_count],
+        qs.total_worker_time AS [cpu_time_total_ms],
+        qs.total_worker_time/qs.execution_count AS [cpu_time_avg_ms],     
+        qs.total_physical_reads AS [physical_reads_total],
+        qs.total_physical_reads/qs.execution_count AS [physical_reads_avg],
+        qs.total_logical_reads AS [logical_reads_total],
+        qs.total_logical_reads/qs.execution_count AS [logical_reads_avg],
+        qs.total_logical_writes AS [logical_writes_total],
+        qs.total_logical_writes/qs.execution_count AS [logical_writes_avg],
+        qs.total_elapsed_time AS [duration_total_ms],
+        qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
+        qs.creation_time AS [creation_time],
+        t.[text] AS [complete_text]
+      FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
+      CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
+      WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
+      ORDER BY qs.total_elapsed_time/qs.execution_count DESC 
+      OPTION (RECOMPILE);
+    prefix: longRunning_
+
+# Example for top 15 most executed queries
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT frequentQueries_sql_hostname, frequentQueries_database_name, 
+#  frequentQueries_execution_count, frequentQueries_creation_time, frequentQueries_complete_text
+#  WHERE frequentQueries_execution_count IS NOT NULL
+  - query: >-
+      SELECT TOP 15
+        @@SERVERNAME AS [sql_hostname],
+        ISNULL(DB_NAME(t.dbid),'') AS [database_name],
+        qs.execution_count AS [execution_count],
+        qs.creation_time AS [creation_time],
+        t.[text] AS [complete_text]
+      FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
+      CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
+      WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
+      ORDER BY qs.execution_count DESC 
+      OPTION (RECOMPILE);
+    prefix: frequentQueries_
+
+# Example for checking blocking processes in the SQL Instance
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT blockingProcesses_sql_hostname, blockingProcesses_resource_type, blockingProcesses_database_name,
+#  blockingProcesses_block_object, blockingProcesses_request_mode, blockingProcesses_waiter_spid,
+#  blockingProcesses_waiter_text, blockingProcesses_blocking_spid, blockingProcesses_blocking_lock,
+#  blockingProcesses_blocking_text
+#  WHERE blockingProcesses_resource_type IS NOT NULL
+  - query: >-
+      SELECT 
+        @@SERVERNAME AS [sql_hostname],
+        t1.[resource_type],
+        db_name(resource_database_id) AS [database_name],
+        t1.resource_associated_entity_id AS [block_object],
+        t1.[request_mode],
+        t1.request_session_id AS [waiter_spid],
+        (
+          SELECT [text] FROM sys.dm_exec_requests AS r
+          CROSS APPLY sys.dm_exec_sql_text(r.sql_handle)
+          WHERE r.session_id = t1.request_session_id
+        ) AS [waiter_text],
+        t2.blocking_session_id AS [blocking_spid],
+        (
+          SELECT TOP 1 request_mode
+          FROM sys.dm_tran_locks t1
+          JOIN sys.dm_os_waiting_tasks t2 ON t1.request_session_id = t2.blocking_session_id
+          WHERE request_mode NOT LIKE 'IX%'
+          AND resource_type NOT LIKE 'DATABASE'
+          AND resource_type NOT LIKE 'METADATA%'
+          ORDER BY request_mode DESC
+        ) AS [blocking_lock],
+        (
+          SELECT [text] FROM sys.sysprocesses AS p
+          CROSS APPLY sys.dm_exec_sql_text(p.sql_handle)
+          WHERE p.spid = t2.blocking_session_id
+        ) AS [blocking_text]
+      FROM sys.dm_tran_locks AS t1, sys.dm_os_waiting_tasks AS t2
+      WHERE t1.lock_owner_address = t2.resource_address;
+    prefix: blockingProcesses_
+
+# Example for querying all failed jobs
+# -- at the end of the query, minus 60 seconds for polling timeout
+# NOTE: This requires the additional permissions below to gather failed job data
+# USE [msdb]
+# GO
+# CREATE USER [newrelic] FOR LOGIN [newrelic] WITH DEFAULT_SCHEMA=[dbo]
+# GO
+# GRANT SELECT on msdb.dbo.sysjobsteps TO newrelic;
+# GRANT SELECT on msdb.dbo.sysjobs TO newrelic;
+# GRANT SELECT on msdb.dbo.sysjobhistory TO newrelic
+# GO
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT failedJobs_job_name, failedJobs_run_date,
+#  failedJobs_run_time, failedJobs_run_status, failedJobs_sql_severity,
+#  failedJobs_job_message, failedJobs_sql_hostname
+#  WHERE failedJobs_job_name IS NOT NULL
+#  - query: >-
+#      SELECT j.[name] AS [job_name],h.[run_date],h.[run_time],h.[run_status],h.[sql_severity],h.[message] AS [job_message],h.[server] AS [sql_hostname]
+#      FROM msdb.dbo.sysjobhistory AS h
+#      JOIN msdb.dbo.sysjobs AS j ON h.job_id = j.job_id
+#      AND h.[run_date] >= CONVERT(VARCHAR, GETDATE(), 112)
+#      AND h.[run_time] >= REPLACE(CONVERT(VARCHAR, GETDATE(),108),':','')-60;  
+#    database: msdb
+#    prefix: failedJobs_
+
+# Example for checking database filegroup space
+# You would need to repeat this query for every target database 
+# NRQL:
+#  FROM MssqlCustomQuerySample
+#  SELECT filegroupSpace_sql_hostname, filegroupSpace_database_name,
+#  filegroupSpace_filegroup_name, filegroupSpace_physical_file_name,
+#  filegroupSpace_logical_file_name, filegroupSpace_file_capacity_bytes,
+#  filegroupSpace_file_used_bytes, filegroupSpace_file_used_percent
+#  WHERE filegroupSpace_filegroup_name IS NOT NULL
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        DB_NAME() AS [database_name],
+        ds.NAME AS [filegroup_name],
+        df.physical_name AS [physical_file_name],
+        df.name AS [logical_file_name],
+        CAST(df.size AS FLOAT) * 8 * 1024 AS [file_capacity_bytes],
+        CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) * 8 * 1024 AS [file_used_bytes],
+        ROUND(CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) /CAST(df.SIZE AS FLOAT) * 100, 2) AS [file_used_percent]
+      FROM sys.database_files AS df
+      JOIN sys.data_spaces AS ds ON df.data_space_id = ds.data_space_id;
+    database: master
+    prefix: filegroupSpace_
+
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        DB_NAME() AS [database_name],
+        ds.NAME AS [filegroup_name],
+        df.physical_name AS [physical_file_name],
+        df.name AS [logical_file_name],
+        CAST(df.size AS FLOAT) * 8 * 1024 AS [file_capacity_bytes],
+        CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) * 8 * 1024 AS [file_used_bytes],
+        ROUND(CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) /CAST(df.SIZE AS FLOAT) * 100, 2) AS [file_used_percent]
+      FROM sys.database_files AS df
+      JOIN sys.data_spaces AS ds ON df.data_space_id = ds.data_space_id;
+    database: msdb
+    prefix: filegroupSpace_
+
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        DB_NAME() AS [database_name],
+        ds.NAME AS [filegroup_name],
+        df.physical_name AS [physical_file_name],
+        df.name AS [logical_file_name],
+        CAST(df.size AS FLOAT) * 8 * 1024 AS [file_capacity_bytes],
+        CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) * 8 * 1024 AS [file_used_bytes],
+        ROUND(CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) /CAST(df.SIZE AS FLOAT) * 100, 2) AS [file_used_percent]
+      FROM sys.database_files AS df
+      JOIN sys.data_spaces AS ds ON df.data_space_id = ds.data_space_id;
+    database: tempdb
+    prefix: filegroupSpace_
+
+  - query: >-
+      SELECT
+        @@SERVERNAME AS [sql_hostname],
+        DB_NAME() AS [database_name],
+        ds.NAME AS [filegroup_name],
+        df.physical_name AS [physical_file_name],
+        df.name AS [logical_file_name],
+        CAST(df.size AS FLOAT) * 8 * 1024 AS [file_capacity_bytes],
+        CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) * 8 * 1024 AS [file_used_bytes],
+        ROUND(CAST(Fileproperty(df.name,'SpaceUsed')AS FLOAT) /CAST(df.SIZE AS FLOAT) * 100, 2) AS [file_used_percent]
+      FROM sys.database_files AS df
+      JOIN sys.data_spaces AS ds ON df.data_space_id = ds.data_space_id;
+    database: TechOps
+    prefix: filegroupSpace_
