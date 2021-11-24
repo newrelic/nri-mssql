@@ -3,7 +3,9 @@ module github.com/newrelic/nri-mssql
 go 1.16
 
 require (
+	github.com/clbanning/mxj/v2 v2.5.5
 	github.com/denisenkom/go-mssqldb v0.10.0
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/golangci/golangci-lint v1.41.1
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/newrelic/infra-integrations-sdk v3.6.7+incompatible

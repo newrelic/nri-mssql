@@ -67,6 +67,16 @@ func TestValidate(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"QueryPlanConfig and no LicenseKey",
+			&ArgumentList{
+				Username: "user",
+				Hostname: "localhost",
+				Port:     "90",
+				QueryPlanConfig:  "someQueryPlanConfig",
+			},
+			true,
+		},
 	}
 
 	for _, tc := range testCases {

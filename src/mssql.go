@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryplan"
 	"os"
 	"runtime"
 	"strings"
@@ -12,8 +13,6 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
-	"github.com/newrelic/nri-mssql/src/inventory"
-	"github.com/newrelic/nri-mssql/src/metrics"
 )
 
 const (
@@ -65,13 +64,14 @@ func main() {
 
 	// Create the entity for the instance
 	instanceEntity, err := instance.CreateInstanceEntity(i, con)
+	_ = instanceEntity
 	if err != nil {
 		log.Error("Unable to create entity for instance: %s", err.Error())
 		os.Exit(1)
 	}
 
 	// Inventory collection
-	if args.HasInventory() {
+/*	if args.HasInventory() {
 		inventory.PopulateInventory(instanceEntity, con)
 	}
 
@@ -83,7 +83,11 @@ func main() {
 
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
-
+*/
+	if args.QueryPlanConfig != "" {
+		log.Debug("Query Plan Config: %s", args.QueryPlanConfig)
+		queryplan.PopulateQueryPlan( con, args)
+	}
 	// Close connection when done
 	defer con.Close()
 

@@ -16,7 +16,7 @@ type ArgumentList struct {
 	Password                     string `default:"" help:"The Microsoft SQL Server connection password"`
 	Instance                     string `default:"" help:"The Microsoft SQL Server instance to connect to"`
 	Hostname                     string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
-	Port                         string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
+	Port                         string `default:"1433" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
 	EnableSSL                    bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate       bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation          string `default:"" help:"Certificate file to verify SSL encryption against"`
@@ -27,6 +27,9 @@ type ArgumentList struct {
 	CustomMetricsConfig          string `default:"" help:"YAML configuration with one or more SQL queries to collect custom metrics"`
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
+	QueryPlanConfig              string `default:"" help:"YAML configuration with one or more SQL queries that collects query plans"`
+	LogApiEndpoint               string `default:"https://log-api.newrelic.com/log/v1" help:"Log API endpoint for Query Plans"`
+	LicenseKey                   string `default:"" help:"New Relic License Key or Insights Insert Key"`
 }
 
 // Validate validates SQL specific arguments
@@ -40,7 +43,7 @@ func (al ArgumentList) Validate() error {
 		return errors.New("invalid configuration: specify either port or instance but not both")
 	} else if al.Port == "" && al.Instance == "" {
 		log.Info("Both port and instance were not specified using default port of 1433")
-		al.Port = "1433"
+		//al.Port = "1433"
 	}
 
 	if al.EnableSSL && (!al.TrustServerCertificate && al.CertificateLocation == "") {
@@ -54,6 +57,10 @@ func (al ArgumentList) Validate() error {
 		if _, err := os.Stat(al.CustomMetricsConfig); err != nil {
 			return errors.New("custom_metrics_config argument: " + err.Error())
 		}
+	}
+
+	if al.QueryPlanConfig != "" && al.LicenseKey == ""{
+		return errors.New("LicenseKey required for Query Plan generation")
 	}
 
 	return nil
