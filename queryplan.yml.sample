@@ -1,0 +1,25 @@
+queries:
+  - query: >-
+      SELECT TOP 15
+        @@SERVERNAME AS [sql_hostname],
+        ISNULL(DB_NAME(t.dbid),'') AS [database_name],
+        LEFT(t.[text], 50) AS [short_text], 
+        CAST(qp.query_plan AS VARCHAR(MAX)) AS [query_plan],
+        qs.execution_count AS [execution_count],
+        qs.total_worker_time AS [cpu_time_total_ms],
+        qs.total_worker_time/qs.execution_count AS [cpu_time_avg_ms],     
+        qs.total_physical_reads AS [physical_reads_total],
+        qs.total_physical_reads/qs.execution_count AS [physical_reads_avg],
+        qs.total_logical_reads AS [logical_reads_total],
+        qs.total_logical_reads/qs.execution_count AS [logical_reads_avg],
+        qs.total_logical_writes AS [logical_writes_total],
+        qs.total_logical_writes/qs.execution_count AS [logical_writes_avg],
+        qs.total_elapsed_time AS [duration_total_ms],
+        qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
+        qs.creation_time AS [creation_time],
+        t.[text] AS [complete_text]
+      FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
+      CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
+      CROSS APPLY sys.dm_exec_text_query_plan(plan_handle,0,-1) as qp
+      WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
+      ORDER BY qs.total_elapsed_time/qs.execution_count DESC;

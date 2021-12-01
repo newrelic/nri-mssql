@@ -70,6 +70,14 @@ When using a YAML file containing queries, you can specify the following paramet
 - `metric_name` (optional) specify the name for the customizable attribute
 - `metric_type` (optional) specify the metric type for the customizable attribute
 
+## Query Plan Logging
+The integration is capable of sending Query Plans to the New Relic Log API. The Log API is used as it can accept plans up to 128K in length after compression and base64 encoding.
+
+### Configuration
+Configuration parameters for `mssql-config.yml`:
+-  `QueryPlanConfig`: Full path to YAML configuration with one or more SQL queries that collects query plans. See `queryplan.yml.sample` for an example. No default value.
+-  `LogApiEndpoint`:  URL of the New Relic Log endpoint to use, [see](https://docs.newrelic.com/docs/logs/log-api/introduction-log-api/#endpoint). Default is the US endpoint "https://log-api.newrelic.com/log/v1"
+-  `LicenseKey`:      New Relic License Key or Insights Insert Key, License Key is preferred.
 ## Compatibility
 
 * Supported OS: Windows version compatible with the New Relic infrastructure agent
@@ -79,7 +87,7 @@ Note:  It also seems to work on Linux for the containerized Linux version of MSS
 
 ## Building
 
-Golang is required to build the integration. We recommend Golang 1.11 or higher.
+Golang is required to build the integration. We recommend Golang 1.16 or higher.
 
 After cloning this repository, go to the directory of the MSSQL integration and build it:
 

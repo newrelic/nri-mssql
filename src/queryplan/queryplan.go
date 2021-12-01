@@ -3,10 +3,13 @@ package queryplan
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/clbanning/mxj/v2"
 	"io/ioutil"
 	"reflect"
+	"regexp"
 	"sync"
 	"time"
 
@@ -34,10 +37,10 @@ var arguments args.ArgumentList
 
 func PopulateQueryPlan(connection *connection.SQLConnection, al args.ArgumentList) {
 	arguments = al
-	log.Info("PopulateQueryPlan: enter")
+	log.Debug("PopulateQueryPlan: enter")
 	queries, err := parseCustomQueries()
 	if err != nil {
-		log.Error("Failed to parse custom queries: %s", err)
+		log.Error("Failed to parse query plan queries: %s", err)
 	}
 	var wg sync.WaitGroup
 	for _, query := range queries {
@@ -48,11 +51,11 @@ func PopulateQueryPlan(connection *connection.SQLConnection, al args.ArgumentLis
 		}(query)
 	}
 	wg.Wait()
-	log.Info("PopulateQueryPlan: exit")
+	log.Debug("PopulateQueryPlan: exit")
 }
 
 func parseCustomQueries() ([]customQuery, error) {
-	log.Info("parseCustomQueries: enter")
+	log.Debug("parseCustomQueries: enter")
 	// load YAML config file
 	b, err := ioutil.ReadFile(arguments.QueryPlanConfig)
 	if err != nil {
@@ -65,7 +68,7 @@ func parseCustomQueries() ([]customQuery, error) {
 		return nil, fmt.Errorf("failed to parse custom_metrics_config: %s", err)
 	}
 
-	log.Info("parseCustomQueries: exit")
+	log.Debug("parseCustomQueries: exit")
 	return c.Queries, nil
 }
 
@@ -84,7 +87,7 @@ var logEvent LogEvent
 var eventSize int
 
 func populateLogEvent(connection *connection.SQLConnection, query customQuery) {
-	log.Info("populateLogEvent: enter")
+	log.Debug("populateLogEvent: enter")
 
 	var prefix string
 	if len(query.Database) > 0 {
@@ -120,32 +123,52 @@ RowLoop:
 			if k == "query_plan" && (v == nil || v == "") {
 				continue RowLoop
 			}
-/*			if k == "query_plan"{
-				xml := []byte(v.(string))
-				log.Info("XML Length: %d", len(xml))
-				queryPlan, err := mxj.NewMapXml(xml)
+			if k == "query_plan"{
+				start := time.Now()
+				log.Debug("Query plan original length: %d", len(v.(string)))
+
+				// Remove extra white space from the original XML String
+				spaces := regexp.MustCompile(`\s+`)
+				xml := spaces.ReplaceAllString(v.(string), " ")
+				log.Debug("\t trimmed XML Length: %d", len(xml))
+				//v = xml
+
+				// Turn XML into Go map
+				queryPlan, err := mxj.NewMapXml([]byte(xml))
 				if err != nil {
 					log.Error("Error unmarshaling XML: %s", err)
 					continue RowLoop
 				}
-				// If we don't stringify the query plan when this is marshalled as JSON we'll exceed the 255 attribute limit
+
+				// Turn Go Map into JSON
 				qpJson, err := json.Marshal(queryPlan)
-				log.Info("json Length: %d", len(qpJson))
 				if err != nil {
 					log.Error("Error marshaling json: %s", err)
 					continue RowLoop
 				}
+				log.Debug("\t JSON length: %d", len(qpJson))
 
-				qpJson, err = json.Marshal(qpJson)
-				log.Info("json2 Length: %d", len(qpJson))
+				// Compress JSON
+				var buf bytes.Buffer
+				zw := gzip.NewWriter(&buf)
+				_, err = zw.Write(qpJson)
 				if err != nil {
-					log.Error("Error marshaling json2: %s", err)
-					continue RowLoop
+					log.Fatal(err)
 				}
-				//_ = qpJson
-				//v = string(qpJson)
+				if err := zw.Close(); err != nil {
+					log.Fatal(err)
+				}
+				log.Debug("\t GZIP'd length: %d", buf.Len())
+
+				// Base64 encode compressed JSON
+				encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
+				log.Debug("\t Base64 encoded length: %d", len(encoded))
+				if len(encoded) > 128000{
+					log.Warn("Query plan compressed and encoded is greater than 128k and will be truncated upon ingestion")
+				}
+				v = encoded
+				log.Debug("\t Total time: %v", time.Since(start))
 			}
-*/
 			// Get a rough idea of the size of the data
 			value := reflect.ValueOf(v)
 			kind := value.Kind()
@@ -157,7 +180,7 @@ RowLoop:
 		addLog(logEntry)
 	}
 	publishEvent()
-	log.Info("populateCustomMetrics: exit")
+	log.Debug("populateCustomMetrics: exit")
 }
 
 func addLog(entry LogEntry) {
@@ -213,6 +236,6 @@ func publishEvent() {
 	if resp.StatusCode() >= 300 {
 		log.Error("Bad status code POSTing query plan", resp.Status())
 	} else {
-		log.Info("Status code POSTing query plan", resp.Status())
+		log.Debug("Status code POSTing query plan", resp.Status())
 	}
 }

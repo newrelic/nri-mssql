@@ -3,6 +3,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/inventory"
+	"github.com/newrelic/nri-mssql/src/metrics"
 	"github.com/newrelic/nri-mssql/src/queryplan"
 	"os"
 	"runtime"
@@ -71,7 +73,7 @@ func main() {
 	}
 
 	// Inventory collection
-/*	if args.HasInventory() {
+	if args.HasInventory() {
 		inventory.PopulateInventory(instanceEntity, con)
 	}
 
@@ -83,7 +85,7 @@ func main() {
 
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
-*/
+
 	if args.QueryPlanConfig != "" {
 		log.Debug("Query Plan Config: %s", args.QueryPlanConfig)
 		queryplan.PopulateQueryPlan( con, args)
