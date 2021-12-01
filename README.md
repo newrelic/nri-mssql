@@ -71,7 +71,10 @@ When using a YAML file containing queries, you can specify the following paramet
 - `metric_type` (optional) specify the metric type for the customizable attribute
 
 ## Query Plan Logging
-The integration is capable of sending Query Plans to the New Relic Log API. The Log API is used as it can accept plans up to 128K in length after compression and base64 encoding.
+The integration is capable of sending Query Plans to the New Relic Log API. The Log API is used as it can accept plans up to 128K in length after gzip compression and base64 encoding. The resulting `query_plan` attribute is:
+- Base64 encoded
+- gzip'd
+- JSON string (not XML)
 
 ### Configuration
 Configuration parameters for `mssql-config.yml`:
