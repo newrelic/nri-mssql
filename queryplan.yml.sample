@@ -21,5 +21,5 @@ queries:
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
       CROSS APPLY sys.dm_exec_text_query_plan(plan_handle,0,-1) as qp
-      WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
+      -- WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
       ORDER BY qs.total_elapsed_time/qs.execution_count DESC;

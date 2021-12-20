@@ -65,7 +65,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Port:      "1443",
 				Timeout:   "30",
 			},
-			"sqlserver://user:pass@localhost:1443?connection+timeout=30&dial+timeout=30",
+			"sqlserver://user:pass@localhost:1443?connection+timeout=30&database=&dial+timeout=30",
 		},
 		{
 			"Instance No SSL",
@@ -77,7 +77,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:  "SQLExpress",
 				Timeout:   "30",
 			},
-			"sqlserver://user:pass@localhost/SQLExpress?connection+timeout=30&dial+timeout=30",
+			"sqlserver://user:pass@localhost/SQLExpress?connection+timeout=30&database=&dial+timeout=30",
 		},
 		{
 			"Instance SSL Trust",
@@ -90,7 +90,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:               "SQLExpress",
 				Timeout:                "30",
 			},
-			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=true&connection+timeout=30&dial+timeout=30&encrypt=true",
+			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=true&connection+timeout=30&database=&dial+timeout=30&encrypt=true",
 		},
 		{
 			"Instance SSL Certificate",
@@ -104,7 +104,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:               "SQLExpress",
 				Timeout:                "30",
 			},
-			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=false&certificate=file.ca&connection+timeout=30&dial+timeout=30&encrypt=true",
+			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=false&certificate=file.ca&connection+timeout=30&database=&dial+timeout=30&encrypt=true",
 		},
 		{
 			"Extra Args",
@@ -117,7 +117,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Timeout:                "30",
 				ExtraConnectionURLArgs: "applicationIntent=true",
 			},
-			"sqlserver://user:pass@localhost:1443?applicationIntent=true&connection+timeout=30&dial+timeout=30",
+			"sqlserver://user:pass@localhost:1443?applicationIntent=true&connection+timeout=30&database=&dial+timeout=30",
 		},
 	}
 
