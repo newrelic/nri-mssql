@@ -102,19 +102,6 @@ var instanceDefinitions = []*QueryDefinition{
 		}{},
 	},
 	{
-		query: `SELECT Sum(total_bytes) AS total_disk_space FROM (
-			SELECT DISTINCT
-			dovs.volume_mount_point,
-			dovs.available_bytes available_bytes,
-			dovs.total_bytes total_bytes
-			FROM sys.master_files mf
-			CROSS apply sys.Dm_os_volume_stats(mf.database_id, mf.file_id) dovs
-			) drives`,
-		dataModels: &[]struct {
-			TotalDiskSpace *int `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
-		}{},
-	},
-	{
 		query: `SELECT Sum(runnable_tasks_count) AS runnable_tasks_count
 		FROM sys.dm_os_schedulers
 		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'`,
