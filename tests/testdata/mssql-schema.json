@@ -95,9 +95,6 @@
                     "instance.blockedProcessesCount": {
                       "type": "integer"
                     },
-                    "instance.diskInBytes": {
-                      "type": "integer"
-                    },
                     "instance.dormantProcessesCount": {
                       "type": "integer"
                     },
@@ -178,7 +175,6 @@
                     "host",
                     "instance.backgroundProcessesCount",
                     "instance.blockedProcessesCount",
-                    "instance.diskInBytes",
                     "instance.dormantProcessesCount",
                     "instance.forcedParameterizationsPerSecond",
                     "instance.preconnectProcessesCount",
