@@ -154,7 +154,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 	}
 
 	if !rows.NextResultSet() {
-		log.Error("No result set found for custom query: %+v", query)
+		log.Warn("No result set found for custom query: %+v", query)
 	}
 
 	defer func() {
