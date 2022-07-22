@@ -64,12 +64,14 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 	populateWaitTimeMetrics(instanceEntity, connection)
 
 	if len(arguments.CustomMetricsQuery) > 0 {
+		log.Debug("Arguments custom metrics query: %s", arguments.CustomMetricsQuery)
 		populateCustomMetrics(instanceEntity, connection, customQuery{Query: arguments.CustomMetricsQuery})
 	} else if len(arguments.CustomMetricsConfig) > 0 {
 		queries, err := parseCustomQueries(arguments)
 		if err != nil {
 			log.Error("Failed to parse custom queries: %s", err)
 		}
+		log.Debug("Parsed custom queries: %+v", queries)
 		var wg sync.WaitGroup
 		for _, query := range queries {
 			wg.Add(1)
@@ -143,10 +145,16 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 		prefix = "USE " + query.Database + "; "
 	}
 
+	log.Debug("Running custom query: %+v", query)
+
 	rows, err := connection.Queryx(prefix + query.Query)
 	if err != nil {
 		log.Error("Could not execute custom query: %s", err)
 		return
+	}
+
+	if !rows.NextResultSet() {
+		log.Error("No result set found for custom query: %+v", query)
 	}
 
 	defer func() {
@@ -254,6 +262,10 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 				log.Error("Failed to set metric: %s", err)
 			}
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Error("Error iterating rows: %s", err)
 	}
 }
 
