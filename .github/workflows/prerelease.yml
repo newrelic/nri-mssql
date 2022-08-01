@@ -110,11 +110,6 @@ jobs:
           slack-bot-user-oauth-access-token: ${{ secrets.COREINT_SLACK_TOKEN }}
           slack-channel: ${{ secrets.COREINT_SLACK_CHANNEL }}
           slack-text: "❌ `${{ env.REPO_FULL_NAME }}`: prerelease pipeline failed."
-      - name: Test package installability
-        uses: newrelic/integrations-pkg-test-action/linux@v1
-        with:
-          tag: ${{ env.TAG }}
-          integration: nri-${{ env.INTEGRATION }}
 
   package-win:
     name: Create MSI & Upload into GH Release assets
