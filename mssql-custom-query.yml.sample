@@ -79,13 +79,14 @@ queries:
         @@SERVERNAME AS [sql_hostname],
         SUM(deqs.total_logical_reads) AS [total_page_reads],
         SUM(deqs.total_logical_writes) AS [total_page_writes],
+		    OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid) AS [schema_name],
         CASE
           WHEN DB_NAME(dest.dbid) IS NULL THEN 'TechOps'
           ELSE DB_NAME(dest.dbid) 
         END AS [database_name]
       FROM sys.dm_exec_query_stats deqs
       CROSS APPLY sys.dm_exec_sql_text(deqs.sql_handle) AS dest
-      GROUP BY DB_NAME(dest.dbid);
+      GROUP BY DB_NAME(dest.dbid),OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid);
     database: master
     prefix: busiestDatabases_
 
@@ -162,12 +163,12 @@ queries:
         qs.total_elapsed_time AS [duration_total_ms],
         qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
         qs.creation_time AS [creation_time],
+		    OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
         t.[text] AS [complete_text]
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
       WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
       ORDER BY qs.total_elapsed_time/qs.execution_count DESC 
-      OPTION (RECOMPILE);
     prefix: longRunning_
 
 # Example for top 15 most executed queries
@@ -182,6 +183,7 @@ queries:
         ISNULL(DB_NAME(t.dbid),'') AS [database_name],
         qs.execution_count AS [execution_count],
         qs.creation_time AS [creation_time],
+        OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
         t.[text] AS [complete_text]
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
