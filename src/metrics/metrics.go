@@ -63,6 +63,9 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 
 	populateWaitTimeMetrics(instanceEntity, connection)
 
+	log.Debug("Arguments custom metrics query: %s", arguments.CustomMetricsQuery)
+	log.Debug("Arguments custom metrics config: %s", arguments.CustomMetricsConfig)
+
 	if len(arguments.CustomMetricsQuery) > 0 {
 		log.Debug("Arguments custom metrics query: %s", arguments.CustomMetricsQuery)
 		populateCustomMetrics(instanceEntity, connection, customQuery{Query: arguments.CustomMetricsQuery})
