@@ -107,7 +107,7 @@ var instanceDefinitions = []*QueryDefinition{
 			dovs.volume_mount_point,
 			dovs.available_bytes available_bytes,
 			dovs.total_bytes total_bytes
-			FROM sys.master_files mf
+			FROM sys.master_files mf WITH (nolock)
 			CROSS apply sys.Dm_os_volume_stats(mf.database_id, mf.file_id) dovs
 			) drives`,
 		dataModels: &[]struct {
