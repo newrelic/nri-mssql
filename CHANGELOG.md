@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.8.3  (2022-08-17)
+### Changed
+- Improve error handling and debug logs for custom queries
+- Avoid potential deadlocks in disk space query
+
 ## 2.8.2  (2022-06-27)
 ### Changed
 - Bump dependencies
