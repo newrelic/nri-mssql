@@ -72,7 +72,7 @@ queries:
 # Example for querying busiest databases by logical R/W
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT busiestDatabases_database_name, busiestDatabases_total_page_reads, busiestDatabases_total_page_writes
+#  SELECT busiestDatabases_database_name, busiestDatabases_schema_name, busiestDatabases_total_page_reads, busiestDatabases_total_page_writes
 #  WHERE busiestDatabases_database_name IS NOT NULL
   - query: >-
       SELECT
@@ -140,7 +140,7 @@ queries:
 # Example for top 15 longest running queries 
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT longRunning_sql_hostname, longRunning_database_name, longRunning_short_text,
+#  SELECT longRunning_sql_hostname, longRunning_database_name, longRunning_schema_name, longRunning_short_text,
 #  longRunning_execution_count, longRunning_cpu_time_total_ms, longRunning_cpu_time_avg_ms,
 #  longRunning_physical_reads_total, longRunning_physical_reads_avg, longRunning_logical_reads_total,
 #  longRunning_logical_reads_avg, longRunning_writes_total, longRunning_logical_writes_avg,
@@ -174,7 +174,7 @@ queries:
 # Example for top 15 most executed queries
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT frequentQueries_sql_hostname, frequentQueries_database_name, 
+#  SELECT frequentQueries_sql_hostname, frequentQueries_database_name, frequentQueries_schema_name
 #  frequentQueries_execution_count, frequentQueries_creation_time, frequentQueries_complete_text
 #  WHERE frequentQueries_execution_count IS NOT NULL
   - query: >-
