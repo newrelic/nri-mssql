@@ -153,15 +153,13 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 		return
 	}
 
-	if !rows.NextResultSet() {
-		log.Warn("No result set found for custom query: %+v", query)
-	}
-
 	defer func() {
 		_ = rows.Close()
 	}()
 
+	var rowCount = 0
 	for rows.Next() {
+		rowCount++
 		row := make(map[string]interface{})
 		err := rows.MapScan(row)
 		if err != nil {
@@ -262,6 +260,11 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 				log.Error("Failed to set metric: %s", err)
 			}
 		}
+	}
+	if rowCount == 0 {
+		log.Warn("No result set found for custom query: %+v", query)
+	} else {
+		log.Debug("%v Rows returned for custom query: %+v", rowCount, query)
 	}
 
 	if err := rows.Err(); err != nil {
