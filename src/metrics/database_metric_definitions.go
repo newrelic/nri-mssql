@@ -53,13 +53,12 @@ var databaseDefinitions = []*QueryDefinition{
 // databaseBufferDefinitions definitions for Database Queries
 var databaseBufferDefinitions = []*QueryDefinition{
 	{
-		query: `SELECT
-		DB_NAME(database_id) AS db_name,
-		COUNT_BIG(*) * (8*1024) AS buffer_pool_size
-		FROM sys.dm_os_buffer_descriptors WITH (NOLOCK)
-		WHERE database_id <> 32767 -- ResourceDB
-      AND DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
-		GROUP BY database_id`,
+		query: `SELECT DB_NAME(database_id) AS db_name, buffer_pool_size * (8*1024) AS buffer_pool_size
+		FROM ( SELECT database_id, COUNT_BIG(*) AS buffer_pool_size FROM sys.dm_os_buffer_descriptors a WITH (NOLOCK)
+		INNER JOIN sys.sysdatabases b WITH (NOLOCK) ON b.dbid=a.database_id 
+		WHERE b.dbid in (SELECT dbid FROM sys.sysdatabases WITH (NOLOCK)
+		WHERE name NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+		UNION ALL SELECT 32767) GROUP BY database_id) a`,
 		dataModels: &[]struct {
 			database.DataModel
 			IOStalls int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`

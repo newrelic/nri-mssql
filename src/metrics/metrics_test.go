@@ -75,7 +75,7 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 	mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
 		WillReturnRows(logGrowthRows)
 
-	mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, COUNT_BIG\(\*\) \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
+	mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
 
 	mock.ExpectClose()
 
