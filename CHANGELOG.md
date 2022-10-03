@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## 2.8.6  (2022-10-03)
+### Changed
+- Optimized Buffer Pool queries for additional performance. Issue [#82](https://github.com/newrelic/nri-mssql/issues/82)
+
 ## 2.8.5  (2022-09-15)
 ### Changed
 - Fixed issue parsing custom-queries results
