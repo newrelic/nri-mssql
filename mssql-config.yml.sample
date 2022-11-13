@@ -21,7 +21,8 @@ integrations:
     # ENABLE_DATABASE_RESERVE_METRICS: true 
 
     # YAML configuration with one or more SQL queries to collect custom metrics
-    # CUSTOM_METRICS_CONFIG: ""
+    # CUSTOM_METRICS_CONFIG: >-
+    #   C:\Program Files\New Relic\newrelic-infra\integrations.d\mssql-custom-query.yml
     # A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings
     # CUSTOM_METRICS_QUERY: >-
     #   SELECT
@@ -36,5 +37,3 @@ integrations:
     env: production
     role: mssql
   inventory_source: config/mssql
-
-
