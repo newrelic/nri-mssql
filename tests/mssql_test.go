@@ -75,8 +75,9 @@ func TestSuccessConnection(t *testing.T) {
 		fmt.Sprintf("USERNAME=%s", dbUsername),
 		fmt.Sprintf("PASSWORD=%s", dbPassword),
 	}
-	stdout, _, err := dockerComposeRun(envVars, containerName)
+	stdout, stderr, err := dockerComposeRun(envVars, containerName)
 	t.Log(stdout)
+	t.Log(stderr)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, stdout)
 	err = validateJSONSchema(schema, stdout)

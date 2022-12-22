@@ -18,8 +18,8 @@ func dockerComposeRunMode(vars []string, ports []string, container string, detac
 	if detached {
 		cmdLine = append(cmdLine, "-d")
 	}
-	cmdLine=append(cmdLine,"--name")
-	cmdLine=append(cmdLine,container)
+	cmdLine = append(cmdLine, "--name")
+	cmdLine = append(cmdLine, container)
 	for i := range vars {
 		cmdLine = append(cmdLine, "-e")
 		cmdLine = append(cmdLine, vars[i])
@@ -28,7 +28,7 @@ func dockerComposeRunMode(vars []string, ports []string, container string, detac
 		cmdLine = append(cmdLine, fmt.Sprintf("-p%s", ports[p]))
 	}
 	cmdLine = append(cmdLine, container)
-	fmt.Printf("executing: docker-compose %s\n", strings.Join(cmdLine, " "))
+	fmt.Printf("executing: docker-compose %s --verbose\n", strings.Join(cmdLine, " "))
 	cmd := exec.Command("docker-compose", cmdLine...)
 	var outbuf, errbuf bytes.Buffer
 	cmd.Stdout = &outbuf

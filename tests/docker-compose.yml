@@ -10,7 +10,6 @@ services:
       SA_PASSWORD: secret123!
       MSSQL_PID: Developer
     restart: always
-
   nri-mssql:
     image: golang:1.18
     container_name: nri_mssql

@@ -109,6 +109,39 @@ To run the tests execute:
 $ make test
 ```
 
+## Develop locally
+
+To develop locally on M1 we need to leverage a different image, having few limitations and forward the port:
+```yaml
+version: '3.1'
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge
+    ports:
+      - "1433:1433"
+    container_name: mssql
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: secret123!
+      MSSQL_PID: Developer
+    restart: always
+```
+
+To connect with a msclient simply start the service:
+```shell
+$ docker-compose up
+$ sqlcmd -S127.0.0.1 -USA -Psecret123! -q "SELECT * FROM sys.dm_os_performance_counters WHERE counter_name = 'Buffer cache hit ratio' or counter_name = 'Buffer cache hit ratio base'"
+```
+
+To install `sqlcmd` you could run:
+```shell
+$ brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+$ brew update
+$ brew install mssql-tools
+```
+
+Obviously, you could also run the integration and leverage the debugger.
+
 ## Support
 
 Should you need assistance with New Relic products, you are in good hands with several support diagnostic tools and support channels.
