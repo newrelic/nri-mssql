@@ -3,37 +3,34 @@ package metrics
 var instanceDefinitions = []*QueryDefinition{
 	{
 		query: `SELECT
-		(t1.cntr_value * 1.0 / t2.cntr_value) * 100.0 AS buffer_pool_hit_percent,
-		t3.cntr_value AS sql_compilations,
-		t4.cntr_value AS sql_recompilations,
-		t5.cntr_value AS user_connections,
-		t6.cntr_value AS lock_wait_time_ms,
-		t7.cntr_value AS page_splits_sec,
-		t8.cntr_value AS checkpoint_pages_sec,
-		t9.cntr_value AS deadlocks_sec,
-		t10.cntr_value AS user_errors,
-		t11.cntr_value AS kill_connection_errors,
-		t12.cntr_value AS batch_request_sec,
-		(t13.cntr_value * 1000.0) AS page_life_expectancy_ms,
-		t14.cntr_value AS transactions_sec,
-		t15.cntr_value AS forced_parameterizations_sec
-		FROM (SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Buffer cache hit ratio') t1,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Buffer cache hit ratio base') t2,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'SQL Compilations/sec') t3,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'SQL Re-Compilations/sec') t4,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'User Connections') t5,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Lock Wait Time (ms)' AND instance_name = '_Total') t6,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Page Splits/sec') t7,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Checkpoint pages/sec') t8,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Number of Deadlocks/sec' AND instance_name = '_Total') t9,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE object_name LIKE '%SQL Errors%' AND instance_name = 'User Errors') t10,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE object_name LIKE '%SQL Errors%' AND instance_name LIKE 'Kill Connection Errors%') t11,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Batch Requests/sec') t12,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t13,
-		(SELECT Sum(cntr_value) AS cntr_value FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Transactions/sec') t14,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t15`,
+		t1.cntr_value AS sql_compilations,
+		t2.cntr_value AS sql_recompilations,
+		t3.cntr_value AS user_connections,
+		t4.cntr_value AS lock_wait_time_ms,
+		t5.cntr_value AS page_splits_sec,
+		t6.cntr_value AS checkpoint_pages_sec,
+		t7.cntr_value AS deadlocks_sec,
+		t8.cntr_value AS user_errors,
+		t9.cntr_value AS kill_connection_errors,
+		t10.cntr_value AS batch_request_sec,
+		(t11.cntr_value * 1000.0) AS page_life_expectancy_ms,
+		t12.cntr_value AS transactions_sec,
+		t13.cntr_value AS forced_parameterizations_sec
+		FROM 
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'SQL Compilations/sec') t1,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'SQL Re-Compilations/sec') t2,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'User Connections') t3,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Lock Wait Time (ms)' AND instance_name = '_Total') t4,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Page Splits/sec') t5,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Checkpoint pages/sec') t6,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Number of Deadlocks/sec' AND instance_name = '_Total') t7,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE object_name LIKE '%SQL Errors%' AND instance_name = 'User Errors') t8,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE object_name LIKE '%SQL Errors%' AND instance_name LIKE 'Kill Connection Errors%') t9,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Batch Requests/sec') t10,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t11,
+		(SELECT Sum(cntr_value) AS cntr_value FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Transactions/sec') t12,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t13`,
 		dataModels: &[]struct {
-			BufferPoolHitPercent       *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHitPercent" source_type:"gauge"`
 			SQLCompilations            *int     `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
 			SQLRecompilations          *int     `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
 			UserConnections            *int     `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
@@ -47,6 +44,16 @@ var instanceDefinitions = []*QueryDefinition{
 			PageLifeExpectancySec      *float64 `db:"page_life_expectancy_ms" metric_name:"bufferpool.pageLifeExpectancyInMilliseconds" source_type:"gauge"`
 			TransactionsSec            *int     `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"rate"`
 			ForcedParameterizationsSec *int     `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"rate"`
+		}{},
+	},
+	{
+		query: `SELECT (a.cntr_value * 1.0 / b.cntr_value) * 100.0 AS buffer_pool_hit_percent
+		FROM sys.dm_os_performance_counters 
+		a JOIN (SELECT cntr_value, OBJECT_NAME FROM sys.dm_os_performance_counters WHERE counter_name = 'Buffer cache hit ratio base') 
+		b ON  a.OBJECT_NAME = b.OBJECT_NAME 
+		WHERE a.counter_name = 'Buffer cache hit ratio'`,
+		dataModels: &[]struct {
+			BufferPoolHitPercent *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHitPercent" source_type:"gauge"`
 		}{},
 	},
 	{
