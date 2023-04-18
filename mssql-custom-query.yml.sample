@@ -12,15 +12,15 @@ queries:
 
 # Example for showing active processes
 # NRQL:
-#  FROM MssqlCustomQuerySample 
-#  SELECT activeProcesses_session_id, activeProcesses_sql_hostname, 
-#  activeProcesses_sql_command, activeProcesses_cpu_time, 
-#  activeProcesses_logical_read_count, activeProcesses_open_transaction_count, 
-#  activeProcesses_blocking_session_id, activeProcesses_database_name, 
-#  activeProcesses_login_name, activeProcesses_last_batch_time, 
-#  activeProcesses_spid_status, activeProcesses_wait_time, 
+#  FROM MssqlCustomQuerySample
+#  SELECT activeProcesses_session_id, activeProcesses_sql_hostname,
+#  activeProcesses_sql_command, activeProcesses_cpu_time,
+#  activeProcesses_logical_read_count, activeProcesses_open_transaction_count,
+#  activeProcesses_blocking_session_id, activeProcesses_database_name,
+#  activeProcesses_login_name, activeProcesses_last_batch_time,
+#  activeProcesses_spid_status, activeProcesses_wait_time,
 #  activeProcesses_last_wait_type, activeProcesses_query_text,
-#  activeProcesses_program_name, activeProcesses_start_time 
+#  activeProcesses_program_name, activeProcesses_start_time
 #  WHERE activeProcesses_session_id IS NOT NULL
   - query: >-
       SELECT
@@ -79,7 +79,7 @@ queries:
         @@SERVERNAME AS [sql_hostname],
         SUM(deqs.total_logical_reads) AS [total_page_reads],
         SUM(deqs.total_logical_writes) AS [total_page_writes],
-		    OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid) AS [schema_name],
+        OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid) AS [schema_name],
         CASE
           WHEN DB_NAME(dest.dbid) IS NULL THEN 'TechOps'
           ELSE DB_NAME(dest.dbid) 
@@ -91,7 +91,7 @@ queries:
     prefix: busiestDatabases_
 
 # Example for checking database log space
-# You would wand to repeat this query for every target. i.e.;  database: master 
+# You would wand to repeat this query for every target. i.e.;  database: master
 # NRQL:
 #  FROM MssqlCustomQuerySample
 #  SELECT `logSpace_Database Name`, `logSpace_Log Size (MB)`,
@@ -131,7 +131,7 @@ queries:
         CAST(MAX([W1].[wait_percentage]) AS INT) AS [wait_percentage],
         CAST((MAX([W1].[wait_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_wait_seconds],
         CAST((MAX([W1].[resource_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_resource_seconds],
-        CAST((MAX([W1].[signal_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_signal_seconds]	    
+        CAST((MAX([W1].[signal_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_signal_seconds]
       FROM [Waits] AS [W1]
       INNER JOIN [Waits] AS [W2] ON [W2].[row_number] <= [W1].[row_number]
       GROUP BY [W1].[row_number];
@@ -163,12 +163,12 @@ queries:
         qs.total_elapsed_time AS [duration_total_ms],
         qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
         qs.creation_time AS [creation_time],
-		    OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
+        OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
         t.[text] AS [complete_text]
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
       WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
-      ORDER BY qs.total_elapsed_time/qs.execution_count DESC 
+      ORDER BY qs.total_elapsed_time/qs.execution_count DESC
     prefix: longRunning_
 
 # Example for top 15 most executed queries
@@ -254,12 +254,12 @@ queries:
 #      FROM msdb.dbo.sysjobhistory AS h
 #      JOIN msdb.dbo.sysjobs AS j ON h.job_id = j.job_id
 #      AND h.[run_date] >= CONVERT(VARCHAR, GETDATE(), 112)
-#      AND h.[run_time] >= REPLACE(CONVERT(VARCHAR, GETDATE(),108),':','')-60;  
+#      AND h.[run_time] >= REPLACE(CONVERT(VARCHAR, GETDATE(),108),':','')-60;
 #    database: msdb
 #    prefix: failedJobs_
 
 # Example for checking database filegroup space
-# You would need to repeat this query for every target database 
+# You would need to repeat this query for every target database
 # NRQL:
 #  FROM MssqlCustomQuerySample
 #  SELECT filegroupSpace_sql_hostname, filegroupSpace_database_name,
