@@ -12,7 +12,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
  - bumped golang version pinning 1.20.6
 
 ## 2.9.0 (2023-06-06)
-# Changed
+### Changed
 - Update Go version to 1.20
 
 ## 2.8.7  (2022-12-31)
