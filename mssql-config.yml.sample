@@ -35,8 +35,7 @@ integrations:
   labels:
     env: production
     role: mssql
-    # the label below is so there can be a common attribute to filter on within the dashboard. Most useful for multi-server environments
-    db_hostname: Enter-Custom-Hostname-Here    
+    # db_hostname: my-custom-hostname # useful to filter in dashboards, especially in multi-server environments.   
   inventory_source: config/mssql
 
 
