@@ -73,10 +73,7 @@ When using a YAML file containing queries, you can specify the following paramet
 
 ## Compatibility
 
-* Supported OS: Windows version compatible with the New Relic infrastructure agent
-* MS SQL Server versions: SQL Server 2008 R2+
-
-Note:  It also seems to work on Linux for the containerized Linux version of MSSQL
+Check the official documentation website for [compatibility and requirements](https://docs.newrelic.com/docs/infrastructure/host-integrations/host-integrations-list/microsoft-sql/microsoft-sql-server-integration/#req).
 
 ## Building
 
