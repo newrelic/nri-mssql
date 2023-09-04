@@ -19,7 +19,7 @@ jobs:
     name: Run all static analysis checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: newrelic/newrelic-infra-checkers@v1
       - name: Semgrep
         uses: returntocorp/semgrep-action@v1
@@ -39,7 +39,7 @@ jobs:
     env:
       SNYK_TOKEN: ${{ secrets.COREINT_SNYK_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Scan code for vulnerabilities
         if: ${{env.SNYK_TOKEN}}
         run: make ci/snyk-test
@@ -48,7 +48,7 @@ jobs:
     name: Run unit tests on *Nix
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Unit tests
         run: make ci/test
 
@@ -62,7 +62,7 @@ jobs:
         working-directory: src/github.com/${{ env.ORIGINAL_REPO_NAME }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: src/github.com/${{env.ORIGINAL_REPO_NAME}}
       - name: Install Go
@@ -81,7 +81,7 @@ jobs:
         working-directory: src/github.com/${{env.ORIGINAL_REPO_NAME}}
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           path: src/github.com/${{env.ORIGINAL_REPO_NAME}}
@@ -103,7 +103,7 @@ jobs:
       GPG_PASSPHRASE: ${{ secrets.OHAI_GPG_PASSPHRASE }}
       GPG_PRIVATE_KEY_BASE64: ${{ secrets.OHAI_GPG_PRIVATE_KEY_BASE64 }} # base64 encoded
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           git tag "$TAG"
           if [ -z "$GPG_PASSPHRASE" ]; then
@@ -134,7 +134,7 @@ jobs:
         goarch: [amd64,386]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: src/github.com/${{ env.ORIGINAL_REPO_NAME }}
       - shell: bash
