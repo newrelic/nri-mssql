@@ -63,7 +63,8 @@
                       "type": "integer"
                     },
                     "activeConnections": {
-                      "type": "integer"
+                      "type": "integer",
+                      "minimum": 1
                     },
                     "buffer.checkpointPagesPerSecond": {
                       "type": "integer"
