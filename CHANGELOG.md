@@ -9,7 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancement
+## v2.11.0 - 2024-02-07
+
+### 🚀 Enhancements
 - Improve performance of query listing `instance_active_connections` by only counting on `sys.sysprocesses`.
 
 ## v2.10.3 - 2024-01-30
