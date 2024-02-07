@@ -130,12 +130,7 @@ var instanceDefinitions = []*QueryDefinition{
 		}{},
 	},
 	{
-		query: `SELECT Sum(db.active_connections) AS instance_active_connections FROM (
-			SELECT
-			Count(syssp.dbid) AS active_connections
-			FROM sys.databases db WITH (nolock)
-			LEFT JOIN sys.sysprocesses syssp WITH (nolock) ON syssp.dbid = db.database_id
-			GROUP BY db.NAME) db`,
+		query: `SELECT Count(dbid) AS instance_active_connections FROM sys.sysprocesses WITH (nolock) WHERE dbid > 0`,
 		dataModels: &[]struct {
 			InstanceActiveConnections *int `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
 		}{},
