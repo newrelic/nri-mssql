@@ -10,7 +10,7 @@ on:
 
 jobs:
   push-pr:
-    uses: newrelic/coreint-automation/.github/workflows/reusable_push_pr.yaml@v2
+    uses: newrelic/coreint-automation/.github/workflows/reusable_push_pr.yaml@replace-win-download-scritp
     with:
       integration: mssql
       run_test_build_fake_prerelease: true
