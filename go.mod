@@ -5,7 +5,7 @@ go 1.21.6
 require (
 	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/newrelic/infra-integrations-sdk v3.8.1+incompatible
+	github.com/newrelic/infra-integrations-sdk v3.8.2+incompatible
 	github.com/stretchr/testify v1.8.4
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
