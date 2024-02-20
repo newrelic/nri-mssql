@@ -41,6 +41,7 @@ func (sc SQLConnection) Close() {
 
 // Query runs a query and loads results into v
 func (sc SQLConnection) Query(v interface{}, query string) error {
+	log.Debug("Running query: %s", query)
 	return sc.Connection.Select(v, query)
 }
 
