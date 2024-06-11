@@ -118,7 +118,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 
 		metrics := []struct {
 			metricName  string
-			metricValue int
+			metricValue int64
 			metricType  metric.SourceType
 		}{
 			{
