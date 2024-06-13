@@ -31,19 +31,19 @@ var instanceDefinitions = []*QueryDefinition{
 		(SELECT Sum(cntr_value) AS cntr_value FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Transactions/sec') t12,
 		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t13`,
 		dataModels: &[]struct {
-			SQLCompilations            *int     `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
-			SQLRecompilations          *int     `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
-			UserConnections            *int     `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
-			LockWaitTimeMs             *int     `db:"lock_wait_time_ms" metric_name:"stats.lockWaitsPerSecond" source_type:"rate"`
-			PageSplitsSec              *int     `db:"page_splits_sec" metric_name:"access.pageSplitsPerSecond" source_type:"rate"`
-			CheckpointPagesSec         *int     `db:"checkpoint_pages_sec" metric_name:"buffer.checkpointPagesPerSecond" source_type:"rate"`
-			DeadlocksSec               *int     `db:"deadlocks_sec" metric_name:"stats.deadlocksPerSecond" source_type:"rate"`
-			UserErrors                 *int     `db:"user_errors" metric_name:"stats.userErrorsPerSecond" source_type:"rate"`
-			KillConnectionErrors       *int     `db:"kill_connection_errors" metric_name:"stats.killConnectionErrorsPerSecond" source_type:"rate"`
-			BatchRequestSec            *int     `db:"batch_request_sec" metric_name:"bufferpool.batchRequestsPerSecond" source_type:"rate"`
+			SQLCompilations            *int64   `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
+			SQLRecompilations          *int64   `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
+			UserConnections            *int64   `db:"user_connections" metric_name:"stats.connections" source_type:"gauge"`
+			LockWaitTimeMs             *int64   `db:"lock_wait_time_ms" metric_name:"stats.lockWaitsPerSecond" source_type:"rate"`
+			PageSplitsSec              *int64   `db:"page_splits_sec" metric_name:"access.pageSplitsPerSecond" source_type:"rate"`
+			CheckpointPagesSec         *int64   `db:"checkpoint_pages_sec" metric_name:"buffer.checkpointPagesPerSecond" source_type:"rate"`
+			DeadlocksSec               *int64   `db:"deadlocks_sec" metric_name:"stats.deadlocksPerSecond" source_type:"rate"`
+			UserErrors                 *int64   `db:"user_errors" metric_name:"stats.userErrorsPerSecond" source_type:"rate"`
+			KillConnectionErrors       *int64   `db:"kill_connection_errors" metric_name:"stats.killConnectionErrorsPerSecond" source_type:"rate"`
+			BatchRequestSec            *int64   `db:"batch_request_sec" metric_name:"bufferpool.batchRequestsPerSecond" source_type:"rate"`
 			PageLifeExpectancySec      *float64 `db:"page_life_expectancy_ms" metric_name:"bufferpool.pageLifeExpectancyInMilliseconds" source_type:"gauge"`
-			TransactionsSec            *int     `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"rate"`
-			ForcedParameterizationsSec *int     `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"rate"`
+			TransactionsSec            *int64   `db:"transactions_sec" metric_name:"instance.transactionsPerSecond" source_type:"rate"`
+			ForcedParameterizationsSec *int64   `db:"forced_parameterizations_sec" metric_name:"instance.forcedParameterizationsPerSecond" source_type:"rate"`
 		}{},
 	},
 	{
@@ -75,7 +75,7 @@ var instanceDefinitions = []*QueryDefinition{
 		N'FT_IFTSHC_MUTEX',  N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP',
 		N'DIRTY_PAGE_POLL',  N'SP_SERVER_DIAGNOSTICS_SLEEP')`,
 		dataModels: &[]struct {
-			WaitTime *int `db:"wait_time" metric_name:"system.waitTimeInMillisecondsPerSecond" source_type:"rate"`
+			WaitTime *int64 `db:"wait_time" metric_name:"system.waitTimeInMillisecondsPerSecond" source_type:"rate"`
 		}{},
 	},
 	{
@@ -98,14 +98,14 @@ var instanceDefinitions = []*QueryDefinition{
 			WHERE sess.session_id > 50 ) statuses
 		  GROUP BY status) sessions`,
 		dataModels: &[]struct {
-			Preconnect *int `db:"preconnect" metric_name:"instance.preconnectProcessesCount" source_type:"gauge"`
-			Background *int `db:"background" metric_name:"instance.backgroundProcessesCount" source_type:"gauge"`
-			Dormant    *int `db:"dormant" metric_name:"instance.dormantProcessesCount" source_type:"gauge"`
-			Runnable   *int `db:"runnable" metric_name:"instance.runnableProcessesCount" source_type:"gauge"`
-			Suspended  *int `db:"suspended" metric_name:"instance.suspendedProcessesCount" source_type:"gauge"`
-			Running    *int `db:"running" metric_name:"instance.runningProcessesCount" source_type:"gauge"`
-			Blocked    *int `db:"blocked" metric_name:"instance.blockedProcessesCount" source_type:"gauge"`
-			Sleeping   *int `db:"sleeping" metric_name:"instance.sleepingProcessesCount" source_type:"gauge"`
+			Preconnect *int64 `db:"preconnect" metric_name:"instance.preconnectProcessesCount" source_type:"gauge"`
+			Background *int64 `db:"background" metric_name:"instance.backgroundProcessesCount" source_type:"gauge"`
+			Dormant    *int64 `db:"dormant" metric_name:"instance.dormantProcessesCount" source_type:"gauge"`
+			Runnable   *int64 `db:"runnable" metric_name:"instance.runnableProcessesCount" source_type:"gauge"`
+			Suspended  *int64 `db:"suspended" metric_name:"instance.suspendedProcessesCount" source_type:"gauge"`
+			Running    *int64 `db:"running" metric_name:"instance.runningProcessesCount" source_type:"gauge"`
+			Blocked    *int64 `db:"blocked" metric_name:"instance.blockedProcessesCount" source_type:"gauge"`
+			Sleeping   *int64 `db:"sleeping" metric_name:"instance.sleepingProcessesCount" source_type:"gauge"`
 		}{},
 	},
 	{
@@ -118,7 +118,7 @@ var instanceDefinitions = []*QueryDefinition{
 			CROSS apply sys.Dm_os_volume_stats(mf.database_id, mf.file_id) dovs
 			) drives`,
 		dataModels: &[]struct {
-			TotalDiskSpace *int `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
+			TotalDiskSpace *int64 `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
 		}{},
 	},
 	{
@@ -126,13 +126,13 @@ var instanceDefinitions = []*QueryDefinition{
 		FROM sys.dm_os_schedulers
 		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'`,
 		dataModels: &[]struct {
-			RunnableTasksCount *int `db:"runnable_tasks_count" metric_name:"instance.runnableTasks" source_type:"gauge"`
+			RunnableTasksCount *int64 `db:"runnable_tasks_count" metric_name:"instance.runnableTasks" source_type:"gauge"`
 		}{},
 	},
 	{
 		query: `SELECT Count(dbid) AS instance_active_connections FROM sys.sysprocesses WITH (nolock) WHERE dbid > 0`,
 		dataModels: &[]struct {
-			InstanceActiveConnections *int `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
+			InstanceActiveConnections *int64 `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
 		}{},
 	},
 	{
@@ -158,7 +158,7 @@ var instanceBufferDefinitions = []*QueryDefinition{
       FROM sys.dm_os_buffer_descriptors WITH (nolock)
       WHERE database_id <> 32767 -- ResourceDB `,
 		dataModels: &[]struct {
-			InstanceBufferPoolSize *int `db:"instance_buffer_pool_size" metric_name:"bufferpool.sizeInBytes" source_type:"gauge"`
+			InstanceBufferPoolSize *int64 `db:"instance_buffer_pool_size" metric_name:"bufferpool.sizeInBytes" source_type:"gauge"`
 		}{},
 	},
 }
@@ -169,6 +169,6 @@ WHERE wait_time_ms != 0`
 
 type waitTimeModel struct {
 	WaitType  *string `db:"wait_type"`
-	WaitTime  *int    `db:"wait_time"`
-	WaitCount *int    `db:"waiting_tasks_count"`
+	WaitTime  *int64  `db:"wait_time"`
+	WaitCount *int64  `db:"waiting_tasks_count"`
 }

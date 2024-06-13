@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Avoid int overflow for big numeric values
+
 ## v2.12.3 - 2024-05-14
 
 ### ⛓️ Dependencies
