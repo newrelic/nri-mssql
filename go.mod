@@ -1,6 +1,6 @@
 module github.com/newrelic/nri-mssql
 
-go 1.22.3
+go 1.22.5
 
 require (
 	github.com/denisenkom/go-mssqldb v0.12.3
