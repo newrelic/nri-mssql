@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package tests
@@ -5,12 +6,13 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"github.com/newrelic/infra-integrations-sdk/log"
-	"github.com/xeipuuv/gojsonschema"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 func dockerComposeRunMode(vars []string, ports []string, container string, detached bool) (string, string, error) {
@@ -28,8 +30,9 @@ func dockerComposeRunMode(vars []string, ports []string, container string, detac
 		cmdLine = append(cmdLine, fmt.Sprintf("-p%s", ports[p]))
 	}
 	cmdLine = append(cmdLine, container)
-	fmt.Printf("executing: docker-compose %s --verbose\n", strings.Join(cmdLine, " "))
-	cmd := exec.Command("docker-compose", cmdLine...)
+	cmdLine = append([]string{"compose"}, cmdLine...)
+	fmt.Printf("executing: docker %s --verbose\n", strings.Join(cmdLine, " "))
+	cmd := exec.Command("docker", cmdLine...)
 	var outbuf, errbuf bytes.Buffer
 	cmd.Stdout = &outbuf
 	cmd.Stderr = &errbuf
