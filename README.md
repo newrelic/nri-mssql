@@ -127,7 +127,7 @@ services:
 
 To connect with a msclient simply start the service:
 ```shell
-$ docker-compose up
+$ docker compose up
 $ sqlcmd -S127.0.0.1 -USA -Psecret123! -q "SELECT * FROM sys.dm_os_performance_counters WHERE counter_name = 'Buffer cache hit ratio' or counter_name = 'Buffer cache hit ratio base'"
 ```
 
