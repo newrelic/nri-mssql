@@ -797,7 +797,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## denisenkom/go-mssqldb
 
-* Web: github.com/denisenkom/go-mssqldb
+* Web: github.com/microsoft/go-mssqldb
 * License: BSD-3-Clause
 
 ```
@@ -830,5 +830,3 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ```
-
-
