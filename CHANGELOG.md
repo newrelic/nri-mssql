@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## bugfix
+- (deps) move from github.com/denisenkom/go-mssqldb to github.com/microsoft/go-mssqldb
+
 ## v2.12.6 - 2024-07-09
 
 ### ⛓️ Dependencies

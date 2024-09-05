@@ -1,8 +1,8 @@
 golang:
-  github.com/denisenkom/go-mssqldb:
+  github.com/microsoft/go-mssqldb:
     license: BSD-3-Clause
-    license_url: vendor/github.com/denisenkom/go-mssqldb/LICENSE.txt
-    project_url: github.com/denisenkom/go-mssqldb
+    license_url: vendor/github.com/microsoft/go-mssqldb/LICENSE.txt
+    project_url: github.com/microsoft/go-mssqldb
   github.com/golang-sql/civil:
     license: Apache-2.0
     license_url: vendor/github.com/golang-sql/civil/LICENSE
