@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"flag"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -23,7 +23,7 @@ var (
 
 func updateGoldenFile(data []byte, sourceFile string) error {
 	if *update {
-		return ioutil.WriteFile(sourceFile, data, 0644)
+		return os.WriteFile(sourceFile, data, 0644)
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func createTestEntity(t *testing.T) (i *integration.Integration, e *integration.
 }
 
 func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
-	expectedData, err := ioutil.ReadFile(expectedFile)
+	expectedData, err := os.ReadFile(expectedFile)
 	if err != nil {
 		t.Errorf("Could not read expected file: %v", err.Error())
 	}
@@ -216,5 +216,91 @@ func Test_populateWaitTimeMetrics(t *testing.T) {
 	expectedFile := filepath.Join("..", "testdata", "waitTime.json.golden")
 	assert.NoError(t, updateGoldenFile(actual, expectedFile))
 
+	checkAgainstFile(t, actual, expectedFile)
+}
+
+func Test_populateCustomMetricsInQuery(t *testing.T) {
+	i, e := createTestEntity(t)
+
+	query := `SELECT
+				'myMetric' as metric_name,
+				value as metric_value,
+				'gauge' as metric_type,
+				value2 as 'otherValue'
+				attr as 'attrValue'
+			FROM my_table, LIMIT 2`
+
+	conn, mock := connection.CreateMockSQL(t)
+	defer conn.Close()
+
+	customQueryRows := sqlmock.NewRows([]string{"metric_name", "metric_value", "metric_type", "otherValue", "attrValue"}).
+		AddRow("myMetric", 0.5, "gauge", 42, "aa").
+		AddRow("myMetric", 1.5, "gauge", 43, "bb")
+
+	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
+	mock.ExpectClose()
+
+	cq := customQuery{Query: query}
+
+	populateCustomMetrics(e, conn, cq)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("..", "testdata", "customQuery.json")
+	checkAgainstFile(t, actual, expectedFile)
+}
+
+func Test_populateCustomMetricsInConfig(t *testing.T) {
+	i, e := createTestEntity(t)
+
+	query := `SELECT
+				value as metric_value,
+				value2 as 'otherValue'
+				attr as 'attrValue'
+			FROM my_table`
+
+	conn, mock := connection.CreateMockSQL(t)
+	defer conn.Close()
+
+	customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
+		AddRow(0.5, 42, "aa").
+		AddRow(1.5, 43, "bb")
+
+	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
+	mock.ExpectClose()
+
+	cq := customQuery{Query: query, Name: "myMetric", Type: "gauge"}
+
+	populateCustomMetrics(e, conn, cq)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("..", "testdata", "customQuery.json")
+	checkAgainstFile(t, actual, expectedFile)
+}
+
+func Test_populateCustomMetricsInConfigDetectTypeAndPrefix(t *testing.T) {
+	i, e := createTestEntity(t)
+
+	query := `SELECT
+				value as metric_value,
+				value2 as 'otherValue'
+				attr as 'attrValue'
+			FROM my_table`
+
+	conn, mock := connection.CreateMockSQL(t)
+	defer conn.Close()
+
+	customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
+		AddRow(0.5, 42, "aa").
+		AddRow(1.5, 43, "bb")
+
+	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
+	mock.ExpectClose()
+
+	cq := customQuery{Query: query, Name: "myMetric", Prefix: "prefix_"}
+
+	populateCustomMetrics(e, conn, cq)
+
+	actual, _ := i.MarshalJSON()
+	expectedFile := filepath.Join("..", "testdata", "customQueryPrefix.json")
 	checkAgainstFile(t, actual, expectedFile)
 }
