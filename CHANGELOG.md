@@ -9,6 +9,11 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## v2.12.7 - 2024-09-10
+
+### ⛓️ Dependencies
+- Updated golang version to v1.23.1
+
 ## bugfix
 - (deps) move from github.com/denisenkom/go-mssqldb to github.com/microsoft/go-mssqldb
 
