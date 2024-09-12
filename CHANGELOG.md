@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Handle DECIMAL values in custom queries
+
 ## v2.12.7 - 2024-09-10
 
 ### ⛓️ Dependencies
