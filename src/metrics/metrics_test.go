@@ -23,7 +23,7 @@ var (
 
 func updateGoldenFile(data []byte, sourceFile string) error {
 	if *update {
-		return os.WriteFile(sourceFile, data, 0644)
+		return os.WriteFile(sourceFile, data, 0600)
 	}
 	return nil
 }
@@ -219,88 +219,109 @@ func Test_populateWaitTimeMetrics(t *testing.T) {
 	checkAgainstFile(t, actual, expectedFile)
 }
 
-func Test_populateCustomMetricsInQuery(t *testing.T) {
-	i, e := createTestEntity(t)
+func Test_populateCustomQuery(t *testing.T) { //nolint: funlen
+	cases := []struct {
+		Name             string
+		cq               customQuery
+		setupMock        func(sqlmock.Sqlmock, customQuery)
+		expectedFileName string
+	}{
+		{
+			Name: "Custom metrics in query",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_name", "metric_value", "metric_type", "otherValue", "attrValue"}).
+					AddRow("myMetric", 0.5, "gauge", 42, "aa").
+					AddRow("myMetric", 1.5, "gauge", 43, "bb")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					'myMetric' as metric_name,
+					value as metric_value,
+					'gauge' as metric_type,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+			},
+			expectedFileName: "customQuery.json",
+		},
+		{
+			Name: "Custom metrics in config",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
+					AddRow(0.5, 42, "aa").
+					AddRow(1.5, 43, "bb")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					value as metric_value,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+				Name:   "myMetric",
+				Type:   "gauge",
+				Prefix: "prefix_",
+			},
+			expectedFileName: "customQueryPrefix.json",
+		},
+		{
+			Name: "Custom metrics in config, detecting type",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
+					AddRow(0.5, 42, "aa").
+					AddRow(1.5, 43, "bb")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					value as metric_value,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+				Name:   "myMetric",
+				Prefix: "prefix_",
+			},
+			expectedFileName: "customQueryPrefix.json",
+		},
+		{
+			Name: "Custom metrics, query has precedence",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_name", "metric_value", "metric_type", "otherValue", "attrValue"}).
+					AddRow("myMetric", 0.5, "gauge", 42, "aa").
+					AddRow("myMetric", 1.5, "gauge", 43, "bb")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					'myMetric' as metric_name,
+					value as metric_value,
+					'gauge' as metric_type,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+				Name:   "other",
+				Type:   "delta",
+				Prefix: "prefix_",
+			},
+			expectedFileName: "customQueryPrefix.json",
+		},
+	}
 
-	query := `SELECT
-				'myMetric' as metric_name,
-				value as metric_value,
-				'gauge' as metric_type,
-				value2 as 'otherValue'
-				attr as 'attrValue'
-			FROM my_table, LIMIT 2`
-
-	conn, mock := connection.CreateMockSQL(t)
-	defer conn.Close()
-
-	customQueryRows := sqlmock.NewRows([]string{"metric_name", "metric_value", "metric_type", "otherValue", "attrValue"}).
-		AddRow("myMetric", 0.5, "gauge", 42, "aa").
-		AddRow("myMetric", 1.5, "gauge", 43, "bb")
-
-	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
-	mock.ExpectClose()
-
-	cq := customQuery{Query: query}
-
-	populateCustomMetrics(e, conn, cq)
-
-	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("..", "testdata", "customQuery.json")
-	checkAgainstFile(t, actual, expectedFile)
-}
-
-func Test_populateCustomMetricsInConfig(t *testing.T) {
-	i, e := createTestEntity(t)
-
-	query := `SELECT
-				value as metric_value,
-				value2 as 'otherValue'
-				attr as 'attrValue'
-			FROM my_table`
-
-	conn, mock := connection.CreateMockSQL(t)
-	defer conn.Close()
-
-	customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
-		AddRow(0.5, 42, "aa").
-		AddRow(1.5, 43, "bb")
-
-	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
-	mock.ExpectClose()
-
-	cq := customQuery{Query: query, Name: "myMetric", Type: "gauge"}
-
-	populateCustomMetrics(e, conn, cq)
-
-	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("..", "testdata", "customQuery.json")
-	checkAgainstFile(t, actual, expectedFile)
-}
-
-func Test_populateCustomMetricsInConfigDetectTypeAndPrefix(t *testing.T) {
-	i, e := createTestEntity(t)
-
-	query := `SELECT
-				value as metric_value,
-				value2 as 'otherValue'
-				attr as 'attrValue'
-			FROM my_table`
-
-	conn, mock := connection.CreateMockSQL(t)
-	defer conn.Close()
-
-	customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
-		AddRow(0.5, 42, "aa").
-		AddRow(1.5, 43, "bb")
-
-	mock.ExpectQuery(query).WillReturnRows(customQueryRows)
-	mock.ExpectClose()
-
-	cq := customQuery{Query: query, Name: "myMetric", Prefix: "prefix_"}
-
-	populateCustomMetrics(e, conn, cq)
-
-	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("..", "testdata", "customQueryPrefix.json")
-	checkAgainstFile(t, actual, expectedFile)
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) { //nolint: paralleltest // setup mocks
+			i, e := createTestEntity(t)
+			conn, mock := connection.CreateMockSQL(t)
+			defer conn.Close()
+			tc.setupMock(mock, tc.cq)
+			populateCustomMetrics(e, conn, tc.cq)
+			actual, _ := i.MarshalJSON()
+			expectedFile := filepath.Join("..", "testdata", tc.expectedFileName)
+			checkAgainstFile(t, actual, expectedFile)
+		})
+	}
 }

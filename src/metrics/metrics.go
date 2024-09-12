@@ -2,8 +2,9 @@
 package metrics
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -31,6 +32,9 @@ type customQueryMetricValue struct {
 	value      any
 	sourceType metric.SourceType
 }
+
+var errMissingMetricValueCustomQuery = errors.New("missing 'metric_value' for custom query")
+var errMissingMetricNameCustomQuery = errors.New("missing 'metric_name' for custom query")
 
 // PopulateInstanceMetrics creates instance-level metrics
 func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
@@ -92,7 +96,7 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 
 func parseCustomQueries(arguments args.ArgumentList) ([]customQuery, error) {
 	// load YAML config file
-	b, err := ioutil.ReadFile(arguments.CustomMetricsConfig)
+	b, err := os.ReadFile(arguments.CustomMetricsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read custom_metrics_config: %s", err)
 	}
@@ -247,13 +251,13 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 
 	if metricValue == "" {
 		if metricName != "" {
-			return nil, fmt.Errorf("missing 'metric_value' for %s in custom query", metricName)
+			return nil, fmt.Errorf("%w: name %q, query %q", errMissingMetricNameCustomQuery, metricName, query.Query)
 		}
 		return metrics, nil
 	}
 
 	if metricName == "" {
-		return nil, fmt.Errorf("missing 'metric_name' in custom query %s", query.Query)
+		return nil, fmt.Errorf("%w: query %q", errMissingMetricValueCustomQuery, query.Query)
 	}
 
 	var sourceType metric.SourceType

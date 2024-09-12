@@ -8,16 +8,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit#render-markdown-and-update-markdown)
 
 ## Unreleased
-
-### bugfix
+### bugfix
 - Handle DECIMAL values in custom queries
 
 ## v2.12.7 - 2024-09-10
 
 ### ⛓️ Dependencies
 - Updated golang version to v1.23.1
-
-## bugfix
 - (deps) move from github.com/denisenkom/go-mssqldb to github.com/microsoft/go-mssqldb
 
 ## v2.12.6 - 2024-07-09
