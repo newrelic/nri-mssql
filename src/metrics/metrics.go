@@ -26,6 +26,12 @@ type customQuery struct {
 	Database string
 }
 
+// customQueryMetricValue represents a metric value fetched from the results of a custom query
+type customQueryMetricValue struct {
+	value      any
+	sourceType metric.SourceType
+}
+
 // PopulateInstanceMetrics creates instance-level metrics
 func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
@@ -152,6 +158,11 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 		log.Error("Could not execute custom query: %s", err)
 		return
 	}
+	columns, err := rows.Columns()
+	if err != nil {
+		log.Error("Could not fetch types information from custom query", err)
+		return
+	}
 
 	defer func() {
 		_ = rows.Close()
@@ -160,70 +171,14 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 	var rowCount = 0
 	for rows.Next() {
 		rowCount++
-		row := make(map[string]interface{})
-		err := rows.MapScan(row)
-		if err != nil {
+		values := make([]string, len(columns))                 // All values are represented as strings (the corresponding conversion is handled while scanning)
+		valuesForScanning := make([]interface{}, len(columns)) // the `rows.Scan` function requires an array of interface{}
+		for i := range valuesForScanning {
+			valuesForScanning[i] = &values[i]
+		}
+		if err := rows.Scan(valuesForScanning...); err != nil {
 			log.Error("Failed to scan custom query row: %s", err)
 			return
-		}
-
-		nameInterface, ok := row["metric_name"]
-		var name string
-		if !ok {
-			if len(query.Name) > 0 {
-				name = query.Name
-			}
-		} else {
-			name, ok = nameInterface.(string)
-			if !ok {
-				log.Error("Non-string type %T for custom query 'metric_name' column", nameInterface)
-				return
-			}
-		}
-
-		value, ok := row["metric_value"]
-		var valueString string
-		if !ok {
-			if len(name) > 0 {
-				log.Error("Missing 'metric_value' for %s in custom query", name)
-				return
-			}
-		} else {
-			valueString = fmt.Sprintf("%v", value)
-			if len(name) == 0 {
-				log.Error("Missing 'metric_name' for %s in custom query", valueString)
-				return
-			}
-		}
-
-		if len(query.Prefix) > 0 {
-			name = query.Prefix + name
-		}
-
-		var metricType metric.SourceType
-		metricTypeInterface, ok := row["metric_type"]
-		if !ok {
-			if len(query.Type) > 0 {
-				metricType, err = metric.SourceTypeForName(query.Type)
-				if err != nil {
-					log.Error("Invalid metric type %s in YAML: %s", query.Type, err)
-					return
-				}
-			} else {
-				metricType = detectMetricType(valueString)
-			}
-		} else {
-			// metric type was specified
-			metricTypeString, ok := metricTypeInterface.(string)
-			if !ok {
-				log.Error("Non-string type %T for custom query 'metric_type' column", metricTypeInterface)
-				return
-			}
-			metricType, err = metric.SourceTypeForName(metricTypeString)
-			if err != nil {
-				log.Error("Invalid metric type %s in query 'metric_type' column: %s", metricTypeString, err)
-				return
-			}
 		}
 
 		attributes := []attribute.Attribute{
@@ -237,30 +192,19 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 		}
 		ms := instanceEntity.NewMetricSet("MssqlCustomQuerySample", attributes...)
 
-		for k, v := range row {
-			if k == "metric_name" || k == "metric_type" || k == "metric_value" {
-				continue
-			}
-			vString := fmt.Sprintf("%v", v)
-
-			if len(query.Prefix) > 0 {
-				k = query.Prefix + k
-			}
-
-			err = ms.SetMetric(k, vString, detectMetricType(vString))
-			if err != nil {
-				log.Error("Failed to set metric: %s", err)
-				continue
-			}
+		dbMetrics, err := metricsFromCustomQueryRow(values, columns, query)
+		if err != nil {
+			log.Error("Error fetching metrics from query %s (query: %s)", err, query.Query)
 		}
-
-		if len(valueString) > 0 {
-			err = ms.SetMetric(name, valueString, metricType)
+		for name, dbMetric := range dbMetrics {
+			err = ms.SetMetric(name, dbMetric.value, dbMetric.sourceType)
 			if err != nil {
 				log.Error("Failed to set metric: %s", err)
+				continue
 			}
 		}
 	}
+
 	if rowCount == 0 {
 		log.Warn("No result set found for custom query: %+v", query)
 	} else {
@@ -270,6 +214,64 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 	if err := rows.Err(); err != nil {
 		log.Error("Error iterating rows: %s", err)
 	}
+}
+
+// metricsFromCustomQueryRow obtains a map of metrics from a row resulting from a custom query.
+// A particular metric can be configured either with:
+// - Specific columns in the query: metric_name, metric_type, metric_value
+// - The corresponding `query.Name` and `query.Type`
+// When both are defined, the query columns have precedence. Besides, if type is not defined it is automatically deteced.
+// The rest of the query columns are also taken as metrics/attributes (detecting their types automatically).
+// Besides, if `query.Prefix` is defined, all metric and attribute names will include the corresponding prefix.
+func metricsFromCustomQueryRow(row []string, columns []string, query customQuery) (map[string]customQueryMetricValue, error) {
+	metrics := map[string]customQueryMetricValue{}
+
+	var metricValue string
+	metricType := query.Type
+	metricName := query.Name
+
+	for i, columnName := range columns {
+		switch columnName {
+		case "metric_name":
+			metricName = row[i]
+		case "metric_type":
+			metricType = row[i]
+		case "metric_value":
+			metricValue = row[i]
+		default:
+			name := query.Prefix + columnName
+			value := row[i]
+			metrics[name] = customQueryMetricValue{value: value, sourceType: detectMetricType(value)}
+		}
+	}
+
+	if metricValue == "" {
+		if metricName != "" {
+			return nil, fmt.Errorf("missing 'metric_value' for %s in custom query", metricName)
+		}
+		return metrics, nil
+	}
+
+	if metricName == "" {
+		return nil, fmt.Errorf("missing 'metric_name' in custom query %s", query.Query)
+	}
+
+	var sourceType metric.SourceType
+	if metricType != "" {
+		sourceTypeFromQuery, err := metric.SourceTypeForName(metricType)
+		if err != nil {
+			return nil, fmt.Errorf("invalid metric type %s: %w", metricType, err)
+		}
+		sourceType = sourceTypeFromQuery
+	} else {
+		sourceType = detectMetricType(metricValue)
+	}
+
+	metricName = query.Prefix + metricName
+
+	metrics[metricName] = customQueryMetricValue{value: metricValue, sourceType: sourceType}
+
+	return metrics, nil
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
