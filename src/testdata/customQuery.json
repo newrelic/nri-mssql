@@ -1,0 +1,38 @@
+{
+    "name": "test",
+    "protocol_version": "3",
+    "integration_version": "1.0.0",
+    "data": [
+        {
+            "entity": {
+                "name": "test",
+                "type": "instance",
+                "id_attributes": []
+            },
+            "metrics": [
+                {
+                    "attrValue": "aa",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "myMetric": 0.5,
+                    "otherValue": 42
+                },
+                {
+                    "attrValue": "bb",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "myMetric": 1.5,
+                    "otherValue": 43
+                }
+            ],
+            "inventory": {},
+            "events": []
+        }
+    ]
+}

@@ -19,7 +19,7 @@ test:
 integration-test:
 	@echo "=== $(INTEGRATION) === [ test ]: running integration tests..."
 	@docker compose -f tests/docker-compose.yml pull
-	@go test -v -tags=integration ./tests/. || (ret=$$?; docker compose -f tests/docker-compose.yml down && exit $$ret)
+	@go test -count=1 -v -tags=integration ./tests/. || (ret=$$?; docker compose -f tests/docker-compose.yml down && exit $$ret)
 	@docker compose -f tests/docker-compose.yml down
 
 compile: 

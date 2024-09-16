@@ -1,4 +1,4 @@
-// +build integration
+//go:build integration
 
 package tests
 
@@ -42,8 +42,8 @@ func waitForMSSQLIsUpAndRunning(maxTries int) bool {
 	}
 	fmt.Println(stdout)
 	fmt.Println(stderr)
-	log.Info("try to establish de connection with the mssql database...")
 	for ; maxTries > 0; maxTries-- {
+		time.Sleep(5 * time.Second)
 		log.Info("try to establish de connection with the mssql database...")
 
 		conn, err := connection.NewConnection(&args.ArgumentList{
@@ -54,7 +54,6 @@ func waitForMSSQLIsUpAndRunning(maxTries int) bool {
 		})
 		if err != nil {
 			log.Warn(err.Error())
-			time.Sleep(5 * time.Second)
 			continue
 		}
 		if conn != nil {

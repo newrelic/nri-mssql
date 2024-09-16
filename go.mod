@@ -24,3 +24,11 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+godebug (
+// Allows TLS certs with negative serial numbers.
+// Before go 1.23 these certificates where accepted, now the corresponding go debug variable is needed
+// to restore the previous behavior
+// <https://cs.opensource.google/go/go/+/refs/tags/go1.23.1:src/crypto/x509/parser.go;l=1019>
+	x509negativeserial=1
+)
