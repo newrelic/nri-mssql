@@ -234,14 +234,16 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 	metricType := query.Type
 	metricName := query.Name
 
-	for i, columnName := range columns {
+	for i, columnName := range columns { // Scan the query columns to extract the corresponding metrics
 		switch columnName {
+		// Handle columns with 'special' meaning
 		case "metric_name":
 			metricName = row[i]
 		case "metric_type":
 			metricType = row[i]
 		case "metric_value":
 			metricValue = row[i]
+		// The rest of the values are taken as metrics/attributes with automatically detected type.
 		default:
 			name := query.Prefix + columnName
 			value := row[i]
@@ -249,15 +251,30 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 		}
 	}
 
+	customQueryMetric, err := metricFromTargetColumns(metricValue, metricName, metricType, query)
+	if err != nil {
+		return nil, fmt.Errorf("could not extract metric from query: %w", err)
+	}
+	if customQueryMetric != nil {
+		metricName = query.Prefix + metricName
+		metrics[metricName] = *customQueryMetric
+	}
+	return metrics, nil
+}
+
+// metricFromTargetColumns builds a customQueryMetricValue from the values in target columns (or defaults in the yaml
+// configuration). It returns an error if values are inconsistent (Ex: metricName is set but metricValue is not) and it
+// can be nil the metric was not defined.
+func metricFromTargetColumns(metricValue, metricName, metricType string, query customQuery) (*customQueryMetricValue, error) {
 	if metricValue == "" {
 		if metricName != "" {
-			return nil, fmt.Errorf("%w: name %q, query %q", errMissingMetricNameCustomQuery, metricName, query.Query)
+			return nil, fmt.Errorf("%w: name %q, query %q", errMissingMetricValueCustomQuery, metricName, query.Query)
 		}
-		return metrics, nil
+		return nil, nil // Ignored when there is no value and no name
 	}
 
 	if metricName == "" {
-		return nil, fmt.Errorf("%w: query %q", errMissingMetricValueCustomQuery, query.Query)
+		return nil, fmt.Errorf("%w: query %q", errMissingMetricNameCustomQuery, query.Query)
 	}
 
 	var sourceType metric.SourceType
@@ -271,11 +288,7 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 		sourceType = detectMetricType(metricValue)
 	}
 
-	metricName = query.Prefix + metricName
-
-	metrics[metricName] = customQueryMetricValue{value: metricValue, sourceType: sourceType}
-
-	return metrics, nil
+	return &customQueryMetricValue{value: metricValue, sourceType: sourceType}, nil
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
