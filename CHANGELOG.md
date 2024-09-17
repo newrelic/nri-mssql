@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 Unreleased section should follow [Release Toolkit](https://github.com/newrelic/release-toolkit#render-markdown-and-update-markdown)
 
 ## Unreleased
-### bugfix
+
+## v2.12.8 - 2024-09-17
+
+### 🐞 Bug fixes
 - Handle DECIMAL values in custom queries
 
 ## v2.12.7 - 2024-09-10
