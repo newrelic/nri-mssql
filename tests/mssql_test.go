@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/stretchr/testify/assert"

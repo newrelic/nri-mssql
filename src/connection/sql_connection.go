@@ -9,7 +9,7 @@ import (
 	// go-mssqldb is required for mssql driver but isn't used in code
 	"github.com/jmoiron/sqlx"
 	_ "github.com/microsoft/go-mssqldb"
-	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 )
 

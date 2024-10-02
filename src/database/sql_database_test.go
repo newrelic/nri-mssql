@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/newrelic/infra-integrations-sdk/data/attribute"
-	"github.com/newrelic/infra-integrations-sdk/integration"
+	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
+	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
