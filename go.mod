@@ -16,7 +16,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -25,10 +24,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-godebug (
 // Allows TLS certs with negative serial numbers.
 // Before go 1.23 these certificates where accepted, now the corresponding go debug variable is needed
 // to restore the previous behavior
 // <https://cs.opensource.google/go/go/+/refs/tags/go1.23.1:src/crypto/x509/parser.go;l=1019>
-	x509negativeserial=1
-)
+godebug x509negativeserial=1
