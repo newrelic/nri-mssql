@@ -1,7 +1,7 @@
 services:
 
   mssql:
-    image: mcr.microsoft.com/mssql/server:2017-latest
+    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: mssql
     environment:
       ACCEPT_EULA: Y
