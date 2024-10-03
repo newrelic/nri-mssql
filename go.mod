@@ -1,6 +1,6 @@
 module github.com/newrelic/nri-mssql
 
-go 1.23.1
+go 1.23.2
 
 require (
 	github.com/jmoiron/sqlx v1.4.0
