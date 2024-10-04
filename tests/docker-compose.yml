@@ -1,7 +1,7 @@
 services:
 
   mssql:
-    image: mcr.microsoft.com/mssql/server:2017-latest
+    image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: mssql
     environment:
       ACCEPT_EULA: Y
@@ -9,7 +9,7 @@ services:
       MSSQL_PID: Developer
     restart: always
   nri-mssql:
-    image: golang:1.23.1-bookworm
+    image: golang:1.23.2-bookworm
     container_name: nri_mssql
     working_dir: /code
     volumes:

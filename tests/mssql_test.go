@@ -3,13 +3,15 @@
 package tests
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/newrelic/infra-integrations-sdk/log"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/stretchr/testify/assert"
@@ -54,6 +56,27 @@ func waitForMSSQLIsUpAndRunning(maxTries int) bool {
 		})
 		if err != nil {
 			log.Warn(err.Error())
+
+			mssql_command := []string{"docker", "logs", "mssql"}
+			mssql_cmd := exec.Command(mssql_command[0], mssql_command[1:]...)
+			var mssql_out bytes.Buffer
+			mssql_cmd.Stdout = &mssql_out
+			mssql_cmd.Stderr = &mssql_out
+
+			nri_mssql_command := []string{"docker", "logs", "nri-mssql"}
+			nri_mssql_cmd := exec.Command(nri_mssql_command[0], nri_mssql_command[1:]...)
+			var nri_mssql_out bytes.Buffer
+			nri_mssql_cmd.Stdout = &nri_mssql_out
+			nri_mssql_cmd.Stderr = &nri_mssql_out
+
+			log.Info("mssql container logs")
+			_ = mssql_cmd.Run()
+			log.Info(mssql_out.String())
+
+			log.Info("nri_mssql container logs")
+			_ = nri_mssql_cmd.Run()
+			log.Info(nri_mssql_out.String())
+
 			continue
 		}
 		if conn != nil {
@@ -62,6 +85,7 @@ func waitForMSSQLIsUpAndRunning(maxTries int) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
