@@ -349,7 +349,7 @@ queries:
       ORDER BY LocalTime ASC;
     prefix: deadlock_
 
-# Example to read db backup types and status from msdb
+# Example to read db backup types, times, and status from msdb
 # NRQL:
 # 
   - query: >-
