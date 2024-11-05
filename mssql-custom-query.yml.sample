@@ -380,7 +380,7 @@ queries:
         bps.backup_finish_date;
     prefix: dbBackups_
 
-# Example to read AG status for primary and secondary
+# Example to read AG status for primary and secondary nodes
 # NRQL:
 # 
   - query: >-
