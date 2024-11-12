@@ -1,0 +1,14 @@
+username: "sa"
+password: "Password@123"
+hostname: "13.235.16.45"
+port: "1433"
+enable_ssl: false
+trust_server_certificate: false
+certificate_location: ""
+enable_buffer_metrics: true
+enable_database_reserve_metrics: true
+timeout: "30"
+custom_metrics_query: ""
+custom_metrics_config: ""
+show_version: false
+extra_connection_url_args: ""

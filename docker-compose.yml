@@ -1,0 +1,12 @@
+version: '3.1'
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge
+    ports:
+      - "1433:1433"
+    container_name: mssql
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: Password@123
+      MSSQL_PID: Developer
+    restart: always

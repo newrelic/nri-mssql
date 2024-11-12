@@ -14,6 +14,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	v2 "github.com/newrelic/nri-mssql/src/v2"
 )
 
 const (
@@ -28,12 +29,14 @@ var (
 
 func main() {
 	var args args.ArgumentList
-	// Create Integration
+
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
+
+	log.Info("Integration", i)
 
 	if args.ShowVersion {
 		fmt.Printf(
@@ -82,6 +85,7 @@ func main() {
 		}
 
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
+		v2.Main(instanceEntity, con, args)
 	}
 
 	// Close connection when done
