@@ -10,6 +10,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/yaml.v2 v2.4.0
+	github.com/newrelic/nri-mssql/src/queryAnalysis v0.0.0
 )
 
 require (

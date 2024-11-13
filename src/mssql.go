@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -91,4 +92,10 @@ func main() {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
+
+	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
+	if *runAnalysis {
+		queryanalysis.RunAnalysis()
+	}
+
 }
