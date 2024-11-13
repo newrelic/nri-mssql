@@ -14,6 +14,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	queryanalysis "github.com/newrelic/nri-mssql/src/queryAnalysis"
 )
 
 const (
@@ -82,6 +83,7 @@ func main() {
 		}
 
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
+		queryanalysis.QueryAnalysisMain(instanceEntity, con, args)
 	}
 
 	// Close connection when done
