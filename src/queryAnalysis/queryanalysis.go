@@ -12,8 +12,8 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 	fmt.Println("Starting query analysis...")
 
 	AnalyzeSlowQueries(instanceEntity, connection, arguments)
-	AnalyzeWaits(instanceEntity, connection, arguments)
-	AnalyzeExecutionPlans()
+	AnalyzeExecutionPlans(instanceEntity, connection, arguments)
+	AnalyzeWaits()
 
 	fmt.Println("Query analysis completed.")
 

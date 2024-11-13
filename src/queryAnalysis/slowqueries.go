@@ -29,7 +29,7 @@ type topNSlowQueryDetails struct {
 func AnalyzeSlowQueries(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
 	log.Info("Querying SQL Server for top N slow queries")
 
-	var getTopNSlowQueryDetailsQuery = `DECLARE @TopN INT = 5; WITH QueryStats AS(SELECT TOP (@TopN) qs.plan_handle, qs.sql_handle, SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, (CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.text) ELSE qs.statement_end_offset END - qs.statement_start_offset) / 2 + 1) AS query_text, CONVERT(VARCHAR(32), HASHBYTES('SHA2_256', SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, (CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.text) ELSE qs.statement_end_offset END - qs.statement_start_offset) / 2 + 1)), 2) AS query_id, qs.last_execution_time, qs.execution_count, (qs.total_worker_time / qs.execution_count) / 1000.0 AS avg_cpu_time_ms, (qs.total_elapsed_time / qs.execution_count) / 1000.0 AS avg_elapsed_time_ms, (qs.total_logical_reads / qs.execution_count) AS avg_disk_reads, (qs.total_logical_writes / qs.execution_count) AS avg_disk_writes, CASE WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'SELECT' THEN 'SELECT' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'INSERT' THEN 'INSERT' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'UPDATE' THEN 'UPDATE' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'DELETE' THEN 'DELETE' ELSE 'OTHER' END AS statement_type, CONVERT(INT, pa.value) AS database_id, dbo.AnonymizeQueryText(qt.text) AS anonymized_query_text FROM sys.dm_exec_query_stats qs CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt JOIN sys.dm_exec_cached_plans cp ON qs.plan_handle = cp.plan_handle CROSS APPLY sys.dm_exec_plan_attributes(cp.plan_handle) AS pa WHERE qs.execution_count > 0 AND pa.attribute = 'dbid' AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb') AND qs.last_execution_time >= DATEADD(HOUR, -1, GETUTCDATE()) AND qt.text NOT LIKE '%sys.%' AND qt.text NOT LIKE '%INFORMATION_SCHEMA%' AND qt.text NOT LIKE '%schema_name()%' AND qt.text IS NOT NULL AND LTRIM(RTRIM(qt.text)) <> '' ORDER BY avg_elapsed_time_ms DESC) SELECT query_id, anonymized_query_text as query_text, DB_NAME(database_id) AS database_name, COALESCE(OBJECT_SCHEMA_NAME(qt.objectid, database_id), 'N/A') AS schema_name, FORMAT(qs.last_execution_time AT TIME ZONE 'UTC', 'yyyy-MM-ddTHH:mm:ssZ') AS last_execution_timestamp, execution_count, avg_cpu_time_ms, avg_elapsed_time_ms, avg_disk_reads, avg_disk_writes, statement_type, FORMAT(SYSDATETIMEOFFSET() AT TIME ZONE 'UTC', 'yyyy-MM-ddTHH:mm:ssZ') AS collection_timestamp FROM QueryStats qs CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt;`
+	var getTopNSlowQueryDetailsQuery = `DECLARE @TopN INT = 5; WITH QueryStats AS(SELECT TOP (@TopN) qs.plan_handle, qs.sql_handle, SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, (CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.text) ELSE qs.statement_end_offset END - qs.statement_start_offset) / 2 + 1) AS query_text, CONVERT(VARCHAR(32), HASHBYTES('SHA2_256', SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, (CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.text) ELSE qs.statement_end_offset END - qs.statement_start_offset) / 2 + 1)), 2) AS query_id, qs.last_execution_time, qs.execution_count, (qs.total_worker_time / qs.execution_count) / 1000.0 AS avg_cpu_time_ms, (qs.total_elapsed_time / qs.execution_count) / 1000.0 AS avg_elapsed_time_ms, (qs.total_logical_reads / qs.execution_count) AS avg_disk_reads, (qs.total_logical_writes / qs.execution_count) AS avg_disk_writes, CASE WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'SELECT' THEN 'SELECT' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'INSERT' THEN 'INSERT' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'UPDATE' THEN 'UPDATE' WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'DELETE' THEN 'DELETE' ELSE 'OTHER' END AS statement_type, CONVERT(INT, pa.value) AS database_id, qt.text AS anonymized_query_text FROM sys.dm_exec_query_stats qs CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt JOIN sys.dm_exec_cached_plans cp ON qs.plan_handle = cp.plan_handle CROSS APPLY sys.dm_exec_plan_attributes(cp.plan_handle) AS pa WHERE qs.execution_count > 0 AND pa.attribute = 'dbid' AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb') AND qs.last_execution_time >= DATEADD(SECOND, -15, GETUTCDATE()) AND qt.text NOT LIKE '%sys.%' AND qt.text NOT LIKE '%INFORMATION_SCHEMA%' AND qt.text NOT LIKE '%schema_name()%' AND qt.text IS NOT NULL AND LTRIM(RTRIM(qt.text)) <> '' ORDER BY avg_elapsed_time_ms DESC) SELECT query_id, anonymized_query_text as query_text, DB_NAME(database_id) AS database_name, COALESCE(OBJECT_SCHEMA_NAME(qt.objectid, database_id), 'N/A') AS schema_name, FORMAT(qs.last_execution_time AT TIME ZONE 'UTC', 'yyyy-MM-ddTHH:mm:ssZ') AS last_execution_timestamp, execution_count, avg_cpu_time_ms, avg_elapsed_time_ms, avg_disk_reads, avg_disk_writes, statement_type, FORMAT(SYSDATETIMEOFFSET() AT TIME ZONE 'UTC', 'yyyy-MM-ddTHH:mm:ssZ') AS collection_timestamp FROM QueryStats qs CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt;`
 
 	log.Info("Executing query to get top N slow query details.")
 
@@ -37,9 +37,20 @@ func AnalyzeSlowQueries(instanceEntity *integration.Entity, connection *connecti
 	slowQueryModels := make([]topNSlowQueryDetails, 0)
 
 	// Execute the query and store the results in the slowQueryModels slice.
-	if err := connection.Query(&slowQueryModels, getTopNSlowQueryDetailsQuery); err != nil {
+	rows, err := connection.Queryx(getTopNSlowQueryDetailsQuery)
+	if err != nil {
 		log.Error("Could not execute query: %s", err.Error())
 		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model topNSlowQueryDetails
+		if err := rows.StructScan(&model); err != nil {
+			log.Error("Could not scan row: %s", err.Error())
+			continue
+		}
+		slowQueryModels = append(slowQueryModels, model)
 	}
 
 	log.Info("Number of records retrieved: %d", len(slowQueryModels))
@@ -78,7 +89,7 @@ func AnalyzeSlowQueries(instanceEntity *integration.Entity, connection *connecti
 			statementType,
 			collectionTimestamp)
 
-		metricSet := instanceEntity.NewMetricSet("MssqlSlowQueriesSample",
+		metricSet := instanceEntity.NewMetricSet("MssqlSlowQueries",
 			attribute.Attribute{Key: "queryID", Value: queryID},
 			attribute.Attribute{Key: "databaseName", Value: databaseName},
 			attribute.Attribute{Key: "queryText", Value: queryText},
@@ -120,5 +131,4 @@ func AnalyzeSlowQueries(instanceEntity *integration.Entity, connection *connecti
 	}
 
 	log.Info("Completed processing all slow query entries.")
-
 }
