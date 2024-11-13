@@ -10,7 +10,6 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/yaml.v2 v2.4.0
-	github.com/newrelic/nri-mssql/src/queryAnalysis v0.0.0
 )
 
 require (
@@ -29,4 +28,4 @@ require (
 // Before go 1.23 these certificates where accepted, now the corresponding go debug variable is needed
 // to restore the previous behavior
 // <https://cs.opensource.google/go/go/+/refs/tags/go1.23.1:src/crypto/x509/parser.go;l=1019>
-godebug x509negativeserial=1
+//godebug x509negativeserial=1

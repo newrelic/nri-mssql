@@ -15,6 +15,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis"
 )
 
 const (
@@ -95,7 +96,7 @@ func main() {
 
 	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
 	if *runAnalysis {
-		queryanalysis.RunAnalysis()
+		queryAnalysis.RunAnalysis(instanceEntity, con, args)
 	}
 
 }
