@@ -36,9 +36,20 @@ func TopNSlowQueryAnalysis(instanceEntity *integration.Entity, connection *conne
 	slowQueryModels := make([]topNSlowQueryDetails, 0)
 
 	// Execute the query and store the results in the slowQueryModels slice.
-	if err := connection.Query(&slowQueryModels, getTopNSlowQueryDetailsQuery); err != nil {
+	rows, err := connection.Queryx(getTopNSlowQueryDetailsQuery)
+	if err != nil {
 		log.Error("Could not execute query: %s", err.Error())
 		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model topNSlowQueryDetails
+		if err := rows.StructScan(&model); err != nil {
+			log.Error("Could not scan row: %s", err.Error())
+			continue
+		}
+		slowQueryModels = append(slowQueryModels, model)
 	}
 
 	log.Info("Number of records retrieved: %d", len(slowQueryModels))
@@ -119,5 +130,4 @@ func TopNSlowQueryAnalysis(instanceEntity *integration.Entity, connection *conne
 	}
 
 	log.Info("Completed processing all slow query entries.")
-
 }
