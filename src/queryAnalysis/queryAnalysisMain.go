@@ -8,6 +8,6 @@ import (
 )
 
 func QueryAnalysisMain(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
-	log.Info("Querying SQL Server for query analysis metrics")
+	log.Info("Querying SQL Server for query analysis metricss")
 	TopNSlowQueryAnalysis(instanceEntity, connection, arguments)
 }
