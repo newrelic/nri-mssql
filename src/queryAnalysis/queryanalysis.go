@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	"fmt"
+	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 )
@@ -11,8 +12,9 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 	fmt.Println("Starting query analysis...")
 
 	AnalyzeSlowQueries(instanceEntity, connection, arguments)
-	AnalyzeWaits()
+	AnalyzeWaits(instanceEntity, connection, arguments)
 	AnalyzeExecutionPlans()
 
 	fmt.Println("Query analysis completed.")
+
 }
