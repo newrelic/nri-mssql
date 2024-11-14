@@ -48,6 +48,9 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 	if arguments.EnableBufferMetrics {
 		collectionList = append(collectionList, instanceBufferDefinitions...)
 	}
+	if arguments.EnableDiskMetricsInBytes {
+		collectionList = append(collectionList, diskMetricInBytesDefination...)
+	}
 
 	for _, queryDef := range collectionList {
 		models := queryDef.GetDataModels()
