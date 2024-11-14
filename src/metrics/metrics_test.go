@@ -159,7 +159,8 @@ func Test_populateInstanceMetrics(t *testing.T) {
 	mock.ExpectClose()
 
 	args := args.ArgumentList{
-		EnableBufferMetrics: true,
+		EnableBufferMetrics:      true,
+		EnableDiskMetricsInBytes: true,
 	}
 	PopulateInstanceMetrics(e, conn, args)
 
