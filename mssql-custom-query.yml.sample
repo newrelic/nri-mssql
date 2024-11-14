@@ -1,26 +1,24 @@
 queries:
 
-    # Example for metric_name / metric_type specified in this config
+# Example for metric_name / metric_type specified in this config
   - query: SELECT count(*) AS 'metric_value' FROM sys.databases
     metric_name: dbCount
     metric_type: gauge
     # Example for metric_name from query, metric_type auto-detected, additional attribute 'category_type'
   - query: SELECT CONCAT('category_', category_id) AS metric_name, name AS metric_value, category_type FROM syscategories
     database: msdb
-    # Example for stored procedure 'exec dbo.sp_server_info @attribute_id = 2'
-  - query: dbo.sp_server_info @attribute_id = 2
 
 # Example for showing active processes
 # NRQL:
-#  FROM MssqlCustomQuerySample
-#  SELECT activeProcesses_session_id, activeProcesses_sql_hostname,
-#  activeProcesses_sql_command, activeProcesses_cpu_time,
-#  activeProcesses_logical_read_count, activeProcesses_open_transaction_count,
-#  activeProcesses_blocking_session_id, activeProcesses_database_name,
-#  activeProcesses_login_name, activeProcesses_last_batch_time,
-#  activeProcesses_spid_status, activeProcesses_wait_time,
+#  FROM MssqlCustomQuerySample 
+#  SELECT activeProcesses_session_id, activeProcesses_sql_hostname, 
+#  activeProcesses_sql_command, activeProcesses_cpu_time, 
+#  activeProcesses_logical_read_count, activeProcesses_open_transaction_count, 
+#  activeProcesses_blocking_session_id, activeProcesses_database_name, 
+#  activeProcesses_login_name, activeProcesses_last_batch_time, 
+#  activeProcesses_spid_status, activeProcesses_wait_time, 
 #  activeProcesses_last_wait_type, activeProcesses_query_text,
-#  activeProcesses_program_name, activeProcesses_start_time
+#  activeProcesses_program_name, activeProcesses_start_time 
 #  WHERE activeProcesses_session_id IS NOT NULL
   - query: >-
       SELECT
@@ -72,30 +70,30 @@ queries:
 # Example for querying busiest databases by logical R/W
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT busiestDatabases_database_name, busiestDatabases_schema_name, busiestDatabases_total_page_reads, busiestDatabases_total_page_writes
+#  SELECT busiestDatabases_database_name, busiestDatabases_total_page_reads, busiestDatabases_total_page_writes
 #  WHERE busiestDatabases_database_name IS NOT NULL
   - query: >-
       SELECT
         @@SERVERNAME AS [sql_hostname],
         SUM(deqs.total_logical_reads) AS [total_page_reads],
         SUM(deqs.total_logical_writes) AS [total_page_writes],
-        OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid) AS [schema_name],
         CASE
           WHEN DB_NAME(dest.dbid) IS NULL THEN 'TechOps'
           ELSE DB_NAME(dest.dbid) 
         END AS [database_name]
       FROM sys.dm_exec_query_stats deqs
       CROSS APPLY sys.dm_exec_sql_text(deqs.sql_handle) AS dest
-      GROUP BY DB_NAME(dest.dbid),OBJECT_SCHEMA_NAME(dest.objectid, dest.dbid);
+      GROUP BY DB_NAME(dest.dbid);
     database: master
     prefix: busiestDatabases_
 
 # Example for checking database log space
-# You would wand to repeat this query for every target. i.e.;  database: master
+# You would wand to repeat this query for every target. i.e.;  database: master 
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT `logSpace_Database Name`, `logSpace_Log Size (MB)`,
-#  `logSpace_Log Space Used (%)`, logSpace_Status
+#  SELECT logSpace_database_name, logSpace_total_log_size_in_bytes,
+#  logSpace_used_log_space_in_bytes, logSpace_used_log_space_in_percent,
+#  logSpace_log_space_in_bytes_since_last_backup
 #  WHERE logSpace_database_name IS NOT NULL
   - query: DBCC SQLPERF(LOGSPACE);
     prefix: logSpace_
@@ -131,7 +129,7 @@ queries:
         CAST(MAX([W1].[wait_percentage]) AS INT) AS [wait_percentage],
         CAST((MAX([W1].[wait_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_wait_seconds],
         CAST((MAX([W1].[resource_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_resource_seconds],
-        CAST((MAX([W1].[signal_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_signal_seconds]
+        CAST((MAX([W1].[signal_seconds]) / MAX([W1].[wait_count])) AS INT) AS [avg_signal_seconds]	    
       FROM [Waits] AS [W1]
       INNER JOIN [Waits] AS [W2] ON [W2].[row_number] <= [W1].[row_number]
       GROUP BY [W1].[row_number];
@@ -140,7 +138,7 @@ queries:
 # Example for top 15 longest running queries 
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT longRunning_sql_hostname, longRunning_database_name, longRunning_schema_name, longRunning_short_text,
+#  SELECT longRunning_sql_hostname, longRunning_database_name, longRunning_short_text,
 #  longRunning_execution_count, longRunning_cpu_time_total_ms, longRunning_cpu_time_avg_ms,
 #  longRunning_physical_reads_total, longRunning_physical_reads_avg, longRunning_logical_reads_total,
 #  longRunning_logical_reads_avg, longRunning_writes_total, longRunning_logical_writes_avg,
@@ -151,6 +149,7 @@ queries:
         @@SERVERNAME AS [sql_hostname],
         ISNULL(DB_NAME(t.dbid),'') AS [database_name],
         LEFT(t.[text], 50) AS [short_text], 
+        CAST(qp.query_plan AS VARCHAR(MAX)) AS [query_plan],
         qs.execution_count AS [execution_count],
         qs.total_worker_time AS [cpu_time_total_ms],
         qs.total_worker_time/qs.execution_count AS [cpu_time_avg_ms],     
@@ -163,18 +162,19 @@ queries:
         qs.total_elapsed_time AS [duration_total_ms],
         qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
         qs.creation_time AS [creation_time],
-        OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
+        qs.last_execution_time AS [last_execution_time],
         t.[text] AS [complete_text]
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
+      CROSS APPLY sys.dm_exec_text_query_plan(plan_handle,0,-1) as qp
       WHERE t.[text] NOT LIKE '%SELECT TOP 15%qs.execution_count%'        --Ignore this query
-      ORDER BY qs.total_elapsed_time/qs.execution_count DESC
+      ORDER BY qs.total_elapsed_time/qs.execution_count DESC;
     prefix: longRunning_
 
 # Example for top 15 most executed queries
 # NRQL:
 #  FROM MssqlCustomQuerySample
-#  SELECT frequentQueries_sql_hostname, frequentQueries_database_name, frequentQueries_schema_name
+#  SELECT frequentQueries_sql_hostname, frequentQueries_database_name, 
 #  frequentQueries_execution_count, frequentQueries_creation_time, frequentQueries_complete_text
 #  WHERE frequentQueries_execution_count IS NOT NULL
   - query: >-
@@ -183,7 +183,6 @@ queries:
         ISNULL(DB_NAME(t.dbid),'') AS [database_name],
         qs.execution_count AS [execution_count],
         qs.creation_time AS [creation_time],
-        OBJECT_SCHEMA_NAME(t.objectid, t.dbid) AS [schema_name],
         t.[text] AS [complete_text]
       FROM sys.dm_exec_query_stats AS qs WITH (NOLOCK)
       CROSS APPLY sys.dm_exec_sql_text(plan_handle) AS t
@@ -233,7 +232,7 @@ queries:
     prefix: blockingProcesses_
 
 # Example for querying all failed jobs
-# -- at the end of the query, minus 60 seconds for polling timeout
+# -- at the end of the query, minus 30 seconds for polling timeout
 # NOTE: This requires the additional permissions below to gather failed job data
 # USE [msdb]
 # GO
@@ -249,17 +248,17 @@ queries:
 #  failedJobs_run_time, failedJobs_run_status, failedJobs_sql_severity,
 #  failedJobs_job_message, failedJobs_sql_hostname
 #  WHERE failedJobs_job_name IS NOT NULL
-#  - query: >-
-#      SELECT j.[name] AS [job_name],h.[run_date],h.[run_time],h.[run_status],h.[sql_severity],h.[message] AS [job_message],h.[server] AS [sql_hostname]
-#      FROM msdb.dbo.sysjobhistory AS h
-#      JOIN msdb.dbo.sysjobs AS j ON h.job_id = j.job_id
-#      AND h.[run_date] >= CONVERT(VARCHAR, GETDATE(), 112)
-#      AND h.[run_time] >= REPLACE(CONVERT(VARCHAR, GETDATE(),108),':','')-60;
-#    database: msdb
-#    prefix: failedJobs_
+  - query: >-
+      SELECT j.[name] AS [job_name],h.[run_date],h.[run_time],h.[run_status],h.[sql_severity],h.[message] AS [job_message],h.[server] AS [sql_hostname]
+      FROM msdb.dbo.sysjobhistory AS h
+      JOIN msdb.dbo.sysjobs AS j ON h.job_id = j.job_id
+      AND h.[run_date] >= CONVERT(VARCHAR, GETDATE(), 112)
+      AND h.[run_time] >= REPLACE(CONVERT(VARCHAR, GETDATE(),108),':','')-60;  
+    database: msdb
+    prefix: failedJobs_
 
 # Example for checking database filegroup space
-# You would need to repeat this query for every target database
+# You would wand to repeat this query for every target. i.e.;  database: master 
 # NRQL:
 #  FROM MssqlCustomQuerySample
 #  SELECT filegroupSpace_sql_hostname, filegroupSpace_database_name,
@@ -326,3 +325,81 @@ queries:
       JOIN sys.data_spaces AS ds ON df.data_space_id = ds.data_space_id;
     database: TechOps
     prefix: filegroupSpace_
+
+# Example for checking for deadlocks
+# NRQL:
+#  
+  - query: >-
+      WITH CurrentSystemHealthTraceFile AS 
+      (SELECT 
+        CAST(target_data AS xml).value('(/EventFileTarget/File/@name)[1]', 'varchar(255)') AS FileName
+      FROM sys.dm_xe_session_targets
+      WHERE target_name = 'event_file'
+        AND CAST(target_data AS xml).value('(/EventFileTarget/File/@name)[1]', 'varchar(255)') LIKE '%\system[_]health%'
+      ),
+      BaseSystemHealthFileName AS 
+      (SELECT 
+        REVERSE(SUBSTRING(REVERSE(FileName), CHARINDEX(N'\', REVERSE(FileName)), 255)) + N'system_health*.xel' AS FileNamePattern
+      FROM CurrentSystemHealthTraceFile
+      ),
+      DeadLockReports AS 
+      (SELECT CAST(event_data AS xml) AS event_data
+      FROM BaseSystemHealthFileName
+      CROSS APPLY sys.fn_xe_file_target_read_file ( FileNamePattern, NULL, NULL, NULL) AS xed
+      WHERE xed.object_name like 'xml_deadlock_report'
+      )
+      SELECT TOP 10
+        DATEADD(hour, DATEDIFF(hour, SYSUTCDATETIME(), SYSDATETIME()), 
+        event_data.value('(/event/@timestamp)[1]',
+        'datetime2')) AS LocalTime,
+        event_data AS DeadlockReport
+      FROM DeadLockReports
+      ORDER BY LocalTime ASC;
+    prefix: deadlock_
+
+# Example to read db backup types and status from msdb
+# NRQL:
+# 
+  - query: >-
+      SELECT CONVERT(VARCHAR(100), SERVERPROPERTY('Servername')) AS Server, 
+        bps.[database_name], 
+        bps.backup_start_date, 
+        bps.backup_finish_date, 
+        bps.expiration_date, 
+        CASE bps.[type] 
+          WHEN 'D' THEN 'Database' 
+          WHEN 'L' THEN 'Log'
+          WHEN 'I' THEN 'Differential'
+          WHEN 'F' THEN 'File/Filegroup'
+          WHEN 'P' THEN 'Partial'
+          END AS backup_type, 
+        bps.backup_size, 
+        bpm.logical_device_name, 
+        bpm.physical_device_name, 
+        bps.name AS backupset_name, 
+        bps.description 
+      FROM 
+        msdb.dbo.backupmediafamily bpm
+        INNER JOIN msdb.dbo.backupset bps ON bpm.media_set_id = bps.media_set_id 
+      WHERE 
+        (CONVERT(datetime, bps.backup_start_date, 102) >= GETDATE() - 180) 
+      ORDER BY 
+        bps.database_name, 
+        bps.backup_finish_date;
+    prefix: dbBackups_
+
+# Example to read AG status for primary and secondary nodes
+# NRQL:
+# 
+  - query: >-
+      SELECT ar.replica_server_name, adc.database_name, ag.name AS ag_name, drs.is_local, 
+        drs.is_primary_replica, drs.synchronization_state_desc, drs.is_commit_participant, drs.synchronization_health_desc, 
+        drs.recovery_lsn, drs.truncation_lsn, drs.last_sent_lsn, drs.last_sent_time, drs.last_received_lsn, 
+        drs.last_received_time, drs.last_hardened_lsn, drs.last_hardened_time, drs.last_redone_lsn, drs.last_redone_time, 
+        drs.log_send_queue_size, drs.log_send_rate, drs.redo_queue_size, drs.redo_rate, drs.filestream_send_rate, 
+        drs.end_of_log_lsn, drs.last_commit_lsn, drs.last_commit_time
+      FROM sys.dm_hadr_database_replica_states AS drs
+      INNER JOIN sys.availability_databases_cluster AS adc ON drs.group_id = adc.group_id AND drs.group_database_id = adc.group_database_id
+      INNER JOIN sys.availability_groups AS ag ON ag.group_id = drs.group_id
+      INNER JOIN sys.availability_replicas AS ar ON drs.group_id = ar.group_id AND drs.replica_id = ar.replica_id;
+    prefix: dbag_
