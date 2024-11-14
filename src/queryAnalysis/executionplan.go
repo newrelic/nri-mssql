@@ -2,10 +2,11 @@ package queryAnalysis
 
 import (
 	"fmt"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
 type ExecutionPlan struct {
