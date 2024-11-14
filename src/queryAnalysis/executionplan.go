@@ -1,8 +1,6 @@
 package queryAnalysis
 
 import (
-	"fmt"
-
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -31,8 +29,8 @@ type ExecutionPlan struct {
 
 // AnalyzeExecutionPlans examines the execution plans of queries
 func AnalyzeExecutionPlans(entity *integration.Entity, sqlConnection *connection.SQLConnection, arguments args.ArgumentList) {
-	// Add logic to analyze execution plans
-	fmt.Println("Analyzing execution plans of queries...")
+	log.Info("Analyzing execution plans of queries...")
+
 	query := `
         WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
         SELECT TOP 10
@@ -72,9 +70,8 @@ func AnalyzeExecutionPlans(entity *integration.Entity, sqlConnection *connection
 
 	// Execute the query and store the results in the executionPlans slice.
 	rows, err := sqlConnection.Queryx(query)
-
 	if err != nil {
-		log.Error("Could not execute query: %s", err)
+		log.Error("Could not execute query for execution plan: %s", err.Error())
 		return
 	}
 	defer rows.Close()
@@ -82,37 +79,40 @@ func AnalyzeExecutionPlans(entity *integration.Entity, sqlConnection *connection
 	for rows.Next() {
 		var plan ExecutionPlan
 		if err := rows.StructScan(&plan); err != nil {
-			log.Error("Could not scan row: %s", err)
-			return
+			log.Error("Could not scan row: %s", err.Error())
+			continue
 		}
 		executionPlans = append(executionPlans, plan)
 	}
 
-	if err := rows.Err(); err != nil {
-		log.Error("Error iterating rows: %s", err)
-		return
-	}
-
 	log.Info("Number of records retrieved: %d", len(executionPlans))
 
+	// Log and report each result from the query.
 	for _, plan := range executionPlans {
-		log.Info("SQL Text: %s, Query Plan: %s, Node ID: %d, Physical Op: %s, Logical Op: %s, Estimate Rows: %f, Estimate IO: %f, Estimate CPU: %f, Avg Row Size: %f, Total Subtree Cost: %f, Estimated Operator Cost: %f, Estimated Execution Mode: %s, Total Worker Time: %d, Total Elapsed Time: %d, Total Logical Reads: %d, Total Logical Writes: %d, Execution Count: %d",
-			plan.SQLText,
-			plan.QueryPlanText,
-			plan.NodeId,
-			plan.PhysicalOp,
-			plan.LogicalOp,
-			plan.EstimateRows,
-			plan.EstimateIO,
-			plan.EstimateCPU,
-			plan.AvgRowSize,
-			plan.TotalSubtreeCost,
-			plan.EstimatedOperatorCost,
-			plan.EstimatedExecutionMode,
-			plan.TotalWorkerTime,
-			plan.TotalElapsedTime,
-			plan.TotalLogicalReads,
-			plan.TotalLogicalWrites,
-			plan.ExecutionCount)
+		metricSet := entity.NewMetricSet("MssqlExecutionPlans",
+			attribute.Attribute{Key: "sqlText", Value: plan.SQLText},
+			attribute.Attribute{Key: "queryPlanText", Value: plan.QueryPlanText},
+		)
+
+		// Add all the fields to the metric set.
+		metricSet.SetMetric("nodeId", plan.NodeId, metric.GAUGE)
+		metricSet.SetMetric("physicalOp", plan.PhysicalOp, metric.GAUGE)
+		metricSet.SetMetric("logicalOp", plan.LogicalOp, metric.GAUGE)
+		metricSet.SetMetric("estimateRows", plan.EstimateRows, metric.GAUGE)
+		metricSet.SetMetric("estimateIO", plan.EstimateIO, metric.GAUGE)
+		metricSet.SetMetric("estimateCPU", plan.EstimateCPU, metric.GAUGE)
+		metricSet.SetMetric("avgRowSize", plan.AvgRowSize, metric.GAUGE)
+		metricSet.SetMetric("totalSubtreeCost", plan.TotalSubtreeCost, metric.GAUGE)
+		metricSet.SetMetric("estimatedOperatorCost", plan.EstimatedOperatorCost, metric.GAUGE)
+		metricSet.SetMetric("estimatedExecutionMode", plan.EstimatedExecutionMode, metric.GAUGE)
+		metricSet.SetMetric("totalWorkerTime", plan.TotalWorkerTime, metric.GAUGE)
+		metricSet.SetMetric("totalElapsedTime", plan.TotalElapsedTime, metric.GAUGE)
+		metricSet.SetMetric("totalLogicalReads", plan.TotalLogicalReads, metric.GAUGE)
+		metricSet.SetMetric("totalLogicalWrites", plan.TotalLogicalWrites, metric.GAUGE)
+		metricSet.SetMetric("executionCount", plan.ExecutionCount, metric.GAUGE)
+
+		log.Info("Metrics set for execution plan: SQLText: %s", plan.SQLText)
 	}
+
+	log.Info("Completed processing all execution plan entries.")
 }
