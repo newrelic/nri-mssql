@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
 // RunAnalysis runs all types of analyses
@@ -17,4 +19,55 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 
 	fmt.Println("Query analysis completed.")
 
+	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
+	var results interface{}
+
+	for _, queryConfig := range queries {
+		fmt.Printf("Running query: %s\n", queryConfig.Name)
+
+		// Execute the query and store the results in the executionPlans slice.
+		rows, err := sqlConnection.Queryx(queryConfig.Query)
+		if err != nil {
+			log.Error("Could not execute query for execution plan: %s", err.Error())
+			return
+		}
+		defer rows.Close()
+
+		switch queryConfig.Type {
+		case "slowQueries":
+			var slowQueryResults []models.TopNSlowQueryDetails
+			err := bindResults(rows, &slowQueryResults)
+			if err != nil {
+				log.Error("Failed to bind results: %s", err)
+			}
+			results = slowQueryResults
+			// Process results as needed
+			fmt.Println(slowQueryResults)
+
+		case "waitAnalysis":
+			var waitAnalysisResults []models.WaitTimeAnalysis
+			err := bindResults(rows, &waitAnalysisResults)
+			if err != nil {
+				log.Error("Failed to bind results: %s", err)
+			}
+			results = waitAnalysisResults
+			// Process results as needed
+			fmt.Println(waitAnalysisResults)
+
+		case "executionPlan":
+			var executionPlanResults []models.QueryExecutionPlan
+			err := bindResults(rows, &executionPlanResults)
+			if err != nil {
+				log.Error("Failed to bind results: %s", err)
+			}
+			results = executionPlanResults
+			// Process results as needed
+			fmt.Println(executionPlanResults)
+
+		default:
+			log.Info("Query type %s is not supported", queryConfig.Type)
+		}
+
+		createAndAddMetricSet(instanceEntity, results, queryConfig.Name)
+	}
 }

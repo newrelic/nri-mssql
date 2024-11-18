@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
+	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
+	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 	"io/ioutil"
+	"log"
 	"reflect"
 )
 
@@ -21,7 +25,6 @@ func loadQueriesConfig() []models.QueryConfig {
 	if err != nil {
 		panic(err)
 	}
-
 	return queries
 }
 
@@ -36,7 +39,6 @@ func executeQuery(db *sqlx.DB, query string) (*sqlx.Rows, error) {
 
 // BindResults binds query results to the specified data model using `sqlx`
 func bindResults(rows *sqlx.Rows, result interface{}) error {
-	defer rows.Close()
 
 	// Get the type info of the slice element
 	resultValue := reflect.ValueOf(result)
@@ -61,5 +63,35 @@ func bindResults(rows *sqlx.Rows, result interface{}) error {
 		sliceValue.Set(reflect.Append(sliceValue, elem))
 	}
 
+	defer rows.Close()
 	return rows.Err()
+}
+
+func createAndAddMetricSet(entity *integration.Entity, results interface{}, metricName string) {
+	sliceValue := reflect.ValueOf(results)
+	if sliceValue.Kind() != reflect.Slice {
+		log.Println("results should be a slice")
+		return
+	}
+
+	for i := 0; i < sliceValue.Len(); i++ {
+		result := sliceValue.Index(i).Interface()
+		resultValue := reflect.ValueOf(result)
+
+		attributes := []attribute.Attribute{}
+		metricSet := entity.NewMetricSet(metricName, attributes...)
+
+		for j := 0; j < resultValue.NumField(); j++ {
+			field := resultValue.Field(j)
+			fieldType := resultValue.Type().Field(j)
+			fieldName := fieldType.Name
+
+			// Set each field as a metric
+			if field.Kind() == reflect.Ptr && !field.IsNil() {
+				metricSet.SetMetric(fieldName, field.Elem().Interface(), metric.GAUGE)
+			} else if field.Kind() != reflect.Ptr {
+				metricSet.SetMetric(fieldName, field.Interface(), metric.GAUGE)
+			}
+		}
+	}
 }
