@@ -31,7 +31,7 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 		fmt.Printf("Running query: %s\n", queryConfig.Name)
 
 		// Execute the query and store the results in the executionPlans slice.
-		rows, err := sqlConnection.Queryx(queryConfig.Query)
+		rows, err := executeQuery(sqlConnection.Connection, queryConfig.Query)
 		if err != nil {
 			log.Error("Could not execute query for execution plan: %s", err.Error())
 			return
