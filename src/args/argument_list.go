@@ -27,7 +27,7 @@ type ArgumentList struct {
 	CustomMetricsConfig          string `default:"" help:"YAML configuration with one or more SQL queries to collect custom metrics"`
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
-	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of disk space metrics in bytes."`
+	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
 }
 
 // Validate validates SQL specific arguments

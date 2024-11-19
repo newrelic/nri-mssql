@@ -19,6 +19,7 @@ integrations:
 
     # ENABLE_BUFFER_METRICS: true
     # ENABLE_DATABASE_RESERVE_METRICS: true 
+    # ENABLE_DISK_METRICS_IN_BYTES: true
 
     # YAML configuration with one or more SQL queries to collect custom metrics
     # CUSTOM_METRICS_CONFIG: ""
