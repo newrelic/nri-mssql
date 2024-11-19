@@ -14,18 +14,20 @@ import (
 )
 
 // LoadQueriesConfig loads the query configuration from a JSON file
-func loadQueriesConfig() []models.QueryConfig {
+func loadQueriesConfig() ([]models.QueryConfig, error) {
+	// Read the configuration file from the specified path
 	file, err := ioutil.ReadFile("src/queryanalysis/queries.json")
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to read queries configuration file: %w", err)
 	}
 
 	var queries []models.QueryConfig
+	// Unmarshal the JSON data into the QueryConfig struct
 	err = json.Unmarshal(file, &queries)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
 	}
-	return queries
+	return queries, nil
 }
 
 // ExecuteQuery executes a given query and returns the resulting rows
