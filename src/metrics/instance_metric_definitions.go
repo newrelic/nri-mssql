@@ -109,19 +109,6 @@ var instanceDefinitions = []*QueryDefinition{
 		}{},
 	},
 	{
-		query: `SELECT Sum(total_bytes) AS total_disk_space FROM (
-			SELECT DISTINCT
-			dovs.volume_mount_point,
-			dovs.available_bytes available_bytes,
-			dovs.total_bytes total_bytes
-			FROM sys.master_files mf WITH (nolock)
-			CROSS apply sys.Dm_os_volume_stats(mf.database_id, mf.file_id) dovs
-			) drives`,
-		dataModels: &[]struct {
-			TotalDiskSpace *int64 `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
-		}{},
-	},
-	{
 		query: `SELECT Sum(runnable_tasks_count) AS runnable_tasks_count
 		FROM sys.dm_os_schedulers
 		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'`,
@@ -171,4 +158,20 @@ type waitTimeModel struct {
 	WaitType  *string `db:"wait_type"`
 	WaitTime  *int64  `db:"wait_time"`
 	WaitCount *int64  `db:"waiting_tasks_count"`
+}
+
+var diskMetricInBytesDefination = []*QueryDefinition{
+	{
+		query: `SELECT Sum(total_bytes) AS total_disk_space FROM (
+			SELECT DISTINCT
+			dovs.volume_mount_point,
+			dovs.available_bytes available_bytes,
+			dovs.total_bytes total_bytes
+			FROM sys.master_files mf WITH (nolock)
+			CROSS apply sys.Dm_os_volume_stats(mf.database_id, mf.file_id) dovs
+			) drives`,
+		dataModels: &[]struct {
+			TotalDiskSpace *int64 `db:"total_disk_space" metric_name:"instance.diskInBytes" source_type:"gauge"`
+		}{},
+	},
 }
