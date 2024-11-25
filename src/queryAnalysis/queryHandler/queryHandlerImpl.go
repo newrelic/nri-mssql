@@ -1,10 +1,7 @@
-package queryAnalysis
+package queryhandler
 
 import (
-	_ "embed"
-	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 
@@ -14,24 +11,13 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
-//go:embed queries.json
-var queriesJSON []byte
+var _ QueryHandler = (*QueryHandlerImpl)(nil)
 
-// LoadQueriesConfig loads the query configuration from the embedded JSON file
-func loadQueriesConfig() ([]models.QueryConfig, error) {
-	var queries []models.QueryConfig
-
-	// Unmarshal the JSON data into the QueryConfig struct
-	if err := json.Unmarshal(queriesJSON, &queries); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
-	}
-
-	return queries, nil
-}
+type QueryHandlerImpl struct{}
 
 // ExecuteQuery executes a given query and returns the resulting rows
-func executeQuery(db *sqlx.DB, query string) (*sqlx.Rows, error) {
-	rows, err := db.Queryx(query)
+func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryConfig models.QueryDetailsDto) (*sqlx.Rows, error) {
+	rows, err := db.Queryx(queryConfig.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -39,7 +25,7 @@ func executeQuery(db *sqlx.DB, query string) (*sqlx.Rows, error) {
 }
 
 // BindResults binds query results to the specified data model using `sqlx`
-func bindResults(rows *sqlx.Rows, result interface{}) error {
+func (q *QueryHandlerImpl) BindQueryResults(rows *sqlx.Rows, result interface{}) error {
 	defer rows.Close()
 
 	// Ensure result is a pointer to a slice
@@ -78,12 +64,10 @@ func bindResults(rows *sqlx.Rows, result interface{}) error {
 	return nil
 }
 
-// CreateAndAddMetricSet creates and adds a metric set to the integration entity
-func createAndAddMetricSet(entity *integration.Entity, results interface{}, metricName string) {
+func (q *QueryHandlerImpl) IngestMetrics(entity *integration.Entity, results interface{}, metricName string) error {
 	sliceValue := reflect.ValueOf(results)
 	if sliceValue.Kind() != reflect.Slice {
-		log.Println("results should be a slice")
-		return
+		return fmt.Errorf("results should be a slice")
 	}
 
 	for i := 0; i < sliceValue.Len(); i++ {
@@ -98,15 +82,16 @@ func createAndAddMetricSet(entity *integration.Entity, results interface{}, metr
 			fieldName := fieldType.Name
 
 			if field.Kind() == reflect.Ptr && !field.IsNil() {
-				metricSet.SetMetric(fieldName, field.Elem().Interface(), detectMetricType(field.Elem().String()))
+				metricSet.SetMetric(fieldName, field.Elem().Interface(), DetectMetricType(field.Elem().String()))
 			} else if field.Kind() != reflect.Ptr {
 				metricSet.SetMetric(fieldName, field.Interface(), metric.GAUGE)
 			}
 		}
 	}
+	return nil
 }
 
-func detectMetricType(value string) metric.SourceType {
+func DetectMetricType(value string) metric.SourceType {
 	if _, err := strconv.ParseFloat(value, 64); err != nil {
 		return metric.ATTRIBUTE
 	}
