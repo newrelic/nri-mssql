@@ -2,78 +2,21 @@
   {
     "name": "MSSQLTopSlowQueries",
     "query": "select * from sys.databases",
-    "type": "slowQueries",
-    "resultStructure": {
-      "query_id": "QueryID",
-      "query_text": "QueryText",
-      "database_name": "DatabaseName",
-      "schema_name": "SchemaName",
-      "last_execution_timestamp": "LastExecutionTimestamp",
-      "execution_count": "ExecutionCount",
-      "avg_cpu_time_ms": "AvgCPUTimeMS",
-      "avg_elapsed_time_ms": "AvgElapsedTimeMS",
-      "avg_disk_reads": "AvgDiskReads",
-      "avg_disk_writes": "AvgDiskWrites",
-      "statement_type": "StatementType",
-      "collection_timestamp": "CollectionTimestamp"
-    }
-    
+    "type": "slowQueries"
   },
   {
     "name": "MSSQLWaitTimeAnalysis",
     "query": "select * from sys.databases",
-    "type": "waitAnalysis",
-    "resultStructure": {
-      "query_id": "QueryID",
-      "database_name": "DatabaseName",
-      "query_text": "QueryText",
-      "custom_query_type": "CustomQueryType",
-      "wait_category": "WaitCategory",
-      "total_wait_time_ms": "TotalWaitTimeMs",
-      "avg_wait_time_ms": "AvgWaitTimeMs",
-      "wait_event_count": "WaitEventCount",
-      "collection_timestamp": "CollectionTimestamp"
-    }
+    "type": "waitAnalysis"
   },
   {
     "name": "MSSQLQueryExecutionPlan",
     "query": "select * from sys.databases",
-    "type": "executionPlan",
-    "resultStructure": {
-      "sql_text": "SQLText",
-      "query_plan_text": "QueryPlanText",
-      "node_id": "NodeId",
-      "physical_op": "PhysicalOp",
-      "logical_op": "LogicalOp",
-      "estimate_rows": "EstimateRows",
-      "estimate_io": "EstimateIO",
-      "estimate_cpu": "EstimateCPU",
-      "avg_row_size": "AvgRowSize",
-      "total_subtree_cost": "TotalSubtreeCost",
-      "estimated_operator_cost": "EstimatedOperatorCost",
-      "estimated_execution_mode": "EstimatedExecutionMode",
-      "total_worker_time": "TotalWorkerTime",
-      "total_elapsed_time": "TotalElapsedTime",
-      "total_logical_reads": "TotalLogicalReads",
-      "total_logical_writes": "TotalLogicalWrites",
-      "execution_count": "ExecutionCount"
-    }
+    "type": "executionPlan"
   },
   {
     "name": "MSSQLBlockingSessionQueries",
     "query": "select * from sys.databases",
-    "type": "blockingSessions",
-    "resultStructure": {
-      "blocking_spid": "BlockingSPID",
-      "blocking_status": "BlockingStatus",
-      "blocked_spid": "BlockedSPID",
-      "blocked_status": "BlockedStatus",
-      "wait_type": "WaitType",
-      "wait_time_in_seconds": "WaitTimeInSeconds",
-      "command_type": "CommandType",
-      "database_name": "DatabaseName",
-      "blocking_query_text": "BlockingQueryText",
-      "blocked_query_text": "BlockedQueryText"
-    }
+    "type": "blockingSessions"
   }
 ]
