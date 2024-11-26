@@ -73,7 +73,7 @@ func TestBindQueryResults_Success(t *testing.T) {
 	qh := &QueryHandlerImpl{}
 
 	type TestStruct struct {
-		Field1 string `db:"Field1"`
+		Field1 string `db:"Field2"`
 		Field2 string `db:"Field2"`
 	}
 
