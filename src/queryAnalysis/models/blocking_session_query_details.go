@@ -1,9 +1,9 @@
 package models
 
 type BlockingSessionQueryDetails struct {
-	BlockingSPID      *string  `db:"blocking_spid"`
+	BlockingSPID      *int64   `db:"blocking_spid"`
 	BlockingStatus    *string  `db:"blocking_status"`
-	BlockedSPID       *string  `db:"blocked_spid"`
+	BlockedSPID       *int64   `db:"blocked_spid"`
 	BlockedStatus     *string  `db:"blocked_status"`
 	WaitType          *string  `db:"wait_type"`
 	WaitTimeInSeconds *float64 `db:"wait_time_in_seconds"`
