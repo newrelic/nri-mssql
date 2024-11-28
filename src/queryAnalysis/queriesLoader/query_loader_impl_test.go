@@ -1,4 +1,4 @@
-package queriesloader
+package queriesLoader
 
 import (
 	"testing"
@@ -50,7 +50,7 @@ func TestLoadQueries_Success(t *testing.T) {
 		case "waitAnalysis":
 			assert.IsType(t, &models.WaitTimeAnalysis{}, query.ResponseDetail)
 		case "executionPlan":
-			assert.IsType(t, &models.QueryExecutionPlan{}, query.ResponseDetail)
+			assert.IsType(t, &models.ExecutionPlanResult{}, query.ResponseDetail)
 		case "blockingSessions":
 			assert.IsType(t, &models.BlockingSessionQueryDetails{}, query.ResponseDetail)
 		default:

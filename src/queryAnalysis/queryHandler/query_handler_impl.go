@@ -2,6 +2,8 @@ package queryhandler
 
 import (
 	"fmt"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/constants"
 	"reflect"
 	"strconv"
 
@@ -24,7 +26,7 @@ func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryConfig models.QueryDet
 	return rows, nil
 }
 
-// BindResults binds query results to the specified data model using `sqlx`
+// BindQueryResults binds query results to the specified data model using `sqlx`
 func (q *QueryHandlerImpl) BindQueryResults(rows *sqlx.Rows, result interface{}) error {
 	defer rows.Close()
 
@@ -86,6 +88,41 @@ func (q *QueryHandlerImpl) IngestMetrics(entity *integration.Entity, results int
 			} else if field.Kind() != reflect.Ptr {
 				metricSet.SetMetric(fieldName, field.Interface(), metric.GAUGE)
 			}
+		}
+	}
+	return nil
+}
+
+// fetchAndIngestExecutionPlan fetches the execution plan for a given query_id and ingests the data.
+func fetchAndIngestExecutionPlan(db *sqlx.DB, queryID string, entity *integration.Entity, queryHandler QueryHandler) error {
+	query := fmt.Sprintf(constants.ExecutionPlanQueryTemplate, queryID)
+
+	rows, err := db.Queryx(query)
+	if err != nil {
+		return fmt.Errorf("failed to execute execution plan query: %w", err)
+	}
+	defer rows.Close()
+
+	var executionPlanResults []models.ExecutionPlanResult
+	err = queryHandler.BindQueryResults(rows, &executionPlanResults)
+	if err != nil {
+		return fmt.Errorf("failed to bind execution plan results: %w", err)
+	}
+
+	err = queryHandler.IngestMetrics(entity, executionPlanResults, "MssqlExecutionPlan")
+	if err != nil {
+		return fmt.Errorf("failed to ingest execution plan metrics: %w", err)
+	}
+	return nil
+}
+
+// ProcessSlowQueries processes the slow queries and fetches their execution plans.
+func (q *QueryHandlerImpl) ProcessSlowQueries(db *sqlx.DB, slowQueryResults []models.TopNSlowQueryDetails, entity *integration.Entity, queryHandler QueryHandler) error {
+	for _, slowQuery := range slowQueryResults {
+		err := fetchAndIngestExecutionPlan(db, *slowQuery.QueryID, entity, queryHandler)
+		if err != nil {
+			log.Error("Failed to fetch and ingest execution plan for query_id %s: %s", slowQuery.QueryID, err)
+			return err
 		}
 	}
 	return nil

@@ -10,4 +10,5 @@ type QueryHandler interface {
 	ExecuteQuery(db *sqlx.DB, queryConfig models.QueryDetailsDto) (*sqlx.Rows, error)
 	BindQueryResults(rows *sqlx.Rows, result interface{}) error
 	IngestMetrics(entity *integration.Entity, results interface{}, metricName string) error
+	ProcessSlowQueries(db *sqlx.DB, slowQueryResults []models.TopNSlowQueryDetails, entity *integration.Entity, queryHandler QueryHandler) error
 }

@@ -1,4 +1,4 @@
-package queriesloader
+package queriesLoader
 
 import "github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 

@@ -1,4 +1,4 @@
-package queriesloader
+package queriesLoader
 
 import (
 	_ "embed"
@@ -19,7 +19,7 @@ var queriesJSON []byte
 var queryTypeToResponseDetailMap = map[string]interface{}{
 	"slowQueries":      models.TopNSlowQueryDetails{},
 	"waitAnalysis":     models.WaitTimeAnalysis{},
-	"executionPlan":    models.QueryExecutionPlan{},
+	"executionPlan":    models.ExecutionPlanResult{},
 	"blockingSessions": models.BlockingSessionQueryDetails{},
 }
 
