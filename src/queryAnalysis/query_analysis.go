@@ -10,8 +10,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
+	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
@@ -35,73 +34,46 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 		return
 	}
 
-	var queriesLoader queriesLoader.QueriesLoader = &queriesLoader.QueriesLoaderImpl{}
+	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
 
-	queriesDetails, err := queriesLoader.LoadQueries()
+	queriesDetails, err := queryhandler.LoadQueries()
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
 	}
 
 	var wg sync.WaitGroup
-	resultsChannel := make(chan struct {
-		queryName string
-		result    interface{}
-	})
-
-	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
 
 	for _, queryDetailsDto := range queriesDetails {
 		wg.Add(1)
+
+		// Launch a goroutine for each queryDetailsDto
 		go func(queryDetailsDto models.QueryDetailsDto) {
 			defer wg.Done()
-			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
-			var results = queryDetailsDto.ResponseDetail
+
 			err := retryMechanism.Retry(func() error {
-				rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+				results, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
-				return queryhandler.BindQueryResults(rows, &results)
-			})
-			if err != nil {
-				log.Error("Failed to execute and bind query result after retries: %s", err)
-				return
-			}
-
-			// Process slow queries and fetch execution plans
-			if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-				slowQueryResults, ok := results.([]models.TopNSlowQueryDetails)
-				if ok {
-					err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, instanceEntity, queryhandler)
-					if err != nil {
-						return
-					}
-				} else {
-					log.Error("Failed to cast results to []models.TopNSlowQueryDetails")
+				err = queryhandler.IngestQueryMetrics(instanceEntity, results, queryDetailsDto)
+				if err != nil {
+					log.Error("Failed to ingest metrics: %s", err)
+					return err
 				}
+				return nil
+			})
+
+			if err != nil {
+
+				log.Error("Failed after retries: %s", err)
 			}
-
-			resultsChannel <- struct {
-				queryName string
-				result    interface{}
-			}{queryName: queryDetailsDto.Name, result: results}
-		}(queryDetailsDto)
+		}(queryDetailsDto) // Pass queryDetailsDto as a parameter to avoid closure capture issues
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultsChannel)
-	}()
+	// Wait for all goroutines to complete
+	wg.Wait()
 
-	for channel := range resultsChannel {
-		err := retryMechanism.Retry(func() error {
-			return queryhandler.IngestMetrics(instanceEntity, channel.result, channel.queryName)
-		})
-		if err != nil {
-			log.Error("Failed to ingest metrics after retries: %s", err)
-		}
-	}
 }

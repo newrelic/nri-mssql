@@ -7,8 +7,7 @@ import (
 )
 
 type QueryHandler interface {
-	ExecuteQuery(db *sqlx.DB, queryConfig models.QueryDetailsDto) (*sqlx.Rows, error)
-	BindQueryResults(rows *sqlx.Rows, result interface{}) error
-	IngestMetrics(entity *integration.Entity, results interface{}, metricName string) error
-	ProcessSlowQueries(db *sqlx.DB, slowQueryResults []models.TopNSlowQueryDetails, entity *integration.Entity, queryHandler QueryHandler) error
+	LoadQueries() ([]models.QueryDetailsDto, error)
+	ExecuteQuery(db *sqlx.DB, queryConfig models.QueryDetailsDto) ([]interface{}, error)
+	IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error
 }
