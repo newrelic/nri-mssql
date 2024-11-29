@@ -121,7 +121,7 @@ func (q *QueryHandlerImpl) ProcessSlowQueries(db *sqlx.DB, slowQueryResults []mo
 	for _, slowQuery := range slowQueryResults {
 		err := fetchAndIngestExecutionPlan(db, *slowQuery.QueryID, entity, queryHandler)
 		if err != nil {
-			log.Error("Failed to fetch and ingest execution plan for query_id %s: %s", slowQuery.QueryID, err)
+			log.Error("Failed to fetch and ingest execution plan for query_id %s: %s", *slowQuery.QueryID, err)
 			return err
 		}
 	}

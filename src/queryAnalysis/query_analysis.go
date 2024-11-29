@@ -75,7 +75,7 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 			if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
 				slowQueryResults, ok := results.([]models.TopNSlowQueryDetails)
 				if ok {
-					err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, entity, queryhandler)
+					err := queryhandler.ProcessSlowQueries(sqlConnection.Connection, slowQueryResults, instanceEntity, queryhandler)
 					if err != nil {
 						return
 					}
