@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/constants"
 	"sync"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
@@ -63,7 +64,29 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
-				return queryhandler.BindQueryResults(rows, &results)
+				err = queryhandler.IngestQueryMetrics(instanceEntity, results, queryDetailsDto)
+				if err != nil {
+					log.Error("Failed to ingest metrics: %s", err)
+					return err
+				}
+
+				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+					for _, result := range results {
+						slowQuery, ok := result.(models.TopNSlowQueryDetails)
+						if ok && slowQuery.QueryID != nil {
+							newQueryDetails := models.QueryDetailsDto{
+								Type:  "executionPlan",
+								Name:  "MSSQLExecutionPlans",
+								Query: fmt.Sprintf(constants.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
+							}
+							queriesDetails = append(queriesDetails, newQueryDetails)
+						} else {
+							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
+						}
+					}
+				}
+
+				return nil
 			})
 			if err != nil {
 				log.Error("Failed to execute and bind query results after retries: %s", err)
