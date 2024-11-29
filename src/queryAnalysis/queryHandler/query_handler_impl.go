@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
@@ -35,7 +34,7 @@ func LoadQueryResponseModel(queryType string) (interface{}, error) {
 	case "waitAnalysis":
 		return &models.WaitTimeAnalysis{}, nil
 	case "executionPlan":
-		return &models.QueryExecutionPlan{}, nil
+		return &models.ExecutionPlanResult{}, nil
 	case "blockingSessions":
 		return &models.BlockingSessionQueryDetails{}, nil
 	default:
@@ -72,7 +71,7 @@ func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryDetailsDto models.Quer
 			}
 			results = append(results, model)
 		case "executionPlan":
-			var model models.QueryExecutionPlan
+			var model models.ExecutionPlanResult
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
@@ -124,41 +123,6 @@ func (q *QueryHandlerImpl) IngestQueryMetrics(entity *integration.Entity, result
 		}
 
 		fmt.Println("Ingested Row:", i, string(data))
-	}
-	return nil
-}
-
-// fetchAndIngestExecutionPlan fetches the execution plan for a given query_id and ingests the data.
-func fetchAndIngestExecutionPlan(db *sqlx.DB, queryID string, entity *integration.Entity, queryHandler QueryHandler) error {
-	query := fmt.Sprintf(constants.ExecutionPlanQueryTemplate, queryID)
-
-	rows, err := db.Queryx(query)
-	if err != nil {
-		return fmt.Errorf("failed to execute execution plan query: %w", err)
-	}
-	defer rows.Close()
-
-	var executionPlanResults []models.ExecutionPlanResult
-	err = queryHandler.BindQueryResults(rows, &executionPlanResults)
-	if err != nil {
-		return fmt.Errorf("failed to bind execution plan results: %w", err)
-	}
-
-	err = queryHandler.IngestMetrics(entity, executionPlanResults, "MssqlExecutionPlan")
-	if err != nil {
-		return fmt.Errorf("failed to ingest execution plan metrics: %w", err)
-	}
-	return nil
-}
-
-// ProcessSlowQueries processes the slow queries and fetches their execution plans.
-func (q *QueryHandlerImpl) ProcessSlowQueries(db *sqlx.DB, slowQueryResults []models.TopNSlowQueryDetails, entity *integration.Entity, queryHandler QueryHandler) error {
-	for _, slowQuery := range slowQueryResults {
-		err := fetchAndIngestExecutionPlan(db, *slowQuery.QueryID, entity, queryHandler)
-		if err != nil {
-			log.Error("Failed to fetch and ingest execution plan for query_id %s: %s", *slowQuery.QueryID, err)
-			return err
-		}
 	}
 	return nil
 }

@@ -150,11 +150,11 @@ package queryhandler
 
 // 	qh := &QueryHandlerImpl{}
 
-// 	var result []models.QueryExecutionPlan
+// 	var result []models.ExecutionPlanResult
 // 	err = qh.BindQueryResults(sqlxRows, &result)
 // 	require.NoError(t, err)
 
-// 	expected := []models.QueryExecutionPlan{
+// 	expected := []models.ExecutionPlanResult{
 // 		{
 // 			SQLText:                "text1",
 // 			QueryPlanText:          "plan1",
