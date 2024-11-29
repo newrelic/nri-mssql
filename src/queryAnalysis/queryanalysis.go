@@ -9,15 +9,20 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
 // RunAnalysis runs all types of analyses
 func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
 	fmt.Println("Starting query analysis...")
 
-	AnalyzeSlowQueries(instanceEntity, connection, arguments)
-	AnalyzeExecutionPlans(instanceEntity, connection, arguments)
-	AnalyzeWaits()
+	// Create a new connection
+	sqlConnection, err := connection.NewConnection(&arguments)
+	if err != nil {
+		log.Error("Error creating connection to SQL Server: %s", err.Error())
+		return
+	}
+	validation.ValidatePreConditions(sqlConnection)
 
 	queries, err := loadQueriesConfig()
 	if err != nil {
