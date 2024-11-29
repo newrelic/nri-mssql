@@ -49,7 +49,6 @@ func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryDetailsDto models.Quer
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
