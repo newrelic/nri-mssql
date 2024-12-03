@@ -24,21 +24,6 @@ func LoadQueries() ([]models.QueryDetailsDto, error) {
 	return queries, nil
 }
 
-func LoadQueryResponseModel(queryType string) (interface{}, error) {
-	switch queryType {
-	case "slowQueries":
-		return &models.TopNSlowQueryDetails{}, nil
-	case "waitAnalysis":
-		return &models.WaitTimeAnalysis{}, nil
-	case "executionPlan":
-		return &models.ExecutionPlanResult{}, nil
-	case "blockingSessions":
-		return &models.BlockingSessionQueryDetails{}, nil
-	default:
-		return nil, fmt.Errorf("unknown query type: %s", queryType)
-	}
-}
-
 func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
