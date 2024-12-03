@@ -37,10 +37,10 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 	}
 
 	// Validate preconditions
-	_, err = validation.ValidatePreConditions(sqlConnection)
-	if err != nil {
+	validate, err := validation.ValidatePreConditions(sqlConnection)
+	if err != nil || !validate {
 		log.Error("Error validating preconditions: %s", err.Error())
-		return
+		return // Abort further operations if validations fail
 	}
 
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
