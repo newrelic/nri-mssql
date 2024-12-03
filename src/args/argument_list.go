@@ -15,10 +15,10 @@ type ArgumentList struct {
 	Username                     string `default:"" help:"The Microsoft SQL Server connection user name"`
 	Password                     string `default:"" help:"The Microsoft SQL Server connection password"`
 	Instance                     string `default:"" help:"The Microsoft SQL Server instance to connect to"`
-	Hostname                     string `default:"20.235.45.215" help:"The Microsoft SQL Server connection host name"`
+	Hostname                     string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
 	Port                         string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
-	EnableSSL                    bool   `default:"true" help:"If true will use SSL encryption, false will not use encryption"`
-	TrustServerCertificate       bool   `default:"true" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
+	EnableSSL                    bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
+	TrustServerCertificate       bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation          string `default:"" help:"Certificate file to verify SSL encryption against"`
 	EnableBufferMetrics          bool   `default:"true" help:"Enable collection of buffer space metrics."`
 	EnableDatabaseReserveMetrics bool   `default:"true" help:"Enable collection of database reserve space metrics."`
