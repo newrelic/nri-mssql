@@ -2,7 +2,8 @@ package queryAnalysis
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/constants"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 	"sync"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
@@ -11,14 +12,13 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	queriesLoader "github.com/newrelic/nri-mssql/src/queryAnalysis/queriesLoader"
 	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
-// RunAnalysis runs all types of analyses
-func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
+// queryPerformanceMain runs all types of analyses
+func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
+
 	fmt.Println("Starting query analysis...")
 
 	// Create a new connection
@@ -36,9 +36,16 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 		return
 	}
 
-	var queriesLoader queriesLoader.QueriesLoader = &queriesLoader.QueriesLoaderImpl{}
+	// Validate preconditions
+	_, err = validation.ValidatePreConditions(sqlConnection)
+	if err != nil {
+		log.Error("Error validating preconditions: %s", err.Error())
+		return
+	}
+
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
-	queriesDetails, err := queriesLoader.LoadQueries()
+
+	queryDetails, err := LoadQueries()
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
@@ -52,34 +59,36 @@ func RunAnalysis(instanceEntity *integration.Entity, connection *connection.SQLC
 
 	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
 
-	for _, queryDetailsDto := range queriesDetails {
+	for _, queryDetailsDto := range queryDetails {
 		wg.Add(1)
 		go func(queryDetailsDto models.QueryDetailsDto) {
 			defer wg.Done()
 			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
 			var results = queryDetailsDto.ResponseDetail
 			err := retryMechanism.Retry(func() error {
-				rows, err := queryhandler.ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
+				queryResults, err := ExecuteQuery(sqlConnection.Connection, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
-				err = queryhandler.IngestQueryMetrics(instanceEntity, results, queryDetailsDto)
+				//Anonymize query results
+				//anonymizedQuery, err := AnonymizeQuery(queryResults)
+				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to ingest metrics: %s", err)
 					return err
 				}
 
 				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-					for _, result := range results {
+					for _, result := range queryResults {
 						slowQuery, ok := result.(models.TopNSlowQueryDetails)
 						if ok && slowQuery.QueryID != nil {
 							newQueryDetails := models.QueryDetailsDto{
 								Type:  "executionPlan",
 								Name:  "MSSQLExecutionPlans",
-								Query: fmt.Sprintf(constants.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
+								Query: fmt.Sprintf(config.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
 							}
-							queriesDetails = append(queriesDetails, newQueryDetails)
+							queryDetails = append(queryDetails, newQueryDetails)
 						} else {
 							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
 						}

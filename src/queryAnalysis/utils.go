@@ -1,9 +1,10 @@
-package queryhandler
+package queryAnalysis
 
 import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
@@ -12,14 +13,10 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
-var _ QueryHandler = (*QueryHandlerImpl)(nil)
-
-type QueryHandlerImpl struct{}
-
-//go:embed queries.json
+//go:embed config/queries.json
 var queriesJSON []byte
 
-func (q *QueryHandlerImpl) LoadQueries() ([]models.QueryDetailsDto, error) {
+func LoadQueries() ([]models.QueryDetailsDto, error) {
 	var queries []models.QueryDetailsDto
 	if err := json.Unmarshal(queriesJSON, &queries); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
@@ -42,13 +39,18 @@ func LoadQueryResponseModel(queryType string) (interface{}, error) {
 	}
 }
 
-func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := db.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
+	return BindQueryResults(rows, queryDetailsDto)
+}
+
+// BindQueryResults binds query results to the specified data model using `sqlx`
+func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
@@ -92,7 +94,7 @@ func (q *QueryHandlerImpl) ExecuteQuery(db *sqlx.DB, queryDetailsDto models.Quer
 }
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
-func (q *QueryHandlerImpl) IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error {
+func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error {
 	for i, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		var resultMap map[string]interface{}
@@ -132,4 +134,12 @@ func DetectMetricType(value string) metric.SourceType {
 	}
 
 	return metric.GAUGE
+}
+
+func AnonymizeQuery(query string) (string, error) {
+	// Regular expression to match literal values in SQL queries
+	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	// Replace matched values with placeholders
+	anonymizedQuery := re.ReplaceAllString(query, "?")
+	return anonymizedQuery, nil
 }

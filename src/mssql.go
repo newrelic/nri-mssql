@@ -2,7 +2,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -87,9 +86,8 @@ func main() {
 		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
 	}
 
-	runAnalysis := flag.Bool("analysis", true, "Run query analysis submodule")
-	if *runAnalysis {
-		queryAnalysis.RunAnalysis(i, args)
+	if args.EnableQueryPerformance {
+		queryAnalysis.QueryPerformanceMain(i, args)
 	}
 
 	// Close connection when done

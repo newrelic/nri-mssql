@@ -1,4 +1,4 @@
-package constants
+package config
 
 // ExecutionPlanQuery holds the SQL query for fetching execution plans.
 const ExecutionPlanQueryTemplate = `WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
