@@ -29,4 +29,4 @@ CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
 CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
 CROSS APPLY qp.query_plan.nodes('//RelOp') AS RelOps(n)
 WHERE qs.query_hash = %s
-ORDER BY qs.total_worker_time DESC;
+ORDER BY qs.total_worker_time DESC;`
