@@ -2,6 +2,7 @@ package queryAnalysis
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -34,6 +35,16 @@ func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interf
 	return BindQueryResults(rows, queryDetailsDto)
 }
 
+//func ConvertBytesToInt(incoming []uint8) (int, error) {
+//	var m *models.TopNSlowQueryDetails
+//	if len(incoming) >= 4 {
+//		m.queryID = int(binary.LittleEndian.Uint32(incoming))
+//	} else {
+//		m.queryID = 0 // or handle the error as you see fit
+//	}
+//	return m.queryID, nil
+//}
+
 // BindQueryResults binds query results to the specified data model using `sqlx`
 func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
@@ -43,25 +54,53 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 	for rows.Next() {
 		switch queryDetailsDto.Type {
 		case "slowQueries":
-			var model models.TopNSlowQueryDetails
+			var model models.TopNSlowQueryDetailsReceiver
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			results = append(results, model)
+			var queryId = "0x" + hex.EncodeToString(*model.QueryID)
+			AnonymizeQueryText(model.QueryText)
+			var modelIngestor models.TopNSlowQueryDetailsIngector
+			modelIngestor.QueryID = &queryId
+			modelIngestor.QueryText = model.QueryText
+			modelIngestor.DatabaseName = model.DatabaseName
+			modelIngestor.SchemaName = model.SchemaName
+			modelIngestor.LastExecutionTimestamp = model.LastExecutionTimestamp
+			modelIngestor.ExecutionCount = model.ExecutionCount
+			modelIngestor.AvgCPUTimeMS = model.AvgCPUTimeMS
+			modelIngestor.AvgElapsedTimeMS = model.AvgElapsedTimeMS
+			modelIngestor.AvgDiskReads = model.AvgDiskReads
+			modelIngestor.AvgDiskWrites = model.AvgDiskWrites
+			modelIngestor.StatementType = model.StatementType
+			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
+			results = append(results, modelIngestor)
 		case "waitAnalysis":
-			var model models.WaitTimeAnalysis
+			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			results = append(results, model)
+			AnonymizeQueryText(model.QueryText)
+			var queryId = "0x" + hex.EncodeToString(*model.QueryID)
+			var modelIngestor models.WaitTimeAnalysisIngestor
+			modelIngestor.QueryID = &queryId
+			modelIngestor.QueryText = model.QueryText
+			modelIngestor.DatabaseName = model.DatabaseName
+			modelIngestor.CustomQueryType = model.CustomQueryType
+			modelIngestor.WaitCategory = model.WaitCategory
+			modelIngestor.TotalWaitTimeMs = model.TotalWaitTimeMs
+			modelIngestor.AvgWaitTimeMs = model.AvgWaitTimeMs
+			modelIngestor.WaitEventCount = model.WaitEventCount
+			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
+			results = append(results, modelIngestor)
 		case "executionPlan":
 			var model models.ExecutionPlanResult
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
+			AnonymizeQueryText(model.SQLText)
 			results = append(results, model)
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
@@ -69,6 +108,8 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
+			AnonymizeQueryText(model.BlockedQueryText)
+			AnonymizeQueryText(model.BlockingQueryText)
 			results = append(results, model)
 		default:
 			return nil, fmt.Errorf("unknown query type: %s", queryDetailsDto.Type)
@@ -121,10 +162,11 @@ func DetectMetricType(value string) metric.SourceType {
 	return metric.GAUGE
 }
 
-func AnonymizeQuery(query string) (string, error) {
-	// Regular expression to match literal values in SQL queries
+func AnonymizeQueryText(query *string) {
+
 	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
-	// Replace matched values with placeholders
-	anonymizedQuery := re.ReplaceAllString(query, "?")
-	return anonymizedQuery, nil
+
+	anonymizedQuery := re.ReplaceAllString(*query, "?")
+
+	*query = anonymizedQuery
 }

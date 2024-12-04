@@ -2,7 +2,6 @@ package queryAnalysis
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 	"sync"
 
@@ -37,8 +36,8 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 	}
 
 	// Validate preconditions
-	validate, err := validation.ValidatePreConditions(sqlConnection)
-	if err != nil || !validate {
+	err = validation.ValidatePreConditions(sqlConnection)
+	if err != nil {
 		log.Error("Error validating preconditions: %s", err.Error())
 		return // Abort further operations if validations fail
 	}
@@ -79,21 +78,21 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 					return err
 				}
 
-				if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
-					for _, result := range queryResults {
-						slowQuery, ok := result.(models.TopNSlowQueryDetails)
-						if ok && slowQuery.QueryID != nil {
-							newQueryDetails := models.QueryDetailsDto{
-								Type:  "executionPlan",
-								Name:  "MSSQLExecutionPlans",
-								Query: fmt.Sprintf(config.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
-							}
-							queryDetails = append(queryDetails, newQueryDetails)
-						} else {
-							log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
-						}
-					}
-				}
+				//if queryDetailsDto.Name == "MSSQLTopSlowQueries" {
+				//	for _, result := range queryResults {
+				//		slowQuery, ok := result.(models.TopNSlowQueryDetails)
+				//		if ok && slowQuery.QueryID != nil {
+				//			newQueryDetails := models.QueryDetailsDto{
+				//				Type:  "executionPlan",
+				//				Name:  "MSSQLExecutionPlans",
+				//				Query: fmt.Sprintf(config.ExecutionPlanQueryTemplate, *slowQuery.QueryID),
+				//			}
+				//			queryDetails = append(queryDetails, newQueryDetails)
+				//		} else {
+				//			log.Error("Failed to cast result to models.TopNSlowQueryDetails or QueryID is nil")
+				//		}
+				//	}
+				//}
 
 				return nil
 			})

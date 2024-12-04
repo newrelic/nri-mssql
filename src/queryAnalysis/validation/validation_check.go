@@ -1,53 +1,40 @@
 package validation
 
 import (
+	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"sync"
 )
 
 // ValidatePreConditions checks if the database is compatible with the integration
-func ValidatePreConditions(sqlConnection *connection.SQLConnection) (bool, error) {
-	// Get database name
-	databaseName, err := GetDatabaseName(sqlConnection)
-	if err != nil {
-		log.Error("Error getting database name:", err)
-		return false, err
-	}
-
-	// If the database name is empty, return early
-	if databaseName == "" {
-		log.Error("Database name is empty.")
-		return false, nil
-	}
+func ValidatePreConditions(sqlConnection *connection.SQLConnection) error {
 
 	var wg sync.WaitGroup
-
-	// Using separate variables for each check result
-	var isDatabaseVersionCompatible, isQueryStoreEnabled, hasPermissions, isSQLServerLoginEnabled, isTcpEnabled bool
+	errorChan := make(chan error, 3) // Buffered channel to collect errors from goroutines
 
 	// Database version compatibility check
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		isCompatible, err := checkDatabaseVersionCompatibilityLevel(sqlConnection)
+		databaseDetails, err := GetDatabaseDetails(sqlConnection)
 		if err != nil {
-			log.Error("Error checking database version compatibility level:", err)
+			log.Error("Error getting database details:", err)
+			errorChan <- err
 			return
 		}
-		isDatabaseVersionCompatible = isCompatible
-	}()
 
-	// Query Store check
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		isEnabled, err := checkQueryStoreEnabled(sqlConnection, databaseName)
-		if err != nil {
-			log.Error("Error checking if Query Store is enabled:", err)
-			return
+		for _, database := range databaseDetails {
+			if database.Compatibility < 90 {
+				errorChan <- fmt.Errorf("Database version is not compatible with the integration for this Database: %s", database.Name)
+				return
+			}
+
+			if !database.IsQueryStoreOn {
+				errorChan <- fmt.Errorf("Query Store is not enabled to this database : %s", database.Name)
+				return
+			}
 		}
-		isQueryStoreEnabled = isEnabled
 	}()
 
 	// Permissions check
@@ -57,9 +44,12 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) (bool, error
 		hasPerms, err := checkPermissions(sqlConnection)
 		if err != nil {
 			log.Error("Error checking permissions:", err)
+			errorChan <- err
 			return
 		}
-		hasPermissions = hasPerms
+		if hasPerms == false {
+			errorChan <- fmt.Errorf("You do not have the necessary permissions to access sys.dm_exec_query_stats. Please refer to the documentation and complete the steps to obtain the required permissions: https://docs.newrelic.com/install/microsoft-sql/")
+		}
 	}()
 
 	// SQL Server login check
@@ -69,40 +59,26 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) (bool, error
 		isLoginEnabled, err := checkSQLServerLoginEnabled(sqlConnection)
 		if err != nil {
 			log.Error("Error checking if SQL Server login is enabled:", err)
+			errorChan <- err
 			return
 		}
-		isSQLServerLoginEnabled = isLoginEnabled
-	}()
-
-	// TCP check
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		isTcp, err := checkTcpEnabled(sqlConnection)
-		if err != nil {
-			log.Error("Error checking if TCP is enabled:", err)
-			return
+		if !isLoginEnabled {
+			errorChan <- fmt.Errorf("You have not enabled SQL Server login. Please refer to the documentation: https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/change-server-authentication-mode?view=sql-server-ver16&tabs=ssms")
 		}
-		isTcpEnabled = isTcp
 	}()
 
 	// Wait for all goroutines to complete
 	wg.Wait()
+	close(errorChan) // Close the channel after all goroutines have finished sending
 
-	// Return consolidated boolean result
-	return isDatabaseVersionCompatible &&
-		isQueryStoreEnabled &&
-		hasPermissions &&
-		isSQLServerLoginEnabled &&
-		isTcpEnabled, nil
-}
-
-// GetDatabaseName gets the name of the database
-func GetDatabaseName(sqlConnection *connection.SQLConnection) (string, error) {
-	var databaseName string
-	err := sqlConnection.Connection.Get(&databaseName, "SELECT DB_NAME()")
-	if err != nil {
-		return "", err
+	// Process and return the first error encountered
+	for err := range errorChan {
+		if err != nil {
+			return err
+		}
 	}
-	return databaseName, nil
+	fmt.Println("All validation checks have passed successfully")
+
+	// Return nil if all checks passed without errors
+	return nil
 }

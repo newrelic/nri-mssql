@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
@@ -18,10 +17,6 @@ func checkPermissions(sqlConnection *connection.SQLConnection) (bool, error) {
 	err := sqlConnection.Connection.Get(&hasPermission, query)
 	if err != nil {
 		return false, err
-	}
-
-	if !hasPermission {
-		log.Error("You do not have the necessary permissions to access sys.dm_exec_query_stats. Please refer to the documentation and complete the steps to obtain the required permissions: https://docs.newrelic.com/install/microsoft-sql/")
 	}
 
 	return hasPermission, nil
