@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"regexp"
 	"strconv"
 
@@ -25,28 +27,19 @@ func LoadQueries() ([]models.QueryDetailsDto, error) {
 	return queries, nil
 }
 
-func ExecuteQuery(db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := db.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-	return BindQueryResults(rows, queryDetailsDto)
+
+	return BindQueryResults(entity, db, rows, queryDetailsDto)
 }
 
-//func ConvertBytesToInt(incoming []uint8) (int, error) {
-//	var m *models.TopNSlowQueryDetails
-//	if len(incoming) >= 4 {
-//		m.queryID = int(binary.LittleEndian.Uint32(incoming))
-//	} else {
-//		m.queryID = 0 // or handle the error as you see fit
-//	}
-//	return m.queryID, nil
-//}
-
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
@@ -75,6 +68,10 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 			modelIngestor.StatementType = model.StatementType
 			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
 			results = append(results, modelIngestor)
+
+			// fetch and generate execution plan
+			GenerateAndInjestExecutionPlan(entity, db, queryId)
+
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -94,14 +91,6 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 			modelIngestor.WaitEventCount = model.WaitEventCount
 			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
 			results = append(results, modelIngestor)
-		case "executionPlan":
-			var model models.ExecutionPlanResult
-			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
-				continue
-			}
-			AnonymizeQueryText(model.SQLText)
-			results = append(results, model)
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -117,6 +106,42 @@ func BindQueryResults(rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) (
 	}
 	return results, nil
 
+}
+
+func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string) {
+	hexQueryId := fmt.Sprintf("0x%s", queryId)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId)
+
+	var model models.ExecutionPlanResult
+
+	rows, err := db.Queryx(executionPlanQuery)
+	if err != nil {
+		log.Error("Failed to execute query: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	results := make([]interface{}, 0)
+
+	for rows.Next() {
+		if err := rows.StructScan(&model); err != nil {
+			log.Error("Could not scan row: %s", err)
+			return
+		}
+		AnonymizeQueryText(model.SQLText)
+		results = append(results, model)
+	}
+
+	queryDetailsDto := models.QueryDetailsDto{
+		Name:  "MSSQLQueryExecutionPlans",
+		Query: "",
+		Type:  "executionPlan",
+	}
+
+	// Ingest the execution plan
+	if err := IngestQueryMetrics(entity, results, queryDetailsDto); err != nil {
+		log.Error("Failed to ingest execution plan: %s", err)
+	}
 }
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
@@ -148,7 +173,6 @@ func IngestQueryMetrics(entity *integration.Entity, results []interface{}, query
 				metricSet.SetMetric(key, strValue, metric.ATTRIBUTE)
 			}
 		}
-
 		fmt.Println("Ingested Row:", i, string(data))
 	}
 	return nil

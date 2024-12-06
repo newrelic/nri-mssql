@@ -3,6 +3,8 @@ package models
 type ExecutionPlanResult struct {
 	SQLText                *string  `db:"sql_text"`
 	QueryPlanXML           *string  `db:"query_plan_xml"`
+	QueryID                *int64   `db:"query_id"`      // Assuming this hash is returned as an *int64
+	QueryPlanID            *int64   `db:"query_plan_id"` // Assuming this hash is returned as an *int64
 	NodeId                 *int     `db:"NodeId"`
 	PhysicalOp             *string  `db:"PhysicalOp"`
 	LogicalOp              *string  `db:"LogicalOp"`

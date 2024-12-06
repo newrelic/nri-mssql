@@ -6,6 +6,7 @@ SELECT
     st.text AS sql_text, 
     qp.query_plan AS query_plan_xml, 
 	qs.query_hash AS query_id,
+	qs.query_plan_hash AS query_plan_id,
     COALESCE(n.value('(@NodeId)[1]', 'INT'), 0) AS NodeId, 
     COALESCE(n.value('(@PhysicalOp)[1]', 'VARCHAR(50)'), 'N/A') AS PhysicalOp, 
     COALESCE(n.value('(@LogicalOp)[1]', 'VARCHAR(50)'), 'N/A') AS LogicalOp, 
