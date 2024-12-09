@@ -9,6 +9,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
@@ -43,6 +44,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
+	var wg sync.WaitGroup
 
 	for rows.Next() {
 		switch queryDetailsDto.Type {
@@ -70,8 +72,11 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 			results = append(results, modelIngestor)
 
 			// fetch and generate execution plan
-			GenerateAndInjestExecutionPlan(entity, db, queryId)
-
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				GenerateAndInjestExecutionPlan(entity, db, queryId)
+			}()
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -109,7 +114,7 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 }
 
 func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string) {
-	hexQueryId := fmt.Sprintf("0x%s", queryId)
+	hexQueryId := fmt.Sprintf("%s", queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId)
 
 	var model models.ExecutionPlanResult
@@ -146,6 +151,12 @@ func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, que
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(entity *integration.Entity, results []interface{}, queryDetailsDto models.QueryDetailsDto) error {
+
+	if queryDetailsDto.Name == "MSSQLQueryExecutionPlans" {
+		fmt.Println("QueryDetails::::::::::::::::", queryDetailsDto)
+		fmt.Println("ExecutionPlan Result", results)
+	}
+
 	for i, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		var resultMap map[string]interface{}
