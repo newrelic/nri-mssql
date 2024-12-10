@@ -44,19 +44,15 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
 
-	queryDetails, err := LoadQueries()
+	queryDetails, err := LoadQueries(arguments)
+
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
 	}
 
 	var wg sync.WaitGroup
-	resultsChannel := make(chan struct {
-		queryName string
-		results   interface{}
-	})
-
-	var queryhandler queryhandler.QueryHandler = &queryhandler.QueryHandlerImpl{}
+	interval := arguments.FetchInterval
 
 	for _, queryDetailsDto := range queryDetails {
 		wg.Add(1)
@@ -65,7 +61,8 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
 			var results = queryDetailsDto.ResponseDetail
 			err := retryMechanism.Retry(func() error {
-				queryResults, err := ExecuteQuery(instanceEntity, sqlConnection.Connection, queryDetailsDto)
+
+				queryResults, err := ExecuteQuery(interval, instanceEntity, sqlConnection.Connection, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to execute query: %s", err)
 					return err

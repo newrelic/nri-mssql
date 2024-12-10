@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"regexp"
 	"strconv"
@@ -20,15 +21,30 @@ import (
 //go:embed config/queries.json
 var queriesJSON []byte
 
-func LoadQueries() ([]models.QueryDetailsDto, error) {
+func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	var queries []models.QueryDetailsDto
 	if err := json.Unmarshal(queriesJSON, &queries); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
 	}
+
+	for _, query := range queries {
+		switch query.Type {
+		case "slowQueries":
+			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval, arguments.SlowQueryCount, arguments.SlowQueryThreshold)
+		case "waitAnalysis":
+			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval)
+		case "blockingSessions":
+			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval)
+
+		default:
+			fmt.Println("Unknown query type:", query.Type)
+		}
+	}
+
 	return queries, nil
 }
 
-func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func ExecuteQuery(interval int, entity *integration.Entity, db *sqlx.DB, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := db.Queryx(queryDetailsDto.Query)
@@ -36,11 +52,11 @@ func ExecuteQuery(entity *integration.Entity, db *sqlx.DB, queryDetailsDto model
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	return BindQueryResults(entity, db, rows, queryDetailsDto)
+	return BindQueryResults(interval, entity, db, rows, queryDetailsDto)
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
+func BindQueryResults(interval int, entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto) ([]interface{}, error) {
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
@@ -75,8 +91,9 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				GenerateAndInjestExecutionPlan(entity, db, queryId)
+				GenerateAndInjestExecutionPlan(interval, entity, db, queryId)
 			}()
+
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysisReceiver
 			if err := rows.StructScan(&model); err != nil {
@@ -113,9 +130,9 @@ func BindQueryResults(entity *integration.Entity, db *sqlx.DB, rows *sqlx.Rows, 
 
 }
 
-func GenerateAndInjestExecutionPlan(entity *integration.Entity, db *sqlx.DB, queryId string) {
+func GenerateAndInjestExecutionPlan(interval int, entity *integration.Entity, db *sqlx.DB, queryId string) {
 	hexQueryId := fmt.Sprintf("%s", queryId)
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId, interval)
 
 	var model models.ExecutionPlanResult
 
