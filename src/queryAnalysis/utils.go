@@ -18,26 +18,23 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 )
 
-//go:embed config/queries.json
+//go:embed config/queries.go
 var queriesJSON []byte
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
-	var queries []models.QueryDetailsDto
-	if err := json.Unmarshal(queriesJSON, &queries); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal queries configuration: %w", err)
-	}
+	var queries []models.QueryDetailsDto = config.Queries
 
-	for _, query := range queries {
-		switch query.Type {
+	for i := range queries {
+		switch queries[i].Type {
 		case "slowQueries":
-			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval, arguments.SlowQueryCount, arguments.SlowQueryThreshold)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.SlowQueryCount, arguments.SlowQueryThreshold)
 		case "waitAnalysis":
-			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval)
 		case "blockingSessions":
-			query.Query = fmt.Sprintf(query.Query, arguments.FetchInterval)
-
+			continue
+			//queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval)
 		default:
-			fmt.Println("Unknown query type:", query.Type)
+			fmt.Println("Unknown query type:", queries[i].Type)
 		}
 	}
 
