@@ -2,7 +2,6 @@ package queryAnalysis
 
 import (
 	_ "embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
@@ -58,54 +57,31 @@ func BindQueryResults(interval int, entity *integration.Entity, db *sqlx.DB, row
 	for rows.Next() {
 		switch queryDetailsDto.Type {
 		case "slowQueries":
-			var model models.TopNSlowQueryDetailsReceiver
+			var model models.TopNSlowQueryDetails
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			var queryId = "0x" + hex.EncodeToString(*model.QueryID)
 			AnonymizeQueryText(model.QueryText)
-			var modelIngestor models.TopNSlowQueryDetailsIngector
-			modelIngestor.QueryID = &queryId
-			modelIngestor.QueryText = model.QueryText
-			modelIngestor.DatabaseName = model.DatabaseName
-			modelIngestor.SchemaName = model.SchemaName
-			modelIngestor.LastExecutionTimestamp = model.LastExecutionTimestamp
-			modelIngestor.ExecutionCount = model.ExecutionCount
-			modelIngestor.AvgCPUTimeMS = model.AvgCPUTimeMS
-			modelIngestor.AvgElapsedTimeMS = model.AvgElapsedTimeMS
-			modelIngestor.AvgDiskReads = model.AvgDiskReads
-			modelIngestor.AvgDiskWrites = model.AvgDiskWrites
-			modelIngestor.StatementType = model.StatementType
-			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
-			results = append(results, modelIngestor)
+
+			results = append(results, model)
 
 			// fetch and generate execution plan
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				GenerateAndInjestExecutionPlan(interval, entity, db, queryId)
+				GenerateAndInjestExecutionPlan(interval, entity, db, *model.QueryID)
 			}()
 
 		case "waitAnalysis":
-			var model models.WaitTimeAnalysisReceiver
+			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
 			AnonymizeQueryText(model.QueryText)
-			var queryId = "0x" + hex.EncodeToString(*model.QueryID)
-			var modelIngestor models.WaitTimeAnalysisIngestor
-			modelIngestor.QueryID = &queryId
-			modelIngestor.QueryText = model.QueryText
-			modelIngestor.DatabaseName = model.DatabaseName
-			modelIngestor.CustomQueryType = model.CustomQueryType
-			modelIngestor.WaitCategory = model.WaitCategory
-			modelIngestor.TotalWaitTimeMs = model.TotalWaitTimeMs
-			modelIngestor.AvgWaitTimeMs = model.AvgWaitTimeMs
-			modelIngestor.WaitEventCount = model.WaitEventCount
-			modelIngestor.CollectionTimestamp = model.CollectionTimestamp
-			results = append(results, modelIngestor)
+
+			results = append(results, model)
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -123,7 +99,7 @@ func BindQueryResults(interval int, entity *integration.Entity, db *sqlx.DB, row
 
 }
 
-func GenerateAndInjestExecutionPlan(interval int, entity *integration.Entity, db *sqlx.DB, queryId string) {
+func GenerateAndInjestExecutionPlan(interval int, entity *integration.Entity, db *sqlx.DB, queryId models.HexString) {
 	hexQueryId := fmt.Sprintf("%s", queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId, interval)
 

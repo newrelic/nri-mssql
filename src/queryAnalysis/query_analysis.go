@@ -67,7 +67,6 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 					log.Error("Failed to execute query: %s", err)
 					return err
 				}
-				//Anonymize query results
 				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
 				if err != nil {
 					log.Error("Failed to ingest metrics: %s", err)
