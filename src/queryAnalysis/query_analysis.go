@@ -2,17 +2,12 @@ package queryAnalysis
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
-	"sync"
-
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	queryhandler "github.com/newrelic/nri-mssql/src/queryAnalysis/queryHandler"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
 // queryPerformanceMain runs all types of analyses
@@ -27,13 +22,6 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		return
 	}
 	validation.ValidatePreConditions(sqlConnection)
-
-	// create a instanceEntity
-	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
-	if err != nil {
-		log.Error("Error creating instance entity: %s", err.Error())
-		return
-	}
 
 	// Validate preconditions
 	err = validation.ValidatePreConditions(sqlConnection)
@@ -51,51 +39,25 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		return
 	}
 
-	var wg sync.WaitGroup
 	interval := arguments.FetchInterval
 
 	for _, queryDetailsDto := range queryDetails {
-		wg.Add(1)
-		go func(queryDetailsDto models.QueryDetailsDto) {
-			defer wg.Done()
-			fmt.Printf("Running query: %s\n", queryDetailsDto.Name)
-			var results = queryDetailsDto.ResponseDetail
-			err := retryMechanism.Retry(func() error {
-
-				queryResults, err := ExecuteQuery(interval, instanceEntity, sqlConnection.Connection, queryDetailsDto)
-				if err != nil {
-					log.Error("Failed to execute query: %s", err)
-					return err
-				}
-				err = IngestQueryMetrics(instanceEntity, queryResults, queryDetailsDto)
-				if err != nil {
-					log.Error("Failed to ingest metrics: %s", err)
-					return err
-				}
-				return nil
-			})
-			if err != nil {
-				log.Error("Failed to execute and bind query results after retries: %s", err)
-				return
-			}
-			resultsChannel <- struct {
-				queryName string
-				results   interface{}
-			}{queryName: queryDetailsDto.Name, results: results}
-		}(queryDetailsDto)
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultsChannel)
-	}()
-
-	for result := range resultsChannel {
 		err := retryMechanism.Retry(func() error {
-			return queryhandler.IngestMetrics(instanceEntity, result.results, result.queryName)
+			queryResults, err := ExecuteQuery(interval, queryDetailsDto, integration, sqlConnection)
+			if err != nil {
+				log.Error("Failed to execute query: %s", err)
+				return err
+			}
+			err = IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
+			if err != nil {
+				log.Error("Failed to ingest metrics: %s", err)
+				return err
+			}
+			return nil
 		})
+
 		if err != nil {
-			log.Error("Failed to ingest metrics after retries: %s", err)
+			log.Error("Failed after retries: %s", err)
 		}
 	}
 }
