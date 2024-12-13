@@ -1,7 +1,8 @@
 package config
 
 // ExecutionPlanQuery holds the SQL query for fetching execution plans.
-const ExecutionPlanQueryTemplate = `SELECT
+const ExecutionPlanQueryTemplate = `WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
+SELECT
     st.text AS sql_text,
     qp.query_plan AS query_plan_xml,
     qs.query_hash AS query_id,
@@ -29,5 +30,5 @@ CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
 CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
 CROSS APPLY qp.query_plan.nodes('//RelOp') AS RelOps(n)
 WHERE qs.query_hash = %s
-AND qs.creation_time BETWEEN DATEADD(SECOND, %d, GETDATE()) AND GETDATE()
+AND qs.last_execution_time BETWEEN DATEADD(SECOND, -%d, GETDATE()) AND GETDATE()
 ORDER BY qs.total_worker_time DESC;`
