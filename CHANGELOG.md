@@ -9,9 +9,8 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### dependencies
-- Updated golang.org/x/crypto to v0.31.0
-- Updated golang.org/x/text to v0.21.0
+### security
+- fixed a security vulnerability by updating golang.org/x/crypto to v0.31.0, golang.org/x/text to v0.21.0
 
 ## v2.14.0 - 2024-12-03
 
