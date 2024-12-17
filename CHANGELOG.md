@@ -9,7 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancement
+## v2.15.0 - 2024-12-17
+
+### 🚀 Enhancements
 - Updated goreleaser to v2.4.4
 - Added FIPS compliant packages and archives
 
