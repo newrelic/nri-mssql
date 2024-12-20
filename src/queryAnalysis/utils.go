@@ -92,6 +92,7 @@ func BindQueryResults(interval int,
 				continue
 			}
 			AnonymizeQueryText(model.BlockedQueryText)
+			AnonymizeQueryText(model.BlockingQueryText)
 			results = append(results, model)
 		default:
 			return nil, fmt.Errorf("unknown query type: %s", queryDetailsDto.Type)
