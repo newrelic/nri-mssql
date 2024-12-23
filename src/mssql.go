@@ -91,6 +91,7 @@ func main() {
 
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
+		return
 	}
 	i.Clear()
 
