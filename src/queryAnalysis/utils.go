@@ -24,9 +24,9 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 		fmt.Println(i, queries[i])
 		switch queries[i].Type {
 		case "slowQueries":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.SlowQueryCount, arguments.SlowQueryThreshold)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, arguments.QueryResponseTimeThreshold)
 		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.FetchInterval)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.FetchInterval, arguments.QueryCountThreshold)
 		case "blockingSessions":
 			continue
 		default:

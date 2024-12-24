@@ -221,7 +221,7 @@ END
 CLOSE db_cursor;
 DEALLOCATE db_cursor;
 
-SELECT TOP 2000 * FROM @resultTable 
+SELECT TOP %d * FROM @resultTable 
 ORDER BY last_execution_time DESC;`,
 		Type: "waitAnalysis",
 	},
