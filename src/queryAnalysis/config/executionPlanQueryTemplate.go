@@ -11,7 +11,9 @@ WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/show
 TopPlans AS (
     SELECT TOP (@TopN)
         qs.plan_handle,
+		qp.query_plan AS query_plan_xml,
         qs.query_hash as query_id,
+		qs.query_plan_hash AS query_plan_id,
         st.text AS sql_text,
         (qs.total_elapsed_time / qs.execution_count) / 1000 AS avg_elapsed_time_ms,
         qp.query_plan
@@ -28,6 +30,8 @@ PlanNodes AS (
         tp.query_id,
         tp.sql_text,
         tp.plan_handle,
+		tp.query_plan_xml,
+		tp.query_plan_id,
         tp.avg_elapsed_time_ms,
         n.value('(@NodeId)[1]', 'INT') AS NodeId,
         n.value('(@PhysicalOp)[1]', 'VARCHAR(50)') AS PhysicalOp,
