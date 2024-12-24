@@ -21,13 +21,12 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		return
 	}
-	validation.ValidatePreConditions(sqlConnection)
 
 	// Validate preconditions
-	err = validation.ValidatePreConditions(sqlConnection)
-	if err != nil {
+	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
+	if !isPreconditionPassed {
 		log.Error("Error validating preconditions: %s", err.Error())
-		return // Abort further operations if validations fail
+		return
 	}
 
 	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
