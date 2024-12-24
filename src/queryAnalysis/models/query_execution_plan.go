@@ -2,8 +2,9 @@ package models
 
 type ExecutionPlanResult struct {
 	SQLText                *string      `db:"sql_text"`
-	PlanHandle             *VarBinary64 `db:"plan_handle"`
-	AvgElapsedTimeMs       *float64     `db:"avg_elapsed_time_ms"`
+	QueryPlanXML           *string      `db:"query_plan_xml"`
+	QueryID                *HexString   `db:"query_id"`
+	QueryPlanID            *HexString   `db:"query_plan_id"`
 	NodeID                 *int         `db:"NodeId"`
 	PhysicalOp             *string      `db:"PhysicalOp"`
 	LogicalOp              *string      `db:"LogicalOp"`
@@ -22,7 +23,6 @@ type ExecutionPlanResult struct {
 	TotalLogicalReads      *int64       `db:"total_logical_reads"`
 	TotalLogicalWrites     *int64       `db:"total_logical_writes"`
 	ExecutionCount         *int64       `db:"execution_count"`
-	QueryPlanXML           *string      `db:"query_plan_xml"`
-	QueryID                *HexString   `db:"query_id"`
-	QueryPlanID            *HexString   `db:"query_plan_id"`
+	PlanHandle             *VarBinary64 `db:"plan_handle"`
+	AvgElapsedTimeMs       *float64     `db:"avg_elapsed_time_ms"`
 }
