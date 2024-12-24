@@ -21,7 +21,6 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 	var queries []models.QueryDetailsDto = config.Queries
 
 	for i := range queries {
-		fmt.Println(i, queries[i])
 		switch queries[i].Type {
 		case "slowQueries":
 			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, arguments.QueryResponseTimeThreshold)
