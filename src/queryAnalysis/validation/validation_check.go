@@ -6,6 +6,8 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 )
 
+const versionCompatibility = 90
+
 // ValidatePreConditions checks if the database is compatible with the integration
 func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 
@@ -22,7 +24,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 
 	for _, database := range databaseDetails {
 
-		if database.Compatibility > 90 {
+		if database.Compatibility > versionCompatibility {
 			log.Info("Database %s is compatible with the integration", database.Name)
 		} else {
 			log.Warn("Database %s is not compatible with the integration", database.Name)

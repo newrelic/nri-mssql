@@ -25,7 +25,7 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 	// Validate preconditions
 	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
 	if !isPreconditionPassed {
-		log.Error("Error validating preconditions: %s", err.Error())
+		log.Error("Error validating preconditions")
 		return
 	}
 
