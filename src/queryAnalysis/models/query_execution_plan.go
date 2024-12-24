@@ -7,7 +7,7 @@ type ExecutionPlanResult struct {
 	QueryPlanID            *HexString   `db:"query_plan_id"`
 	PlanHandle             *VarBinary64 `db:"plan_handle"`
 	AvgElapsedTimeMs       *float64     `db:"avg_elapsed_time_ms"`
-	NodeId                 *int         `db:"NodeId"`
+	NodeID                 *int         `db:"NodeId"`
 	PhysicalOp             *string      `db:"PhysicalOp"`
 	LogicalOp              *string      `db:"LogicalOp"`
 	EstimateRows           *float64     `db:"EstimateRows"`
