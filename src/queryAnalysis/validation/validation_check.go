@@ -10,7 +10,6 @@ const versionCompatibility = 90
 
 // ValidatePreConditions checks if the database is compatible with the integration
 func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
-
 	// Database version compatibility check
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 
