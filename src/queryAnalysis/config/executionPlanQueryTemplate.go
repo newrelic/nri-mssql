@@ -1,34 +1,51 @@
 package config
 
 // ExecutionPlanQuery holds the SQL query for fetching execution plans.
-const ExecutionPlanQueryTemplate = `WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
-SELECT
-    st.text AS sql_text,
-    qp.query_plan AS query_plan_xml,
-    qs.query_hash AS query_id,
-    qs.query_plan_hash AS query_plan_id,
-    COALESCE(n.value('(@NodeId)[1]', 'INT'), 0) AS NodeId,
-    COALESCE(n.value('(@PhysicalOp)[1]', 'VARCHAR(50)'), 'N/A') AS PhysicalOp,
-    COALESCE(n.value('(@LogicalOp)[1]', 'VARCHAR(50)'), 'N/A') AS LogicalOp,
-    COALESCE(n.value('(@EstimateRows)[1]', 'FLOAT'), 0.0) AS EstimateRows,
-    COALESCE(n.value('(@EstimateIO)[1]', 'FLOAT'), 0.0) AS EstimateIO,
-    COALESCE(n.value('(@EstimateCPU)[1]', 'FLOAT'), 0.0) AS EstimateCPU,
-    COALESCE(n.value('(@AvgRowSize)[1]', 'FLOAT'), 0.0) AS AvgRowSize,
-    COALESCE(n.value('(@TotalSubtreeCost)[1]', 'FLOAT'), 0.0) AS TotalSubtreeCost,
-    COALESCE(n.value('(@EstimatedOperatorCost)[1]', 'FLOAT'), 0.0) AS EstimatedOperatorCost,
-    COALESCE(n.value('(@EstimatedExecutionMode)[1]', 'VARCHAR(50)'), 'N/A') AS EstimatedExecutionMode,
-    COALESCE(n.value('(MemoryGrantInfo/@GrantedMemoryKb)[1]', 'INT'), 0) AS GrantedMemoryKb,
-    COALESCE(n.value('(Warnings/@SpillOccurred)[1]', 'BIT'), 0) AS SpillOccurred,
-    COALESCE(n.value('(Warnings/@NoJoinPredicate)[1]', 'BIT'), 0) AS NoJoinPredicate,
-    qs.total_worker_time,
-    qs.total_elapsed_time,
-    qs.total_logical_reads,
-    qs.total_logical_writes,
-    qs.execution_count
-FROM sys.dm_exec_query_stats AS qs
-CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
-CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
-CROSS APPLY qp.query_plan.nodes('//RelOp') AS RelOps(n)
-WHERE qs.query_hash = %s
-AND qs.last_execution_time BETWEEN DATEADD(SECOND, -%d, GETDATE()) AND GETDATE()
-ORDER BY qs.total_worker_time DESC;`
+const ExecutionPlanQueryTemplate = `
+DECLARE @TopN INT = %d; 
+DECLARE @ElapsedTimeThreshold INT = %d;  -- Define the elapsed time threshold in milliseconds
+DECLARE @QueryID NVARCHAR(50) = %s;      -- Change the query ID to a string
+DECLARE @IntervalSeconds INT = %d;       -- Define the interval in seconds (e.g., 3600 for the last hour)
+
+WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan'),
+TopPlans AS (
+    SELECT TOP (@TopN)
+        qs.plan_handle,
+        qs.query_hash,
+        st.text AS sql_text,
+        (qs.total_elapsed_time / qs.execution_count) / 1000 AS avg_elapsed_time_ms,
+        qp.query_plan
+    FROM sys.dm_exec_query_stats AS qs
+    CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
+    CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
+    WHERE CONVERT(NVARCHAR(50), qs.query_hash) = @QueryID 
+    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETDATE()) AND GETDATE() 
+    AND (qs.total_elapsed_time / qs.execution_count) / 1000 > @ElapsedTimeThreshold
+    ORDER BY avg_elapsed_time_ms DESC
+),
+PlanNodes AS (
+    SELECT
+        tp.query_hash,
+        tp.sql_text,
+        tp.plan_handle,
+        tp.avg_elapsed_time_ms,
+        n.value('(@NodeId)[1]', 'INT') AS NodeId,
+        n.value('(@PhysicalOp)[1]', 'VARCHAR(50)') AS PhysicalOp,
+        n.value('(@LogicalOp)[1]', 'VARCHAR(50)') AS LogicalOp,
+        n.value('(@EstimateRows)[1]', 'FLOAT') AS EstimateRows,
+        n.value('(@EstimateIO)[1]', 'FLOAT') AS EstimateIO,
+        n.value('(@EstimateCPU)[1]', 'FLOAT') AS EstimateCPU,
+        n.value('(@AvgRowSize)[1]', 'FLOAT') AS AvgRowSize,
+        n.value('(@EstimatedExecutionMode)[1]', 'VARCHAR(50)') AS EstimatedExecutionMode,
+        n.value('(@EstimatedTotalSubtreeCost)[1]', 'FLOAT') AS TotalSubtreeCost,
+        n.value('(@EstimatedOperatorCost)[1]', 'FLOAT') AS EstimatedOperatorCost,
+        n.value('(MemoryGrantInfo/@GrantedMemoryKb)[1]', 'INT') AS GrantedMemoryKb,
+        n.value('(Warnings/Warning/@SpillOccurred)[1]', 'BIT') AS SpillOccurred,
+        n.value('(Warnings/Warning/@NoJoinPredicate)[1]', 'BIT') AS NoJoinPredicate
+    FROM TopPlans AS tp
+    CROSS APPLY tp.query_plan.nodes('//RelOp') AS RelOps(n)
+)
+SELECT *
+FROM PlanNodes
+ORDER BY plan_handle, NodeId;
+`

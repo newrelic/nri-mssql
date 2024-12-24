@@ -39,11 +39,9 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		return
 	}
 
-	interval := arguments.FetchInterval
-
 	for _, queryDetailsDto := range queryDetails {
 		err := retryMechanism.Retry(func() error {
-			queryResults, err := ExecuteQuery(interval, queryDetailsDto, integration, sqlConnection)
+			queryResults, err := ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 			if err != nil {
 				log.Error("Failed to execute query: %s", err)
 				return err
