@@ -15,6 +15,7 @@ TopPlans AS (
         qs.query_hash as query_id,
 		qs.query_plan_hash AS query_plan_id,
         st.text AS sql_text,
+		qs.execution_count as execution_count,
         (qs.total_elapsed_time / qs.execution_count) / 1000 AS avg_elapsed_time_ms,
         qp.query_plan
     FROM sys.dm_exec_query_stats AS qs
@@ -33,6 +34,7 @@ PlanNodes AS (
 		tp.query_plan_xml,
 		tp.query_plan_id,
         tp.avg_elapsed_time_ms,
+		tp.execution_count,
         n.value('(@NodeId)[1]', 'INT') AS NodeId,
         n.value('(@PhysicalOp)[1]', 'VARCHAR(50)') AS PhysicalOp,
         n.value('(@LogicalOp)[1]', 'VARCHAR(50)') AS LogicalOp,
