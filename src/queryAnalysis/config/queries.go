@@ -113,124 +113,116 @@ var Queries = []models.QueryDetailsDto{
 	},
 	{
 		Name: "MSSQLWaitTimeAnalysis",
-		Query: `DECLARE @sql NVARCHAR(MAX) = '';
-				DECLARE @dbName NVARCHAR(128);
-				
-				DECLARE @resultTable TABLE(
-					query_id VARBINARY(255),
-					database_name NVARCHAR(128),
-					query_text NVARCHAR(MAX),
-					custom_query_type NVARCHAR(64),
-					wait_category NVARCHAR(128),
-					total_wait_time_ms FLOAT,
-					avg_wait_time_ms FLOAT,
-					wait_event_count BIGINT,
-					collection_timestamp DATETIME
-				);
-				
-				DECLARE db_cursor CURSOR FOR
-				SELECT
-					name
-				FROM
-					sys.databases
-				WHERE
-					state_desc = 'ONLINE'
-					AND is_query_store_on = 1
-					AND database_id > 4;
-				
-				OPEN db_cursor;
-				
-				FETCH NEXT
-				FROM
-					db_cursor INTO @dbName;
-				
-				WHILE @@FETCH_STATUS = 0 BEGIN
-				SET
-					@sql = N'USE ' + QUOTENAME(@dbName) + ';
-				
-				WITH WaitStats AS (
-					SELECT
-						''' + QUOTENAME(@dbName) + ''' AS database_name,
-						qs.query_sql_text AS query_text,
-						qsq.query_hash AS query_id,
-						ws.wait_category_desc AS wait_category,
-						CAST(SUM(ws.total_query_wait_time_ms) AS FLOAT) AS total_wait_time_ms,
-						CASE
-							WHEN SUM(rs.count_executions) > 0 THEN CAST(
-								SUM(ws.total_query_wait_time_ms) / SUM(rs.count_executions) AS FLOAT
-							)
-							ELSE 0
-						END AS avg_wait_time_ms,
-						SUM(rs.count_executions) AS wait_event_count,
-						GETUTCDATE() AS collection_timestamp,
-						qsq.query_hash
-					FROM
-						sys.query_store_wait_stats ws
-						INNER JOIN sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
-						INNER JOIN sys.query_store_query qsq ON qsp.query_id = qsq.query_id
-						INNER JOIN sys.query_store_query_text qs ON qsq.query_text_id = qs.query_text_id
-						INNER JOIN sys.query_store_runtime_stats rs ON ws.plan_id = rs.plan_id
-						AND ws.runtime_stats_interval_id = rs.runtime_stats_interval_id
-					WHERE
-						rs.last_execution_time >= DATEADD(SECOND, -%d, GETUTCDATE())
-					GROUP BY
-						qs.query_sql_text,
-						qsq.query_hash,
-						ws.wait_category_desc
-				),
-				DatabaseInfo AS (
-					SELECT
-						DISTINCT cp.plan_handle,
-						DB_NAME(t.dbid) AS database_name,
-						th.query_hash
-					FROM
-						sys.dm_exec_cached_plans cp
-						CROSS APPLY sys.dm_exec_query_plan(cp.plan_handle) p
-						CROSS APPLY sys.dm_exec_sql_text(cp.plan_handle) t
-						CROSS APPLY (
-							SELECT
-								query_hash
-							FROM
-								sys.dm_exec_query_stats qs
-							WHERE
-								qs.plan_handle = cp.plan_handle
-						) th
-					WHERE
-						DB_NAME(t.dbid) NOT IN ('' master '', '' tempdb '', '' model '', '' msdb '')
-				)
-				SELECT
-					ws.query_id,
-					di.database_name,
-					ws.query_text,
-					'' waitTypesDetails '' AS custom_query_type,
-					ws.wait_category,
-					ws.total_wait_time_ms,
-					ws.avg_wait_time_ms,
-					ws.wait_event_count,
-					ws.collection_timestamp
-				FROM
-					WaitStats ws
-					LEFT JOIN DatabaseInfo di ON ws.query_hash = di.query_hash
-				WHERE
-					di.database_name IS NOT NULL;';
-				
-				INSERT INTO
-					@resultTable EXEC sp_executesql @sql;
-				
-				FETCH NEXT
-				FROM
-					db_cursor INTO @dbName;
-				
-				END CLOSE db_cursor;
-				
-				DEALLOCATE db_cursor;
-				
-				SELECT
-					TOP 10 *
-				FROM
-					@resultTable
-				ORDER BY
-					total_wait_time_ms DESC;`,
+		Query: `IF CURSOR_STATUS('global', 'db_cursor') > -1
+BEGIN
+  CLOSE db_cursor;
+  DEALLOCATE db_cursor;
+END
+
+DECLARE @sql NVARCHAR(MAX) = '';
+DECLARE @dbName NVARCHAR(128);
+DECLARE @resultTable TABLE(
+  query_id VARBINARY(255),
+  database_name NVARCHAR(128),
+  query_text NVARCHAR(MAX),
+  wait_category NVARCHAR(128),
+  total_wait_time_ms FLOAT,
+  avg_wait_time_ms FLOAT,
+  wait_event_count INT,
+  last_execution_time DATETIME,
+  collection_timestamp DATETIME
+);
+
+DECLARE db_cursor CURSOR FOR
+SELECT name FROM sys.databases
+WHERE state_desc = 'ONLINE'
+AND is_query_store_on = 1
+AND database_id > 4;
+
+OPEN db_cursor;
+FETCH NEXT FROM db_cursor INTO @dbName;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+  SET @sql = N'USE ' + QUOTENAME(@dbName) + ';
+  WITH LatestInterval AS (
+    SELECT 
+      qsqt.query_sql_text,
+      MAX(ws.runtime_stats_interval_id) AS max_runtime_stats_interval_id
+    FROM 
+      sys.query_store_wait_stats ws
+    INNER JOIN 
+      sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
+    INNER JOIN 
+      sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
+    INNER JOIN 
+      sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
+    WHERE 
+      qsqt.query_sql_text NOT LIKE ''%%WITH%%''
+      AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+      AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+      AND qsq.last_execution_time > DATEADD(second, -%d, GETUTCDATE())
+    GROUP BY 
+      qsqt.query_sql_text
+  ),
+  WaitStates AS (
+    SELECT 
+      ws.runtime_stats_interval_id,
+      qsqt.query_sql_text AS query_text,
+      qsq.last_execution_time,
+      ws.wait_category_desc AS wait_category,
+      ws.total_query_wait_time_ms AS total_wait_time_ms,
+      ws.avg_query_wait_time_ms AS avg_wait_time_ms,
+      CASE 
+        WHEN ws.avg_query_wait_time_ms > 0 THEN 
+          ws.total_query_wait_time_ms / ws.avg_query_wait_time_ms
+        ELSE 
+          0 
+      END AS wait_event_count,
+      qsq.query_hash AS query_id,
+      GETUTCDATE() AS collection_timestamp,
+      ''' + @dbName + ''' AS database_name
+    FROM 
+      sys.query_store_wait_stats ws
+    INNER JOIN 
+      sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
+    INNER JOIN 
+      sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
+    INNER JOIN 
+      sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
+    INNER JOIN 
+      LatestInterval li ON qsqt.query_sql_text = li.query_sql_text 
+              AND ws.runtime_stats_interval_id = li.max_runtime_stats_interval_id
+    WHERE 
+      qsqt.query_sql_text NOT LIKE ''%%WITH%%''
+      AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+      AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+      AND qsq.last_execution_time > DATEADD(second, -%d, GETUTCDATE())
+  )
+  SELECT
+    query_id,
+    database_name, 
+    query_text,
+    wait_category,
+    total_wait_time_ms,
+    avg_wait_time_ms,
+    wait_event_count,
+    last_execution_time,
+    collection_timestamp
+  FROM
+    WaitStates;';
+
+  INSERT INTO @resultTable
+  EXEC sp_executesql @sql;
+
+  FETCH NEXT FROM db_cursor INTO @dbName;
+END
+
+CLOSE db_cursor;
+DEALLOCATE db_cursor;
+
+SELECT TOP %d * FROM @resultTable 
+ORDER BY last_execution_time DESC;`,
 		Type: "waitAnalysis",
 	},
 	{
