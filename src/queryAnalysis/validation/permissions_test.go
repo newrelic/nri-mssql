@@ -1,10 +1,13 @@
+// src/queryAnalysis/validation/permissions_test.go
 package validation
 
 import (
-	"fmt"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+var errQueryError = errors.New("query error")
 
 func TestCheckPermissionsAndLogin(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
@@ -23,7 +26,7 @@ func TestCheckPermissionsAndLogin_PermissionsError(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	mock.ExpectQuery("SELECT CASE WHEN IS_SRVROLEMEMBER\\('sysadmin'\\) = 1 OR HAS_PERMS_BY_NAME\\(null, null, 'VIEW SERVER STATE'\\) = 1 THEN 1 ELSE 0 END AS has_permission").
-		WillReturnError(fmt.Errorf("query error"))
+		WillReturnError(errQueryError)
 
 	result := checkPermissionsAndLogin(sqlConnection)
 	assert.False(t, result)

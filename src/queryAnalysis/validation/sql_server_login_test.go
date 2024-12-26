@@ -1,7 +1,7 @@
+// src/queryAnalysis/validation/sql_server_login_test.go
 package validation
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"testing"
@@ -29,7 +29,7 @@ func TestCheckPermissionsAndLogin_LoginEnabledError(t *testing.T) {
 
 	// Mock checkSQLServerLoginEnabled error
 	mock.ExpectQuery("SELECT CASE WHEN SERVERPROPERTY\\('IsIntegratedSecurityOnly'\\) = 0 THEN 1 ELSE 0 END AS is_login_enabled").
-		WillReturnError(fmt.Errorf("query error"))
+		WillReturnError(errQueryError)
 
 	result := checkPermissionsAndLogin(sqlConnection)
 	assert.False(t, result)

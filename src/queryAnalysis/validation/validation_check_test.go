@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"testing"
@@ -35,7 +34,7 @@ func TestValidatePreConditions_ErrorGettingDatabaseDetails(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mock GetDatabaseDetails error
-	mock.ExpectQuery("select name, compatibility_level, is_query_store_on from sys.databases").WillReturnError(fmt.Errorf("query error"))
+	mock.ExpectQuery("select name, compatibility_level, is_query_store_on from sys.databases").WillReturnError(errQueryError)
 
 	result := ValidatePreConditions(sqlConnection)
 	assert.False(t, result)
