@@ -36,10 +36,7 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 	return queries, nil
 }
 
-func ExecuteQuery(interval int,
-	queryDetailsDto models.QueryDetailsDto,
-	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
@@ -47,11 +44,11 @@ func ExecuteQuery(interval int,
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
-	return BindQueryResults(interval, rows, queryDetailsDto, integration, sqlConnection)
+	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
-func BindQueryResults(interval int,
+func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
@@ -74,7 +71,7 @@ func BindQueryResults(interval int,
 			results = append(results, model)
 
 			// fetch and generate execution plan
-			GenerateAndInjestExecutionPlan(interval, integration, sqlConnection, *model.QueryID)
+			GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -102,13 +99,13 @@ func BindQueryResults(interval int,
 
 }
 
-func GenerateAndInjestExecutionPlan(interval int,
+func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 	queryId models.HexString) {
 
 	hexQueryId := fmt.Sprintf("%s", queryId)
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, hexQueryId, interval)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, arguments.QueryCountThreshold, arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval)
 
 	var model models.ExecutionPlanResult
 
