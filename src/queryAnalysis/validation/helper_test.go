@@ -1,11 +1,12 @@
 package validation
 
 import (
+	"testing"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"testing"
 )
 
 func setupMockDB(t *testing.T) (*connection.SQLConnection, sqlmock.Sqlmock) {

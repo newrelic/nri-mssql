@@ -2,9 +2,10 @@
 package validation
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"testing"
 )
 
 func TestCheckPermissionsAndLogin_LoginEnabled(t *testing.T) {
