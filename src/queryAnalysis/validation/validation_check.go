@@ -72,18 +72,14 @@ func checkQueryStores(databaseDetails []models.DatabaseDetailsDto) bool {
 	allQueryStoresOff := true
 	for _, database := range databaseDetails {
 		if database.IsQueryStoreOn {
-			if database.QueryCaptureModeDesc == "ALL" {
-				log.Info("Query store for this database is turned on and capture mode is ALL: %s", database.Name)
-				allQueryStoresOff = false
-			} else {
-				log.Warn("Query store for this database is turned on but capture mode is not ALL: %s. Current mode: %s", database.Name, database.QueryCaptureModeDesc)
-			}
+			log.Info("Query store enabled for database %s and make sure query capture mode is ALL", database.Name)
+			allQueryStoresOff = false
 		} else {
 			log.Warn("Query store disabled for database %s. Turn on with: ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
 		}
 	}
 	if allQueryStoresOff {
-		log.Error("Query store is turned off for all databases or capture mode is not ALL. Turn on query store and set capture mode to ALL: https://docs.newrelic.com/install/microsoft-sql/")
+		log.Error("Query store is turned off for all databases. Turn on query store and set capture mode to ALL: https://docs.newrelic.com/install/microsoft-sql/")
 	}
 	return !allQueryStoresOff
 }

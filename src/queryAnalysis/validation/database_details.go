@@ -1,8 +1,6 @@
 package validation
 
 import (
-	"database/sql"
-	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
@@ -26,22 +24,6 @@ func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.Datab
 		}
 
 		if model.Name != "master" && model.Name != "tempdb" && model.Name != "model" && model.Name != "msdb" {
-			var queryCaptureMode string
-			query := fmt.Sprintf("USE [%s]; SELECT query_capture_mode_desc FROM sys.database_query_store_options;", model.Name)
-			rows, err := sqlConnection.Queryx(query)
-			if err != nil && err != sql.ErrNoRows {
-				log.Error("Error getting query capture mode for database:", model.Name, err)
-				return nil, err
-			}
-
-			defer rows.Close()
-			for rows.Next() {
-				if err := rows.Scan(&queryCaptureMode); err != nil {
-					log.Error("Error scanning query capture mode row:", err)
-					return nil, err
-				}
-			}
-			model.QueryCaptureModeDesc = queryCaptureMode
 			databaseDetailsResults = append(databaseDetailsResults, model)
 		}
 	}
