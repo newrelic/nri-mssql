@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -53,7 +52,7 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 
 	// Define the expected error
 	mock.ExpectQuery("select name, compatibility_level, is_query_store_on from sys.databases").
-		WillReturnError(fmt.Errorf("query error"))
+		WillReturnError(errQueryError)
 
 	// Call the function
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
