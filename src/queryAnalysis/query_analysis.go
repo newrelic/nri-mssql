@@ -6,6 +6,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/retrymechanism"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
@@ -28,7 +29,7 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 
 	var retryMechanism retrymechanism.RetryMechanism = &retrymechanism.RetryMechanismImpl{}
 
-	queryDetails, err := LoadQueries(arguments)
+	queryDetails, err := utils.LoadQueries(arguments)
 
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
@@ -37,12 +38,12 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 
 	for _, queryDetailsDto := range queryDetails {
 		err := retryMechanism.Retry(func() error {
-			queryResults, err := ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+			queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 			if err != nil {
 				log.Error("Failed to execute query: %s", err)
 				return err
 			}
-			err = IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
+			err = utils.IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
 			if err != nil {
 				log.Error("Failed to ingest metrics: %s", err)
 				return err
