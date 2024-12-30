@@ -2,11 +2,12 @@ package utils
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
