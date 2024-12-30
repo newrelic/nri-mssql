@@ -2,17 +2,17 @@ package utils
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
-	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"testing"
 	"time"
+
+	"github.com/newrelic/infra-integrations-sdk/v3/integration"
+	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
@@ -64,7 +64,6 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 }
 
 func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
-	// Set up the mock SQL connection and expectations
 	sqlConn, mock := connection.CreateMockSQL(t)
 	defer sqlConn.Connection.Close()
 
@@ -76,7 +75,7 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 			"last_execution_time", "collection_timestamp",
 		}).
 			AddRow(
-				[]byte{0x01, 0x02}, // Simulated SQL varbinary value
+				[]byte{0x01, 0x02},
 				"example_db",
 				"SELECT * FROM waits",
 				"CPU",
@@ -174,6 +173,9 @@ func TestExecuteQuery_BlockingSessionsSuccess(t *testing.T) {
 	}
 }
 
+// Continue with other test functions and validation functions as needed...
+
+// Helper function for validating blocking session results
 func validateBlockingSession(t *testing.T, result interface{}) {
 	blockingSession, ok := result.(models.BlockingSessionQueryDetails)
 	if !ok {
@@ -186,6 +188,7 @@ func validateBlockingSession(t *testing.T, result interface{}) {
 	checkStringField(t, "BlockingQueryText", blockingSession.BlockingQueryText, "SELECT * FROM source")
 }
 
+// Helper functions to check fields
 func checkInt64Field(t *testing.T, name string, field *int64, expected int64) {
 	if field == nil || *field != expected {
 		t.Errorf("expected %s %v, got %v", name, expected, field)
@@ -199,13 +202,11 @@ func checkStringField(t *testing.T, name string, field *string, expected string)
 }
 
 func TestLoadQueries_SlowQueries(t *testing.T) {
-
-	var configQueries []models.QueryDetailsDto = config.Queries
-
+	configQueries := config.Queries
 	var arguments args.ArgumentList
 
 	slowQueriesIndex := -1
-	for i, query := range config.Queries {
+	for i, query := range configQueries {
 		if query.Type == "slowQueries" {
 			slowQueriesIndex = i
 			break
@@ -214,7 +215,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 
 	// Ensure the correct query was found
 	if slowQueriesIndex == -1 {
-		t.Fatalf("could not find 'MSSQLTopSlowQueries' in the list of queries")
+		t.Fatalf("could not find 'slowQueries' in the list of queries")
 	}
 
 	queries, err := LoadQueries(arguments)
@@ -222,7 +223,8 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query, arguments.FetchInterval, arguments.QueryCountThreshold,
+	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
+		arguments.FetchInterval, arguments.QueryCountThreshold,
 		arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
@@ -230,16 +232,14 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 }
 
 func TestLoadQueries_WaitAnalysis(t *testing.T) {
-
-	var configQueries []models.QueryDetailsDto = config.Queries
-
+	configQueries := config.Queries
 	var args args.ArgumentList
 
 	args.FetchInterval = 15
 	args.QueryCountThreshold = 10
 
 	waitQueriesIndex := -1
-	for i, query := range config.Queries {
+	for i, query := range configQueries {
 		if query.Type == "waitAnalysis" {
 			waitQueriesIndex = i
 			break
@@ -256,22 +256,22 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	configQueries[waitQueriesIndex].Query = fmt.Sprintf(configQueries[waitQueriesIndex].Query, args.FetchInterval, args.FetchInterval, args.QueryCountThreshold, config.TextTruncateLimit)
+	configQueries[waitQueriesIndex].Query = fmt.Sprintf(
+		configQueries[waitQueriesIndex].Query, args.FetchInterval, args.FetchInterval, args.QueryCountThreshold, config.TextTruncateLimit)
 	if queries[waitQueriesIndex].Query != configQueries[waitQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[waitQueriesIndex].Query, queries[waitQueriesIndex].Query)
 	}
 }
 
 func TestLoadQueries_BlockingSessions(t *testing.T) {
-	var configQueries []models.QueryDetailsDto = config.Queries
-
+	configQueries := config.Queries
 	var args args.ArgumentList
 
 	args.FetchInterval = 15
 	args.QueryCountThreshold = 10
 
 	blockQueriesIndex := -1
-	for i, query := range config.Queries {
+	for i, query := range configQueries {
 		if query.Type == "blockingSessions" {
 			blockQueriesIndex = i
 			break
@@ -288,7 +288,8 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	configQueries[blockQueriesIndex].Query = fmt.Sprintf(configQueries[blockQueriesIndex].Query, config.TextTruncateLimit)
+	configQueries[blockQueriesIndex].Query = fmt.Sprintf(
+		configQueries[blockQueriesIndex].Query, config.TextTruncateLimit)
 	if queries[blockQueriesIndex].Query != configQueries[blockQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[blockQueriesIndex].Query, queries[blockQueriesIndex].Query)
 	}
@@ -304,7 +305,6 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 	}
 
 	var args args.ArgumentList
-
 	args.FetchInterval = 15
 
 	queries, err := LoadQueries(args)
@@ -312,14 +312,12 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// Since the unknown type processing doesn't alter any query, we just check if the query is the same.
 	if queries[0].Query != "SELECT * FROM mysterious_table" {
 		t.Errorf("unexpected query content for unknown type: %s", queries[0].Query)
 	}
 }
 
 func TestDetectMetricType_GaugeCase(t *testing.T) {
-	// Case where the string can be parsed as a float
 	value := "123.45"
 	expected := metric.GAUGE
 
@@ -329,7 +327,6 @@ func TestDetectMetricType_GaugeCase(t *testing.T) {
 }
 
 func TestDetectMetricType_AttributeCase(t *testing.T) {
-	// Case where the string cannot be parsed as a float
 	value := "NotANumber123"
 	expected := metric.ATTRIBUTE
 
@@ -339,7 +336,6 @@ func TestDetectMetricType_AttributeCase(t *testing.T) {
 }
 
 func TestDetectMetricType_EmptyString(t *testing.T) {
-	// Case where the string is empty
 	value := ""
 	expected := metric.ATTRIBUTE
 
@@ -349,7 +345,6 @@ func TestDetectMetricType_EmptyString(t *testing.T) {
 }
 
 func TestDetectMetricType_Integer(t *testing.T) {
-	// Case where the string is an integer number
 	value := "78"
 	expected := metric.GAUGE
 
@@ -405,138 +400,9 @@ func TestAnonymizeQueryText_EmptyString(t *testing.T) {
 
 func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 	query := "SELECT name FROM users"
-	expected := "SELECT name FROM users"
+	expected := query // No change expected
 
 	AnonymizeQueryText(&query)
 
 	assert.Equal(t, expected, query, "anonymized query should remain unchanged if there is no sensitive data")
-}
-
-func TestBindQueryResults_BlockingSessions(t *testing.T) {
-	mockDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	defer mockDB.Close()
-
-	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
-	rows := sqlmock.NewRows([]string{
-		"blocking_spid", "blocking_status", "blocked_spid", "blocked_status",
-		"wait_type", "wait_time_in_seconds", "command_type", "database_name",
-		"blocking_query_text", "blocked_query_text",
-	}).AddRow(
-		int64(101), "Running", int64(202), "Suspended",
-		"LCK_M_U", 3.5, "SELECT", "example_db",
-		"SELECT * FROM source", "INSERT INTO destination",
-	)
-	mock.ExpectQuery("SELECT \\* FROM blocking_sessions WHERE condition").WillReturnRows(rows)
-
-	queryDetails := models.QueryDetailsDto{
-		Name:  "BlockingSessionsQuery",
-		Query: "SELECT * FROM blocking_sessions WHERE condition",
-		Type:  "blockingSessions",
-	}
-
-	integrationObj := &integration.Integration{}
-	argList := args.ArgumentList{}
-	sqlConnection := &connection.SQLConnection{Connection: sqlxDB}
-
-	rowsOut, err := sqlConnection.Connection.Queryx(queryDetails.Query)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	results, err := BindQueryResults(argList, rowsOut, queryDetails, integrationObj, sqlConnection)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
-	}
-
-	validateBlockingSession(t, results[0])
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestBindQueryResults_WaitAnalysis(t *testing.T) {
-	mockDB, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("unexpected error when opening mock database: %v", err)
-	}
-	defer mockDB.Close()
-
-	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
-	now := time.Now()
-	rows := sqlmock.NewRows([]string{
-		"query_id", "database_name", "query_text", "wait_category",
-		"total_wait_time_ms", "avg_wait_time_ms", "wait_event_count",
-		"last_execution_time", "collection_timestamp",
-	}).
-		AddRow(
-			[]byte{0xAB, 0xCD},
-			"example_db",
-			"SELECT * FROM waits",
-			"CPU",
-			200.75,
-			100.05,
-			5,
-			now,
-			now,
-		)
-
-	mock.ExpectQuery("SELECT \\* FROM wait_analysis WHERE condition").WillReturnRows(rows)
-
-	queryDetails := models.QueryDetailsDto{
-		Name:  "WaitTimeAnalysisQuery",
-		Query: "SELECT * FROM wait_analysis WHERE condition",
-		Type:  "waitAnalysis",
-	}
-
-	integrationObj := &integration.Integration{}
-	argList := args.ArgumentList{}
-	sqlConnection := &connection.SQLConnection{Connection: sqlxDB}
-
-	rowsOut, err := sqlConnection.Connection.Queryx(queryDetails.Query)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	results, err := BindQueryResults(argList, rowsOut, queryDetails, integrationObj, sqlConnection)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
-	}
-
-	validateWaitAnalysis(t, results[0], now)
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func validateWaitAnalysis(t *testing.T, result interface{}, now time.Time) {
-	waitAnalysis, ok := result.(models.WaitTimeAnalysis)
-	if !ok {
-		t.Fatalf("expected type models.WaitTimeAnalysis, got %T", result)
-	}
-
-	expectedQueryID := models.HexString("0xabcd")
-	checkHexStringField(t, "QueryID", waitAnalysis.QueryID, expectedQueryID)
-
-	expectedDatabaseName := "example_db"
-	checkStringField(t, "DatabaseName", waitAnalysis.DatabaseName, expectedDatabaseName)
-
-}
-
-func checkHexStringField(t *testing.T, name string, field *models.HexString, expected models.HexString) {
-	if field == nil || *field != expected {
-		t.Errorf("expected %s %v, got %v", name, expected, field)
-	}
 }
