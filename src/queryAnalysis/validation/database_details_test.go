@@ -23,7 +23,8 @@ func TestGetDatabaseDetails(t *testing.T) {
 		AddRow("testdb2", 110, false).
 		AddRow("master", 100, true) // This should be filtered out
 
-	mock.ExpectQuery("select name, compatibility_level, is_query_store_on from sys.databases").WillReturnRows(rows)
+	// Make the regular expression for the SQL query case-insensitive
+	mock.ExpectQuery("(?i)^SELECT name, compatibility_level, is_query_store_on FROM sys\\.databases$").WillReturnRows(rows)
 
 	// Call the function
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
@@ -51,7 +52,9 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
 
 	// Define the expected error
-	mock.ExpectQuery("select name, compatibility_level, is_query_store_on from sys.databases").
+	errQueryError := sqlmock.ErrCancelled // or use the appropriate error you expect
+
+	mock.ExpectQuery("(?i)^SELECT name, compatibility_level, is_query_store_on FROM sys\\.databases$").
 		WillReturnError(errQueryError)
 
 	// Call the function
