@@ -23,11 +23,12 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 	for i := range queries {
 		switch queries[i].Type {
 		case "slowQueries":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, arguments.QueryResponseTimeThreshold)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold,
+				arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
 		case "waitAnalysis":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.FetchInterval, arguments.QueryCountThreshold)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		case "blockingSessions":
-			continue
+			queries[i].Query = fmt.Sprintf(queries[i].Query, config.TextTruncateLimit)
 		default:
 			fmt.Println("Unknown query type:", queries[i].Type)
 		}
@@ -104,7 +105,8 @@ func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	queryId models.HexString) {
 
 	hexQueryId := fmt.Sprintf("%s", queryId)
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, arguments.QueryCountThreshold, arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval)
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, arguments.QueryCountThreshold,
+		arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
