@@ -37,7 +37,6 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	fmt.Println("Executing query...", queryDetailsDto.Name)
 
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
@@ -153,7 +152,6 @@ func IngestQueryMetricsInBatches(results []interface{},
 		}
 
 		batchResult := results[start:end]
-		fmt.Printf("Processing batch of %s: startIndex: %d to endIndex: %d totalLength: %d \n", queryDetailsDto.Name, start, end, len(results))
 
 		if err := IngestQueryMetrics(batchResult, queryDetailsDto, integration, sqlConnection); err != nil {
 			return fmt.Errorf("error ingesting batch from %d to %d: %w", start, end, err)

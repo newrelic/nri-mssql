@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
@@ -25,7 +24,6 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 		return false
 	}
 
-	fmt.Println("All validation checks have passed successfully")
 	return true
 }
 
@@ -33,9 +31,9 @@ func checkDatabaseCompatibility(databaseDetails []models.DatabaseDetailsDto) boo
 	allCompatible := true
 	for _, database := range databaseDetails {
 		if database.Compatibility > versionCompatibility {
-			log.Info("Database %s is compatible with the integration", database.Name)
+			log.Debug("Database %s is compatible with the integration", database.Name)
 		} else {
-			log.Warn("Database %s is not compatible with the integration", database.Name)
+			log.Debug("Database %s is not compatible with the integration", database.Name)
 			allCompatible = false
 		}
 	}
@@ -72,10 +70,10 @@ func checkQueryStores(databaseDetails []models.DatabaseDetailsDto) bool {
 	allQueryStoresOff := true
 	for _, database := range databaseDetails {
 		if database.IsQueryStoreOn {
-			log.Info("Query store enabled for database %s and make sure query capture mode is ALL", database.Name)
+			log.Debug("Query store enabled for database %s and make sure query capture mode is ALL", database.Name)
 			allQueryStoresOff = false
 		} else {
-			log.Warn("Query store disabled for database %s. Turn on with: ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
+			log.Debug("Query store disabled for database %s. Turn on with: ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
 		}
 	}
 	if allQueryStoresOff {

@@ -1,7 +1,6 @@
 package queryAnalysis
 
 import (
-	"fmt"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -12,8 +11,6 @@ import (
 
 // queryPerformanceMain runs all types of analyses
 func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
-
-	fmt.Println("Starting query analysis...")
 
 	// Create a new connection
 	sqlConnection, err := connection.NewConnection(&arguments)
