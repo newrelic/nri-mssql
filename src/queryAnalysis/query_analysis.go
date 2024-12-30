@@ -5,7 +5,7 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/retryMechanism"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis/retrymechanism"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
 )
 
@@ -26,7 +26,7 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		return
 	}
 
-	var retryMechanism retryMechanism.RetryMechanism = &retryMechanism.RetryMechanismImpl{}
+	var retryMechanism retrymechanism.RetryMechanism = &retrymechanism.RetryMechanismImpl{}
 
 	queryDetails, err := LoadQueries(arguments)
 
