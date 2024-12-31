@@ -1,4 +1,4 @@
-package queryAnalysis
+package utils
 
 import (
 	_ "embed"

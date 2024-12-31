@@ -1,4 +1,4 @@
-package retryMechanism
+package retrymechanism
 
 type RetryMechanismImpl struct{}
 
