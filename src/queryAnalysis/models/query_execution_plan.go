@@ -2,7 +2,6 @@ package models
 
 type ExecutionPlanResult struct {
 	SQLText                *string      `db:"sql_text"`
-	QueryPlanXML           *string      `db:"query_plan_xml"`
 	QueryID                *HexString   `db:"query_id"`
 	QueryPlanID            *HexString   `db:"query_plan_id"`
 	NodeID                 *int         `db:"NodeId"`
