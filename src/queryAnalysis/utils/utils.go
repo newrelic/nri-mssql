@@ -228,7 +228,7 @@ func ValidateAndSetDefaults(args *args.ArgumentList) {
 
 	if args.QueryCountThreshold < 0 {
 		args.QueryCountThreshold = config.SlowQueryCountThresholdDefault
-	} else if args.QueryCountThreshold >= 30 {
+	} else if args.QueryCountThreshold >= config.GroupedQueryCountMax {
 		args.QueryCountThreshold = config.GroupedQueryCountMax
 	}
 }
