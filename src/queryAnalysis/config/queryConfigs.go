@@ -82,6 +82,11 @@ var Queries = []models.QueryDetailsDto{
 						AND qt.text NOT LIKE '%%schema_name()%%'
 						AND qt.text IS NOT NULL
 						AND LTRIM(RTRIM(qt.text)) <> ''
+						AND EXISTS (
+							SELECT 1
+							FROM sys.databases d
+							WHERE d.database_id = CONVERT(INT, pa.value) AND d.is_query_store_on = 1
+						)
 				)
 				SELECT
 					TOP (@TopN) qs.query_id,
