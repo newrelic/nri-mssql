@@ -154,7 +154,7 @@ var Queries = []models.QueryDetailsDto{
 				  SET @sql = N'USE ' + QUOTENAME(@dbName) + ';
 				  WITH LatestInterval AS (
 					SELECT 
-					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_sql_text, -- Truncate query text
+					  qsqt.query_sql_text, 
 					  MAX(ws.runtime_stats_interval_id) AS max_runtime_stats_interval_id
 					FROM 
 					  sys.query_store_wait_stats ws
@@ -170,12 +170,12 @@ var Queries = []models.QueryDetailsDto{
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
 					  AND qsq.last_execution_time > DATEADD(second, -' + CAST(@IntervalSeconds AS NVARCHAR(10)) + ', GETUTCDATE())
 					GROUP BY 
-					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ')
+					  qsqt.query_sql_text 
 				  ),
 				  WaitStates AS (
 					SELECT 
 					  ws.runtime_stats_interval_id,
-					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_text, -- Truncate query text
+					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_text, -- Truncate query text for the output
 					  qsq.last_execution_time,
 					  ws.wait_category_desc AS wait_category,
 					  ws.total_query_wait_time_ms AS total_wait_time_ms,
