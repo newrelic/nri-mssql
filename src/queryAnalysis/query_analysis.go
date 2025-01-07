@@ -27,6 +27,8 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 		return
 	}
 
+	utils.ValidateAndSetDefaults(&arguments)
+
 	var retryMechanism retrymechanism.RetryMechanism = &retrymechanism.RetryMechanismImpl{}
 
 	queryDetails, err := utils.LoadQueries(arguments)
