@@ -1,18 +1,17 @@
-package queryAnalysis
+package queryanalysis
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/retrymechanism"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/utils"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/validation"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/retrymechanism"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
 
-// queryPerformanceMain runs all types of analyses
+// queryPerformanceMain runs all types of analyzes
 func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
-
 	// Create a new connection
 	sqlConnection, err := connection.NewConnection(&arguments)
 	if err != nil {

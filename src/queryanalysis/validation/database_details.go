@@ -2,8 +2,8 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 
 // GetDatabaseDetails gets the details of user databases

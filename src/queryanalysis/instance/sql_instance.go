@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 )
 
 // instanceNameQuery gets the instance name

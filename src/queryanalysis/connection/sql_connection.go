@@ -53,7 +53,6 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 // CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
 func CreateConnectionURL(args *args.ArgumentList) string {
-
 	connectionString := ""
 
 	connectionURL := &url.URL{
@@ -83,7 +82,6 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 		} else {
 			log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
 		}
-
 	}
 
 	if args.EnableSSL {

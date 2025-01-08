@@ -1,6 +1,6 @@
 package config
 
-import "github.com/newrelic/nri-mssql/src/queryAnalysis/models"
+import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 
 var Queries = []models.QueryDetailsDto{
 	{

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
