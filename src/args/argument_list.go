@@ -30,7 +30,7 @@ type ArgumentList struct {
 	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
 	EnableQueryPerformance       bool   `default:"false"`
 	QueryResponseTimeThreshold   int    `default:"0"`
-	QueryCountThreshold          int    `default:"10"`
+	QueryCountThreshold          int    `default:"20"`
 	FetchInterval                int    `default:"15"`
 }
 

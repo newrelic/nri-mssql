@@ -344,3 +344,8 @@ ORDER BY plan_handle, NodeId;
 `
 
 var TextTruncateLimit = 4094
+
+var QueryResponseTimeThresholdDefault = 0
+var SlowQueryCountThresholdDefault = 20
+var IndividualQueryCountMax = 10
+var GroupedQueryCountMax = 30
