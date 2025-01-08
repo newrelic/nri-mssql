@@ -239,7 +239,8 @@ var Queries = []models.QueryDetailsDto{
 	},
 	{
 		Name: "MSSQLBlockingSessionQueries",
-		Query: `DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
+		Query: `DECLARE @Limit INT = %d; -- Define the limit for the number of rows returned
+				DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
 				WITH blocking_info AS (
 					SELECT
 						req.blocking_session_id AS blocking_spid,
@@ -260,7 +261,7 @@ var Queries = []models.QueryDetailsDto{
 					WHERE
 						req.blocking_session_id != 0
 				)
-				SELECT
+				SELECT TOP (@Limit)
 					blocking_info.blocking_spid,
 					blocking_sessions.status AS blocking_status,
 					blocking_info.blocked_spid,
@@ -268,6 +269,7 @@ var Queries = []models.QueryDetailsDto{
 					blocking_info.wait_type,
 					blocking_info.wait_time_in_seconds,
 					blocking_info.command_type,
+					blocking_info.start_time AS blocked_query_start_time,
 					DB_NAME(blocking_info.database_id) AS database_name,
 					CASE
 						WHEN blocking_sql.text IS NULL THEN LEFT(input_buffer.event_info, @TextTruncateLimit)
@@ -281,9 +283,10 @@ var Queries = []models.QueryDetailsDto{
 				OUTER APPLY sys.dm_exec_sql_text(blocking_info.blocking_sql_handle) AS blocking_sql
 				OUTER APPLY sys.dm_exec_sql_text(blocking_info.blocked_sql_handle) AS blocked_sql
 				OUTER APPLY sys.dm_exec_input_buffer(blocking_info.blocking_spid, NULL) AS input_buffer
+				JOIN sys.databases AS db ON db.database_id = blocking_info.database_id
+				WHERE db.is_query_store_on = 1
 				ORDER BY
-					blocking_info.blocking_spid,
-					blocking_info.blocked_spid;`,
+    				blocking_info.start_time;`,
 		Type: "blockingSessions",
 	},
 }
