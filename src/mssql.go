@@ -9,11 +9,13 @@ import (
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"github.com/newrelic/nri-mssql/src/queryanalysis"
 )
 
 const (
@@ -89,6 +91,11 @@ func main() {
 
 	if err = i.Publish(); err != nil {
 		log.Error(err.Error())
-		os.Exit(1)
+		return
+	}
+	i.Clear()
+
+	if args.EnableQueryPerformance {
+		queryanalysis.QueryPerformanceMain(i, args)
 	}
 }
