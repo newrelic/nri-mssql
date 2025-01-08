@@ -29,4 +29,4 @@ require (
 // Before go 1.23 these certificates where accepted, now the corresponding go debug variable is needed
 // to restore the previous behavior
 // <https://cs.opensource.google/go/go/+/refs/tags/go1.23.1:src/crypto/x509/parser.go;l=1019>
-//godebug x509negativeserial=1
+godebug x509negativeserial=1
