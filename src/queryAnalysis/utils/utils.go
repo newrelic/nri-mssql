@@ -109,9 +109,9 @@ func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	sqlConnection *connection.SQLConnection,
 	queryId models.HexString) {
 
-	hexQueryId := string(queryId)
+	hexQueryID := string(queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
-		arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval, config.TextTruncateLimit)
+		arguments.QueryResponseTimeThreshold, hexQueryID, arguments.FetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
