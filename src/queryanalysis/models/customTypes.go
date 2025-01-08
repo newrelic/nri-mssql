@@ -7,8 +7,10 @@ import (
 )
 
 // these are custom type for handling SQL Server varbinary(64) fields.
-type HexString string
-type VarBinary64 string
+type (
+	HexString   string
+	VarBinary64 string
+)
 
 // Define static errors
 var (

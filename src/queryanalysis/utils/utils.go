@@ -19,8 +19,10 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 
-var ErrUnknownQueryType = errors.New("unknown query type")
-var ErrCreatingInstanceEntity = errors.New("error creating instance entity")
+var (
+	ErrUnknownQueryType       = errors.New("unknown query type")
+	ErrCreatingInstanceEntity = errors.New("error creating instance entity")
+)
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	queries := config.Queries
@@ -43,7 +45,6 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -58,7 +59,6 @@ func BindQueryResults(arguments args.ArgumentList,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-
 	defer rows.Close()
 
 	results := make([]interface{}, 0)
@@ -101,7 +101,6 @@ func BindQueryResults(arguments args.ArgumentList,
 		}
 	}
 	return results, nil
-
 }
 
 func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
@@ -148,7 +147,6 @@ func IngestQueryMetricsInBatches(results []interface{},
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection) error {
-
 	const batchSize = 100
 
 	for start := 0; start < len(results); start += batchSize {
@@ -182,7 +180,6 @@ func convertResultToMap(result interface{}) (map[string]interface{}, error) {
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
-
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
 		log.Error("%w: %v", ErrCreatingInstanceEntity, err)
@@ -205,7 +202,6 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 			metricType := DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
 				if floatValue, err := strconv.ParseFloat(strValue, 64); err == nil {
-
 					if err := metricSet.SetMetric(key, floatValue, metric.GAUGE); err != nil {
 						// Handle the error. This could be logging, returning the error, etc.
 						log.Error("failed to set metric: %v", err)

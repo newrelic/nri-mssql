@@ -16,7 +16,6 @@ func TestRetry_SuccessOnFirstAttempt(t *testing.T) {
 	err := retryMechanism.Retry(func() error {
 		return nil
 	})
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -55,7 +54,6 @@ func TestRetry_SuccessOnSubsequentAttempt(t *testing.T) {
 		}
 		return errTryAgain
 	})
-
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
