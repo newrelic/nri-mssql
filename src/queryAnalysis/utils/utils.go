@@ -1,21 +1,25 @@
 package utils
 
 import (
-	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/config"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/instance"
 	"github.com/newrelic/nri-mssql/src/queryAnalysis/models"
-	"regexp"
-	"strconv"
 )
+
+var ErrUnknownQueryType = errors.New("unknown query type")
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	var queries []models.QueryDetailsDto = config.Queries
@@ -92,7 +96,7 @@ func BindQueryResults(arguments args.ArgumentList,
 			AnonymizeQueryText(model.BlockingQueryText)
 			results = append(results, model)
 		default:
-			return nil, fmt.Errorf("unknown query type: %s", queryDetailsDto.Type)
+			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
 	return results, nil
@@ -104,7 +108,7 @@ func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
 	sqlConnection *connection.SQLConnection,
 	queryId models.HexString) {
 
-	hexQueryId := fmt.Sprintf("%s", queryId)
+	hexQueryId := string(queryId)
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryCountThreshold),
 		arguments.QueryResponseTimeThreshold, hexQueryId, arguments.FetchInterval, config.TextTruncateLimit)
 
@@ -167,17 +171,20 @@ func IngestQueryMetricsInBatches(results []interface{},
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
 
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
+	if err != nil {
+		return fmt.Errorf("Error creating instance entity: %v", err)
+	}
 
 	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		var resultMap map[string]interface{}
 		data, err := json.Marshal(result)
 		if err != nil {
-			return fmt.Errorf("error marshalling to JSON: %w", err)
+			log.Error("error marshaling to JSON: %w", err)
 		}
 		err = json.Unmarshal(data, &resultMap)
 		if err != nil {
-			return fmt.Errorf("error unmarshalling to map: %w", err)
+			log.Error("error unmarshaling to map: %w", err)
 		}
 
 		// Create a new metric set with the query name
@@ -189,10 +196,17 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 			metricType := DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
 				if floatValue, err := strconv.ParseFloat(strValue, 64); err == nil {
-					metricSet.SetMetric(key, floatValue, metric.GAUGE)
+
+					if err := metricSet.SetMetric(key, floatValue, metric.GAUGE); err != nil {
+						// Handle the error. This could be logging, returning the error, etc.
+						log.Error("failed to set metric: %v", err)
+					}
 				}
 			} else {
-				metricSet.SetMetric(key, strValue, metric.ATTRIBUTE)
+				if err := metricSet.SetMetric(key, strValue, metric.ATTRIBUTE); err != nil {
+					// Handle the error. This could be logging, returning the error, etc.
+					log.Error("failed to set metric: %v", err)
+				}
 			}
 		}
 	}
