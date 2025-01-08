@@ -31,7 +31,6 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 	var retryMechanism retrymechanism.RetryMechanism = &retrymechanism.RetryMechanismImpl{}
 
 	queryDetails, err := utils.LoadQueries(arguments)
-
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
@@ -51,7 +50,6 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			}
 			return nil
 		})
-
 		if err != nil {
 			log.Error("Failed after retries: %s", err)
 		}
