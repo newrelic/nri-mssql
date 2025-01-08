@@ -173,7 +173,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrCreatingInstanceEntity, err)
+		log.Error("%w: %v", ErrCreatingInstanceEntity, err)
 	}
 
 	for _, result := range results {
