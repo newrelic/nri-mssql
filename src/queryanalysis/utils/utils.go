@@ -33,7 +33,7 @@ func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) 
 		case "waitAnalysis":
 			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.FetchInterval, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		case "blockingSessions":
-			queries[i].Query = fmt.Sprintf(queries[i].Query, config.TextTruncateLimit)
+			queries[i].Query = fmt.Sprintf(queries[i].Query, arguments.QueryCountThreshold, config.TextTruncateLimit)
 		default:
 			fmt.Println("Unknown query type:", queries[i].Type)
 		}
