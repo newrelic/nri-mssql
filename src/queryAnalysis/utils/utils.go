@@ -20,6 +20,7 @@ import (
 )
 
 var ErrUnknownQueryType = errors.New("unknown query type")
+var ErrCreatingInstanceEntity = errors.New("error creating instance entity")
 
 func LoadQueries(arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	var queries []models.QueryDetailsDto = config.Queries
@@ -172,7 +173,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
-		return fmt.Errorf("Error creating instance entity: %v", err)
+		return fmt.Errorf("%w: %v", ErrCreatingInstanceEntity, err)
 	}
 
 	for _, result := range results {
