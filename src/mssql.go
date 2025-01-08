@@ -3,18 +3,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryAnalysis"
 	"os"
 	"runtime"
 	"strings"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
+	"github.com/newrelic/nri-mssql/src/queryAnalysis"
 )
 
 const (

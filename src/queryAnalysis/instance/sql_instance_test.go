@@ -11,6 +11,8 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
+var ErrMockQueryFailure = errors.New("mock query failure")
+
 func Test_createInstanceEntity_QueryError(t *testing.T) {
 	i, err := integration.New("test", "1.0.0")
 	if err != nil {
@@ -20,7 +22,7 @@ func Test_createInstanceEntity_QueryError(t *testing.T) {
 
 	conn, mock := connection.CreateMockSQL(t)
 
-	mock.ExpectQuery(instanceNameQuery).WillReturnError(errors.New("error"))
+	mock.ExpectQuery(instanceNameQuery).WillReturnError(ErrMockQueryFailure)
 
 	if _, err := CreateInstanceEntity(i, conn); err == nil {
 		t.Error("Did not return expected error")
