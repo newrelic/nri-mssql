@@ -32,7 +32,6 @@ func main() {
 	var args args.ArgumentList
 	// Create Integration
 	i, err := integration.New(integrationName, integrationVersion, integration.Args(&args))
-
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -99,5 +98,4 @@ func main() {
 	if args.EnableQueryPerformance {
 		queryanalysis.QueryPerformanceMain(i, args)
 	}
-
 }
