@@ -1,14 +1,15 @@
 package models
 
 type BlockingSessionQueryDetails struct {
-	BlockingSPID      *int64   `db:"blocking_spid"`
-	BlockingStatus    *string  `db:"blocking_status"`
-	BlockedSPID       *int64   `db:"blocked_spid"`
-	BlockedStatus     *string  `db:"blocked_status"`
-	WaitType          *string  `db:"wait_type"`
-	WaitTimeInSeconds *float64 `db:"wait_time_in_seconds"`
-	CommandType       *string  `db:"command_type"`
-	DatabaseName      *string  `db:"database_name"`
-	BlockingQueryText *string  `db:"blocking_query_text"`
-	BlockedQueryText  *string  `db:"blocked_query_text"`
+	BlockingSPID          *int64   `db:"blocking_spid"`
+	BlockingStatus        *string  `db:"blocking_status"`
+	BlockedSPID           *int64   `db:"blocked_spid"`
+	BlockedStatus         *string  `db:"blocked_status"`
+	WaitType              *string  `db:"wait_type"`
+	WaitTimeInSeconds     *float64 `db:"wait_time_in_seconds"`
+	CommandType           *string  `db:"command_type"`
+	DatabaseName          *string  `db:"database_name"`
+	BlockingQueryText     *string  `db:"blocking_query_text"`
+	BlockedQueryText      *string  `db:"blocked_query_text"`
+	BlockedQueryStartTime *string  `db:"blocked_query_start_time"`
 }
