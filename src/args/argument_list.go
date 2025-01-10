@@ -28,10 +28,10 @@ type ArgumentList struct {
 	ShowVersion                  bool   `default:"false" help:"Print build information and exit"`
 	ExtraConnectionURLArgs       string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 	EnableDiskMetricsInBytes     bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
-	EnableQueryPerformance       bool   `default:"false"`
-	QueryResponseTimeThreshold   int    `default:"0"`
-	QueryCountThreshold          int    `default:"20"`
-	FetchInterval                int    `default:"15"`
+	EnableQueryPerformance       bool   `default:"false" help:"Enable collection of detailed query performance metrics."`
+	QueryResponseTimeThreshold   int    `default:"0" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
+	QueryCountThreshold          int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
+	FetchInterval                int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
 }
 
 // Validate validates SQL specific arguments
