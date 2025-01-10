@@ -122,8 +122,7 @@ var Queries = []models.QueryDetailsDto{
 	},
 	{
 		Name: "MSSQLWaitTimeAnalysis",
-		Query: `DECLARE @IntervalSeconds INT = %d;     	-- Define the interval in seconds
-				DECLARE @TopN INT = %d; 				-- Number of results to retrieve
+		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
 				DECLARE @sql NVARCHAR(MAX) = '';
 				DECLARE @dbName NVARCHAR(128);
@@ -173,7 +172,6 @@ var Queries = []models.QueryDetailsDto{
 					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-					  AND qsq.last_execution_time > DATEADD(second, -' + CAST(@IntervalSeconds AS NVARCHAR(10)) + ', GETUTCDATE())
 					GROUP BY 
 					  qsqt.query_sql_text 
 				  ),
@@ -209,7 +207,6 @@ var Queries = []models.QueryDetailsDto{
 					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-					  AND qsq.last_execution_time > DATEADD(second, -' + CAST(@IntervalSeconds AS NVARCHAR(10)) + ', GETUTCDATE())
 				  )
 				  SELECT
 					query_id,
@@ -229,12 +226,10 @@ var Queries = []models.QueryDetailsDto{
 				
 				  FETCH NEXT FROM db_cursor INTO @dbName;
 				END
-				
 				CLOSE db_cursor;
 				DEALLOCATE db_cursor;
-				
 				SELECT TOP (@TopN) * FROM @resultTable 
-				ORDER BY last_execution_time DESC;`,
+				ORDER BY total_wait_time_ms DESC;`,
 		Type: "waitAnalysis",
 	},
 	{
