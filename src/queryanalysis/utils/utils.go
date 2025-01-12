@@ -76,7 +76,9 @@ func BindQueryResults(arguments args.ArgumentList,
 			results = append(results, model)
 
 			// fetch and generate execution plan
-			GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+			if model.QueryID != nil {
+				GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+			}
 
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
@@ -183,7 +185,6 @@ func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
 	floatValue, err := strconv.ParseFloat(strValue, 64)
 	if err != nil {
 		log.Error("failed to parse float value for key %s: %v", key, err)
-		return
 	}
 
 	err = metricSet.SetMetric(key, floatValue, metric.GAUGE)
@@ -241,6 +242,9 @@ func DetectMetricType(value string) metric.SourceType {
 }
 
 func AnonymizeQueryText(query *string) {
+	if query == nil {
+		return
+	}
 	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
