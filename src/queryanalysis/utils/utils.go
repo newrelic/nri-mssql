@@ -49,7 +49,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-
+	defer rows.Close()
 	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 }
 
@@ -59,8 +59,6 @@ func BindQueryResults(arguments args.ArgumentList,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	defer rows.Close()
-
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
