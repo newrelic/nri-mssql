@@ -185,6 +185,7 @@ func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
 	floatValue, err := strconv.ParseFloat(strValue, 64)
 	if err != nil {
 		log.Error("failed to parse float value for key %s: %v", key, err)
+		return
 	}
 
 	err = metricSet.SetMetric(key, floatValue, metric.GAUGE)

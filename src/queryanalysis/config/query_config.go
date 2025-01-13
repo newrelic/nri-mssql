@@ -308,7 +308,7 @@ TopPlans AS (
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
     WHERE CONVERT(NVARCHAR(50), qs.query_hash) = @QueryID 
-    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETDATE()) AND GETDATE() 
+    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE()) AND GETUTCDATE() 
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
 ),
