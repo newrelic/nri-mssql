@@ -240,11 +240,12 @@ func DetectMetricType(value string) metric.SourceType {
 	return metric.GAUGE
 }
 
+var re = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+
 func AnonymizeQueryText(query *string) {
 	if query == nil {
 		return
 	}
-	re := regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 	anonymizedQuery := re.ReplaceAllString(*query, "?")
 	*query = anonymizedQuery
 }
