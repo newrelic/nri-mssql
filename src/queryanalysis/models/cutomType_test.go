@@ -70,3 +70,32 @@ func TestHexString_Scan(t *testing.T) {
 		return string(hex), err
 	})
 }
+
+func TestVarBinary64_Scan(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   interface{}
+		want    string
+		wantErr error
+	}{
+		{
+			name:    "VarBinary64: valid byte slice",
+			input:   []byte{0x12, 0x34, 0xab, 0xcd},
+			want:    "0x1234abcd",
+			wantErr: nil,
+		},
+
+		{
+			name:    "input value is nil",
+			input:   nil,
+			want:    "",
+			wantErr: fmt.Errorf("%w, got %T", ErrExpectedByteSlice, nil),
+		},
+	}
+
+	runScanTests(t, tests, func(input interface{}) (string, error) {
+		var vb VarBinary64
+		err := vb.Scan(input)
+		return string(vb), err
+	})
+}
