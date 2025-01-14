@@ -5,11 +5,37 @@ import (
 	"testing"
 )
 
+func runScanTests(t *testing.T, tests []struct {
+	name    string
+	input   interface{}
+	want    string
+	wantErr error
+}, scanFunc func(interface{}) (string, error)) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := scanFunc(tt.input)
+
+			if tt.wantErr != nil {
+				if err == nil || err.Error() != tt.wantErr.Error() {
+					t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Scan() unexpected error = %v", err)
+				}
+				if got != tt.want {
+					t.Errorf("Scan() = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestHexString_Scan(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   interface{}
-		want    HexString
+		want    string
 		wantErr error
 	}{
 		{
@@ -38,32 +64,18 @@ func TestHexString_Scan(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var h HexString
-			err := h.Scan(tt.input)
-
-			if tt.wantErr != nil {
-				if err == nil || err.Error() != tt.wantErr.Error() {
-					t.Errorf("HexString.Scan() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("HexString.Scan() unexpected error = %v", err)
-				}
-				if h != tt.want {
-					t.Errorf("HexString.Scan() = %v, want %v", h, tt.want)
-				}
-			}
-		})
-	}
+	runScanTests(t, tests, func(input interface{}) (string, error) {
+		var hex HexString
+		err := hex.Scan(input)
+		return string(hex), err
+	})
 }
 
 func TestVarBinary64_Scan(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   interface{}
-		want    VarBinary64
+		want    string
 		wantErr error
 	}{
 		{
@@ -92,23 +104,9 @@ func TestVarBinary64_Scan(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var vb VarBinary64
-			err := vb.Scan(tt.input)
-
-			if tt.wantErr != nil {
-				if err == nil || err.Error() != tt.wantErr.Error() {
-					t.Errorf("VarBinary64.Scan() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("VarBinary64.Scan() unexpected error = %v", err)
-				}
-				if vb != tt.want {
-					t.Errorf("VarBinary64.Scan() = %v, want %v", vb, tt.want)
-				}
-			}
-		})
-	}
+	runScanTests(t, tests, func(input interface{}) (string, error) {
+		var vb VarBinary64
+		err := vb.Scan(input)
+		return string(vb), err
+	})
 }
