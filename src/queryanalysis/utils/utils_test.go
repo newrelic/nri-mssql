@@ -318,6 +318,101 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 	}
 }
 
+// utils_test.go
+
+func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
+	// Setup: Ensure config.Queries uses all %d format specifiers as intended
+	config.Queries = []models.QueryDetailsDto{
+		{
+			Name:  "MSSQLTopSlowQueries",
+			Type:  "slowQueries",
+			Query: "SELECT * FROM slow_queries WHERE condition",
+		},
+		{
+			Name:  "MSSQLWaitTimeAnalysis",
+			Type:  "waitAnalysis",
+			Query: "SELECT * FROM wait_analysis WHERE condition",
+		},
+		{
+			Name:  "MSSQLBlockingSessionQueries",
+			Type:  "blockingSessions",
+			Query: "SELECT * FROM blocking_sessions WHERE condition",
+		},
+	}
+
+	// Setup: Create a sample ArgumentList with realistic values that will be used to replace the %d format specifiers
+	sampleArgs := args.ArgumentList{
+		FetchInterval:              15,
+		QueryCountThreshold:        25,
+		QueryResponseTimeThreshold: 35,
+	}
+	// Expected queries after formatting
+	expectedQueries := []models.QueryDetailsDto{
+		{
+			Name:  "MSSQLTopSlowQueries",
+			Type:  "slowQueries",
+			Query: fmt.Sprintf(config.Queries[0].Query, sampleArgs.FetchInterval, sampleArgs.QueryCountThreshold, sampleArgs.QueryResponseTimeThreshold, config.TextTruncateLimit),
+		},
+		{
+			Name:  "MSSQLWaitTimeAnalysis",
+			Type:  "waitAnalysis",
+			Query: fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+		},
+		{
+			Name:  "MSSQLBlockingSessionQueries",
+			Type:  "blockingSessions",
+			Query: fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+		},
+	}
+	// Execute the function
+	loadedQueries, err := LoadQueries(sampleArgs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Assertions
+	if len(loadedQueries) != len(expectedQueries) {
+		t.Errorf("expected %d queries, got %d", len(expectedQueries), len(loadedQueries))
+	}
+	for i, expected := range expectedQueries {
+		if len(loadedQueries) <= i {
+			t.Fatalf("missing query at index %d", i)
+		}
+		if loadedQueries[i].Name != expected.Name {
+			t.Errorf("query %d: expected name '%s', got '%s'", i, expected.Name, loadedQueries[i].Name)
+		}
+		if loadedQueries[i].Type != expected.Type {
+			t.Errorf("query %d: expected type '%s', got '%s'", i, expected.Type, loadedQueries[i].Type)
+		}
+		// Compare the formatted queries
+		if loadedQueries[i].Query != expected.Query {
+			t.Errorf("query %d: \nexpected query:\n%s\ngot query:\n%s", i, expected.Query, loadedQueries[i].Query)
+		}
+	}
+}
+
+func TestLoadQueries_EmptyConfig(t *testing.T) {
+	// Setup: Empty config.Queries
+	config.Queries = []models.QueryDetailsDto{}
+
+	// Setup: Sample ArgumentList
+	sampleArgs := args.ArgumentList{
+		FetchInterval:              10,
+		QueryCountThreshold:        20,
+		QueryResponseTimeThreshold: 30,
+	}
+
+	// Execute the function
+	loadedQueries, err := LoadQueries(sampleArgs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Assertions
+	if len(loadedQueries) != 0 {
+		t.Errorf("expected 0 queries, got %d", len(loadedQueries))
+	}
+}
+
 func TestDetectMetricType_GaugeCase(t *testing.T) {
 	value := "123.45"
 	expected := metric.GAUGE
