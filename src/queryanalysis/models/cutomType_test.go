@@ -5,12 +5,14 @@ import (
 	"testing"
 )
 
-func runScanTests(t *testing.T, tests []struct {
+type scanTestCase struct {
 	name    string
 	input   interface{}
 	want    string
 	wantErr error
-}, scanFunc func(interface{}) (string, error)) {
+}
+
+func runScanTests(t *testing.T, tests []scanTestCase, scanFunc func(interface{}) (string, error)) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := scanFunc(tt.input)
@@ -32,12 +34,7 @@ func runScanTests(t *testing.T, tests []struct {
 }
 
 func TestHexString_Scan(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   interface{}
-		want    string
-		wantErr error
-	}{
+	tests := []scanTestCase{
 		{
 			name:    "valid byte slice",
 			input:   []uint8{0x12, 0x34, 0xab, 0xcd},
@@ -72,12 +69,7 @@ func TestHexString_Scan(t *testing.T) {
 }
 
 func TestVarBinary64_Scan(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   interface{}
-		want    string
-		wantErr error
-	}{
+	tests := []scanTestCase{
 		{
 			name:    "valid byte slice",
 			input:   []byte{0x12, 0x34, 0xab, 0xcd},
