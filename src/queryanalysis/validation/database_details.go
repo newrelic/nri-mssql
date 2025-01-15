@@ -2,6 +2,7 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
@@ -24,7 +25,7 @@ func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.Datab
 		}
 
 		// Filter out system databases using their database_id
-		if model.DatabaseID > 4 {
+		if model.DatabaseID > config.MaxSystemDatabaseID {
 			databaseDetailsResults = append(databaseDetailsResults, model)
 		}
 	}

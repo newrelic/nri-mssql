@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,9 +33,6 @@ func TestValidatePreConditions(t *testing.T) {
 func TestValidatePreConditions_ErrorGettingDatabaseDetails(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
-
-	// Assume errQueryError is predefined somewhere in your test suite
-	errQueryError := errors.New("mock query error")
 
 	// Mock GetDatabaseDetails error
 	mock.ExpectQuery("(?i)SELECT database_id, name, compatibility_level, is_query_store_on FROM sys\\.databases").

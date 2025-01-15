@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -9,6 +10,10 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
+// constants
+var errQueryError = errors.New("query error")
+
+// util functions
 func setupMockDB(t *testing.T) (*connection.SQLConnection, sqlmock.Sqlmock) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
