@@ -75,7 +75,7 @@ func BindQueryResults(arguments args.ArgumentList,
 
 			// fetch and generate execution plan
 			if model.QueryID != nil {
-				GenerateAndInjestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
+				GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, *model.QueryID)
 			}
 
 		case "waitAnalysis":
@@ -103,7 +103,7 @@ func BindQueryResults(arguments args.ArgumentList,
 	return results, nil
 }
 
-func GenerateAndInjestExecutionPlan(arguments args.ArgumentList,
+func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 	queryID models.HexString) {
