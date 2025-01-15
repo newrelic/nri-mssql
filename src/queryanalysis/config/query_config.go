@@ -348,4 +348,5 @@ var (
 	SlowQueryCountThresholdDefault    = 20
 	IndividualQueryCountMax           = 10
 	GroupedQueryCountMax              = 30
+	MaxSystemDatabaseID               = 4
 )

@@ -11,10 +11,10 @@ func TestValidatePreConditions(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()
 
-	// Mock GetDatabaseDetails
-	mock.ExpectQuery("(?i)select name, compatibility_level, is_query_store_on from sys\\.databases").WillReturnRows(
-		sqlmock.NewRows([]string{"name", "compatibility_level", "is_query_store_on"}).
-			AddRow("TestDB", 100, true),
+	// Mock GetDatabaseDetails to match the updated query
+	mock.ExpectQuery("(?i)SELECT database_id, name, compatibility_level, is_query_store_on FROM sys\\.databases").WillReturnRows(
+		sqlmock.NewRows([]string{"database_id", "name", "compatibility_level", "is_query_store_on"}).
+			AddRow(100, "TestDB", 100, true),
 	)
 
 	// Mock checkPermissions
@@ -35,7 +35,8 @@ func TestValidatePreConditions_ErrorGettingDatabaseDetails(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mock GetDatabaseDetails error
-	mock.ExpectQuery("(?i)select name, compatibility_level, is_query_store_on from sys\\.databases").WillReturnError(errQueryError)
+	mock.ExpectQuery("(?i)SELECT database_id, name, compatibility_level, is_query_store_on FROM sys\\.databases").
+		WillReturnError(errQueryError)
 
 	result := ValidatePreConditions(sqlConnection)
 	assert.False(t, result)
