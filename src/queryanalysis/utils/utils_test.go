@@ -319,7 +319,6 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 }
 
 // utils_test.go
-
 func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 	// Setup: Ensure config.Queries uses all %d format specifiers as intended
 	config.Queries = []models.QueryDetailsDto{

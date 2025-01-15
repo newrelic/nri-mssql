@@ -9,13 +9,18 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## v2.16.0 - 2024-12-19
+
+### 🚀 Enhancements
+- Updated golang.org/x/net to v0.33.0
+
+## v2.15.0 - 2024-12-17
+
+### 🚀 Enhancements
+- Updated goreleaser to v2.4.4
+- Added FIPS compliant packages and archives
+
 ## v2.14.1 - 2024-12-17
-
-### dependency
-- Update goreleaser to v2.4.4
-
-### enhancements
-- Add FIPS compliant packages and archives
 
 ### dependency
 - Updated golang.org/x/crypto to v0.31.0
