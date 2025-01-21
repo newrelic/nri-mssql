@@ -9,6 +9,13 @@ import (
 
 // GetDatabaseDetails gets the details of user databases
 func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.DatabaseDetailsDto, error) {
+
+	isSupported := checkSQLServerVersion(sqlConnection)
+	if !isSupported {
+		log.Error("Unsupported SQL Server version.")
+		return nil, nil
+	}
+
 	rows, err := sqlConnection.Queryx("SELECT database_id, name, compatibility_level, is_query_store_on FROM sys.databases")
 	if err != nil {
 		log.Error("Error getting database details:", err)

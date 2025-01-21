@@ -95,7 +95,7 @@ func main() {
 	}
 	i.Clear()
 
-	if args.EnableQueryPerformance {
+	if args.EnableQueryMonitoring {
 		queryanalysis.QueryPerformanceMain(i, args)
 	}
 }

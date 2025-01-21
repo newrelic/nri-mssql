@@ -252,7 +252,7 @@ func AnonymizeQueryText(query *string) {
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults
 func ValidateAndSetDefaults(args *args.ArgumentList) {
-	// Since EnableQueryPerformance is a boolean, no need to reset as it can't be invalid in this context
+	// Since EnableQueryMonitoring is a boolean, no need to reset as it can't be invalid in this context
 	if args.QueryResponseTimeThreshold < 0 {
 		args.QueryResponseTimeThreshold = config.QueryResponseTimeThresholdDefault
 	}
