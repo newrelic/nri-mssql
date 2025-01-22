@@ -10,6 +10,8 @@ const versionCompatibility = 90
 
 // ValidatePreConditions checks if the database is compatible with the integration
 func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
+	log.Debug("Starting pre-requisite validation")
+
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 	if err != nil {
 		log.Error("Error getting database details:", err)
@@ -24,6 +26,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 		return false
 	}
 
+	log.Debug("Pre-requisite validation completed successfully")
 	return true
 }
 

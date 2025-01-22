@@ -10,8 +10,10 @@ import (
 )
 
 // queryPerformanceMain runs all types of analyzes
-func QueryPerformanceMain(integration *integration.Integration, arguments args.ArgumentList) {
+func PopulateQueryPerformanceMetrics(integration *integration.Integration, arguments args.ArgumentList) {
 	// Create a new connection
+	log.Debug("Starting query analysis...")
+
 	sqlConnection, err := connection.NewConnection(&arguments)
 	if err != nil {
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
@@ -49,4 +51,6 @@ func QueryPerformanceMain(integration *integration.Integration, arguments args.A
 			log.Error("Failed after retries: %s", err)
 		}
 	}
+	log.Debug("Query analysis completed")
+
 }
