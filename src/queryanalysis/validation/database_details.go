@@ -7,6 +7,11 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 
+const getDatabaseDetailsQuery = `
+	SELECT database_id, name, compatibility_level, is_query_store_on 
+	FROM sys.databases
+`
+
 // GetDatabaseDetails gets the details of user databases
 func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.DatabaseDetailsDto, error) {
 
@@ -16,7 +21,7 @@ func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.Datab
 		return nil, nil
 	}
 
-	rows, err := sqlConnection.Queryx("SELECT database_id, name, compatibility_level, is_query_store_on FROM sys.databases")
+	rows, err := sqlConnection.Queryx(getDatabaseDetailsQuery)
 	if err != nil {
 		log.Error("Error getting database details:", err)
 		return nil, err

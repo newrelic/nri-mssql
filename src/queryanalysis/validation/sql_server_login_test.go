@@ -2,6 +2,7 @@
 package validation
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,11 +26,11 @@ func TestCheckPermissionsAndLogin_LoginEnabledError(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mock checkPermissions
-	mock.ExpectQuery("SELECT CASE WHEN IS_SRVROLEMEMBER\\('sysadmin'\\) = 1 OR HAS_PERMS_BY_NAME\\(null, null, 'VIEW SERVER STATE'\\) = 1 THEN 1 ELSE 0 END AS has_permission").
+	mock.ExpectQuery(regexp.QuoteMeta(checkPermissionsQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"has_permission"}).AddRow(true))
 
 	// Mock checkSQLServerLoginEnabled error
-	mock.ExpectQuery("SELECT CASE WHEN SERVERPROPERTY\\('IsIntegratedSecurityOnly'\\) = 0 THEN 1 ELSE 0 END AS is_login_enabled").
+	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
 		WillReturnError(errQueryError)
 
 	result := checkPermissionsAndLogin(sqlConnection)

@@ -19,6 +19,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		log.Error("Error creating connection to SQL Server: %s", err.Error())
 		return
 	}
+	defer sqlConnection.Close()
 
 	// Validate preconditions
 	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
@@ -45,10 +46,6 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 		if err != nil {
 			log.Error("Failed to ingest metrics: %s", err)
 			continue
-		}
-
-		if err != nil {
-			log.Error("Failed after retries: %s", err)
 		}
 	}
 	log.Debug("Query analysis completed")

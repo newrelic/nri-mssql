@@ -345,7 +345,7 @@ ORDER BY plan_handle, NodeId;
 const TextTruncateLimit = 4094
 
 var (
-	QueryResponseTimeThresholdDefault = 0
+	QueryResponseTimeThresholdDefault = 500
 	SlowQueryCountThresholdDefault    = 20
 	IndividualQueryCountMax           = 10
 	GroupedQueryCountMax              = 30

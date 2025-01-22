@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,7 @@ func TestCheckSqlServerVersion_SupportedVersion(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking a supported SQL Server version response
-	mock.ExpectQuery("SELECT @@VERSION").
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow("Microsoft SQL Server 2019 (RTM) - 15.0.2000.5"))
 
 	result := checkSQLServerVersion(sqlConnection)
@@ -25,7 +26,7 @@ func TestCheckSqlServerVersion_UnsupportedVersion(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking an unsupported SQL Server version response
-	mock.ExpectQuery("SELECT @@VERSION").
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow("Microsoft SQL Server 2014 - 12.0.2000.8"))
 
 	result := checkSQLServerVersion(sqlConnection)
@@ -38,7 +39,7 @@ func TestCheckSqlServerVersion_EmptyVersion(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking an empty SQL Server version response
-	mock.ExpectQuery("SELECT @@VERSION").
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow(""))
 
 	result := checkSQLServerVersion(sqlConnection)
@@ -51,7 +52,7 @@ func TestCheckSqlServerVersion_InvalidVersionString(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking a malformed version string
-	mock.ExpectQuery("SELECT @@VERSION").
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow("Microsoft SQL Server  - version unknown"))
 
 	result := checkSQLServerVersion(sqlConnection)
@@ -64,7 +65,7 @@ func TestCheckSqlServerVersion_QueryError(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	// Mocking an error on querying for SQL Server version
-	mock.ExpectQuery("SELECT @@VERSION").WillReturnError(errQueryError)
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).WillReturnError(errQueryError)
 
 	result := checkSQLServerVersion(sqlConnection)
 	assert.False(t, result)

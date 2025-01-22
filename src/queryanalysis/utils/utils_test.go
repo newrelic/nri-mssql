@@ -501,3 +501,14 @@ func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 
 	assert.Equal(t, expected, query, "anonymized query should remain unchanged if there is no sensitive data")
 }
+
+func TestAnonymizeQueryText(t *testing.T) {
+	query := "SELECT * FROM users WHERE id = 1 AND name = 'John'"
+	expected := "SELECT * FROM users WHERE id = ? AND name = ?"
+	AnonymizeQueryText(&query)
+	assert.Equal(t, expected, query)
+	query = "SELECT * FROM employees WHERE id = 10 OR name <> 'John Doe'   OR name != 'John Doe'   OR age < 30 OR age <= 30   OR salary > 50000OR salary >= 50000  OR department LIKE 'Sales%' OR department ILIKE 'sales%'OR join_date BETWEEN '2023-01-01' AND '2023-12-31' OR department IN ('HR', 'Engineering', 'Marketing') OR department IS NOT NULL OR department IS NULL;"
+	expected = "SELECT * FROM employees WHERE id = ? OR name <> ?   OR name != ?   OR age < ? OR age <= ?   OR salary > ?OR salary >= ?  OR department LIKE ? OR department ILIKE ?OR join_date BETWEEN ? AND ? OR department IN (?, ?, ?) OR department IS NOT NULL OR department IS NULL;"
+	AnonymizeQueryText(&query)
+	assert.Equal(t, expected, query)
+}

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -22,11 +23,11 @@ func setupMockDB(t *testing.T) (*connection.SQLConnection, sqlmock.Sqlmock) {
 }
 
 func mockCheckPermissions(mock sqlmock.Sqlmock, hasPermission bool) {
-	mock.ExpectQuery("SELECT CASE WHEN IS_SRVROLEMEMBER\\('sysadmin'\\) = 1 OR HAS_PERMS_BY_NAME\\(null, null, 'VIEW SERVER STATE'\\) = 1 THEN 1 ELSE 0 END AS has_permission").
+	mock.ExpectQuery(regexp.QuoteMeta(checkPermissionsQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"has_permission"}).AddRow(hasPermission))
 }
 
 func mockCheckSQLServerLoginEnabled(mock sqlmock.Sqlmock, isLoginEnabled bool) {
-	mock.ExpectQuery("SELECT CASE WHEN SERVERPROPERTY\\('IsIntegratedSecurityOnly'\\) = 0 THEN 1 ELSE 0 END AS is_login_enabled").
+	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"is_login_enabled"}).AddRow(isLoginEnabled))
 }

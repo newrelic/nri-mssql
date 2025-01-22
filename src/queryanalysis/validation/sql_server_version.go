@@ -8,8 +8,13 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 )
 
+const versionRegexPattern = `\b(\d+\.\d+\.\d+)\b`
+const getSQLServerVersionQuery = "SELECT @@VERSION"
+
+var versionRegex = regexp.MustCompile(versionRegexPattern)
+
 func checkSQLServerVersion(sqlConnection *connection.SQLConnection) bool {
-	rows, err := sqlConnection.Queryx("SELECT @@VERSION\n")
+	rows, err := sqlConnection.Queryx(getSQLServerVersionQuery)
 	if err != nil {
 		log.Error("Error getting Server version:", err)
 		return false
@@ -26,8 +31,7 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) bool {
 		return false
 	}
 	log.Debug("Server version: %s", serverVersion)
-	re := regexp.MustCompile(`\b(\d+\.\d+\.\d+)\b`)
-	versionStr := re.FindString(serverVersion)
+	versionStr := versionRegex.FindString(serverVersion)
 	if versionStr == "" {
 		log.Error("Could not parse version from server version string")
 		return false
