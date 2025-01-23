@@ -1,0 +1,141 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["name", "protocol_version", "integration_version", "data"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the integration"
+      },
+      "protocol_version": {
+        "type": "string",
+        "description": "Version of the protocol"
+      },
+      "integration_version": {
+        "type": "string",
+        "description": "Version of the integration"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["entity", "metrics", "inventory", "events"],
+          "properties": {
+            "entity": {
+              "type": "object",
+              "required": ["name", "type", "id_attributes"],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "id_attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["Key", "Value"],
+                    "properties": {
+                      "Key": {
+                        "type": "string"
+                      },
+                      "Value": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "BlockedQueryStartTime",
+                  "BlockedQueryText",
+                  "BlockedSPID",
+                  "BlockedStatus",
+                  "BlockingQueryText",
+                  "BlockingSPID",
+                  "BlockingStatus",
+                  "CommandType",
+                  "DatabaseName",
+                  "WaitTimeInSeconds",
+                  "WaitType",
+                  "event_type",
+                  "reportingEndpoint"
+                ],
+                "properties": {
+                  "BlockedQueryStartTime": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Start time of the blocked query"
+                  },
+                  "BlockedQueryText": {
+                    "type": "string",
+                    "description": "SQL text of the blocked query"
+                  },
+                  "BlockedSPID": {
+                    "type": "number",
+                    "description": "Session ID of the blocked process"
+                  },
+                  "BlockedStatus": {
+                    "type": "string",
+                    "enum": ["running", "suspended", "sleeping"],
+                    "description": "Status of the blocked session"
+                  },
+                  "BlockingQueryText": {
+                    "type": "string",
+                    "description": "SQL text of the blocking query"
+                  },
+                  "BlockingSPID": {
+                    "type": "number",
+                    "description": "Session ID of the blocking process"
+                  },
+                  "BlockingStatus": {
+                    "type": "string",
+                    "enum": ["running", "suspended", "sleeping"],
+                    "description": "Status of the blocking session"
+                  },
+                  "CommandType": {
+                    "type": "string",
+                    "description": "Type of SQL command"
+                  },
+                  "DatabaseName": {
+                    "type": "string",
+                    "description": "Name of the database"
+                  },
+                  "WaitTimeInSeconds": {
+                    "type": "number",
+                    "description": "Wait time in seconds"
+                  },
+                  "WaitType": {
+                    "type": "string",
+                    "description": "Type of wait occurring"
+                  },
+                  "event_type": {
+                    "type": "string",
+                    "description": "Type of the event"
+                  },
+                  "reportingEndpoint": {
+                    "type": "string",
+                    "description": "Endpoint where metrics are reported"
+                  }
+                }
+              }
+            },
+            "inventory": {
+              "type": "object",
+              "description": "Inventory information"
+            },
+            "events": {
+              "type": "array",
+              "description": "Array of events"
+            }
+          }
+        }
+      }
+    }
+  }

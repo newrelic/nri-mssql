@@ -1,17 +1,66 @@
 services:
 
-  mssql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: mssql
+  mssql-perf-latest:
+    build:
+      context: ./perf-testing/latest_supported
+      dockerfile: Dockerfile
+    restart: always 
+    container_name: "mssql-perf-latest"
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: secret123!
       MSSQL_PID: Developer
-    restart: always
-  nri-mssql:
-    image: golang:1.23.4-bookworm
-    container_name: nri_mssql
-    working_dir: /code
+    ports:
+      - "1433:1433"
     volumes:
-      - ../:/code
-    entrypoint: go run /code/src/mssql.go
+      - mssql-data:/var/opt/mssql/data:rw
+      - mssql-log:/var/opt/mssql/log:rw
+      - mssql-backup:/var/opt/mssql/backup:rw
+  
+  # This is a known issue where latest versions of Ubuntu get a fatal error with MSSQL 2017
+	# https://github.com/actions/runner-images/issues/10649#issuecomment-2380651901
+	# When testing on x86 macs or debian linux mssql-perf-oldest can be enabled
+  # mssql-perf-oldest:
+  #   build:
+  #     context: ./perf-testing/oldest_supported
+  #     dockerfile: Dockerfile
+  #   restart: always 
+  #   container_name: "mssql-perf-oldest"
+  #   environment:
+  #     ACCEPT_EULA: Y
+  #     SA_PASSWORD: secret123!
+  #     MSSQL_PID: Developer
+  #   ports:
+  #     - "2433:1433"
+  #   volumes:
+  #     - mssql-oldest-data:/var/opt/mssql/data:rw
+  #     - mssql-oldest-log:/var/opt/mssql/log:rw
+  #     - mssql-oldest-backup:/var/opt/mssql/backup:rw
+
+  mssql-no-ext:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always 
+    container_name: "mssql-noext"
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: secret123!
+      MSSQL_PID: Developer
+    ports:
+      - "3433:1433"
+
+
+  nri-mssql:
+    container_name: nri_mssql
+    build:
+      context: ../
+      dockerfile: ./tests/Dockerfile
+
+volumes:
+  mssql-data:
+  mssql-log:
+  mssql-backup:
+
+  # Volumes for MSSQL Server 2017 can be enabled when testing on an OS that supports MSSQL 2017
+  # mssql-oldest-data:
+  # mssql-oldest-log:
+  # mssql-oldest-backup:

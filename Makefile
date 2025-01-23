@@ -20,9 +20,10 @@ test:
 
 integration-test:
 	@echo "=== $(INTEGRATION) === [ test ]: running integration tests..."
-	@docker compose -f tests/docker-compose.yml pull
-	@go test -count=1 -v -tags=integration ./tests/. || (ret=$$?; docker compose -f tests/docker-compose.yml down && exit $$ret)
-	@docker compose -f tests/docker-compose.yml down
+	@docker compose -f tests/docker-compose.yml up -d
+	@sleep 120
+	@go test -v -tags=integration -count 1 ./tests/mssql_test.go -timeout 180s || (ret=$$?; docker compose -f tests/docker-compose.yml down -v && exit $$ret)
+	@docker compose -f tests/docker-compose.yml down -v
 
 compile: 
 	@echo "=== $(INTEGRATION) === [ compile ]: Building $(BINARY_NAME)..."

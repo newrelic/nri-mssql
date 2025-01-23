@@ -32,6 +32,16 @@ integrations:
     #     database_id
     #   FROM sys.dm_os_buffer_descriptors WITH (nolock)
     #   GROUP BY database_id
+    # True is query monitoring should be enabled - defaults to false
+    # ENABLE_QUERY_MONITORING : "false"
+
+    # Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow.
+    # QUERY_RESPONSE_TIME_THRESHOLD : "500"
+
+    # Maximum number of queries returned in query analysis results in each FETCH_INTERVAL(max of slow queries can be 20 and for execution plan metrics it can be 30)
+    # QUERY_COUNT_THRESHOLD : "20"
+    # Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval.
+    # FETCH_INTERVAL : "15"
   interval: 15s
   labels:
     env: production

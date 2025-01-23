@@ -1,0 +1,146 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["name", "protocol_version", "integration_version", "data"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the integration"
+      },
+      "protocol_version": {
+        "type": "string",
+        "description": "Version of the protocol"
+      },
+      "integration_version": {
+        "type": "string",
+        "description": "Version of the integration"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["entity", "metrics", "inventory", "events"],
+          "properties": {
+            "entity": {
+              "type": "object",
+              "required": ["name", "type", "id_attributes"],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "id_attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["Key", "Value"],
+                    "properties": {
+                      "Key": {
+                        "type": "string"
+                      },
+                      "Value": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "AvgCPUTimeMS",
+                  "AvgDiskReads",
+                  "AvgDiskWrites",
+                  "AvgElapsedTimeMS",
+                  "CollectionTimestamp",
+                  "DatabaseName",
+                  "ExecutionCount",
+                  "LastExecutionTimestamp",
+                  "QueryID",
+                  "QueryText",
+                  "SchemaName",
+                  "StatementType",
+                  "event_type",
+                  "reportingEndpoint"
+                ],
+                "properties": {
+                  "AvgCPUTimeMS": {
+                    "type": "number",
+                    "description": "Average CPU time in milliseconds"
+                  },
+                  "AvgDiskReads": {
+                    "type": "number",
+                    "description": "Average number of disk reads"
+                  },
+                  "AvgDiskWrites": {
+                    "type": "number",
+                    "description": "Average number of disk writes"
+                  },
+                  "AvgElapsedTimeMS": {
+                    "type": "number",
+                    "description": "Average elapsed time in milliseconds"
+                  },
+                  "CollectionTimestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Timestamp when the metrics were collected"
+                  },
+                  "DatabaseName": {
+                    "type": "string",
+                    "description": "Name of the database"
+                  },
+                  "ExecutionCount": {
+                    "type": "number",
+                    "description": "Number of times the query was executed"
+                  },
+                  "LastExecutionTimestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Timestamp of the last execution"
+                  },
+                  "QueryID": {
+                    "type": "string",
+                    "description": "Unique identifier for the query"
+                  },
+                  "QueryText": {
+                    "type": "string",
+                    "description": "The actual SQL query text"
+                  },
+                  "SchemaName": {
+                    "type": "string",
+                    "description": "Name of the database schema"
+                  },
+                  "StatementType": {
+                    "type": "string",
+                    "enum": ["SELECT", "UPDATE", "INSERT", "DELETE"],
+                    "description": "Type of SQL statement"
+                  },
+                  "event_type": {
+                    "type": "string",
+                    "description": "Type of the event"
+                  },
+                  "reportingEndpoint": {
+                    "type": "string",
+                    "description": "Endpoint where metrics are reported"
+                  }
+                }
+              }
+            },
+            "inventory": {
+              "type": "object",
+              "description": "Inventory information"
+            },
+            "events": {
+              "type": "array",
+              "description": "Array of events"
+            }
+          }
+        }
+      }
+    }
+  }
