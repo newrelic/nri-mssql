@@ -93,7 +93,6 @@ func main() {
 		log.Error(err.Error())
 		return
 	}
-	i.Clear()
 
 	if args.EnableQueryMonitoring {
 		queryanalysis.PopulateQueryPerformanceMetrics(i, args)

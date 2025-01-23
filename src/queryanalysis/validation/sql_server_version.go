@@ -8,8 +8,10 @@ import (
 	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 )
 
-const versionRegexPattern = `\b(\d+\.\d+\.\d+)\b`
-const getSQLServerVersionQuery = "SELECT @@VERSION"
+const (
+	versionRegexPattern      = `\b(\d+\.\d+\.\d+)\b`
+	getSQLServerVersionQuery = "SELECT @@VERSION"
+)
 
 var versionRegex = regexp.MustCompile(versionRegexPattern)
 

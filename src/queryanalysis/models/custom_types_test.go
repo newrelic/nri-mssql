@@ -10,7 +10,8 @@ func runScanTests(t *testing.T, tests []struct {
 	input   interface{}
 	want    string
 	wantErr error
-}, scanFunc func(interface{}) (string, error)) {
+}, scanFunc func(interface{}) (string, error),
+) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := scanFunc(tt.input)
