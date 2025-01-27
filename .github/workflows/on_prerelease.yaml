@@ -14,4 +14,5 @@ jobs:
       tag: ${{ github.event.release.tag_name }}
       integration: "mssql"
       upload_fips_packages: true
+      dest_prefix: query-performance-monitoring-testing/
     secrets: inherit
