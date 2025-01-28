@@ -18,7 +18,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 		return false
 	}
 
-	if !checkDatabaseCompatibility(databaseDetails) || !checkQueryStores(databaseDetails) {
+	if !checkDatabaseCompatibility(databaseDetails) || !queryStoresAreEnabledForAnyDB(databaseDetails) {
 		return false
 	}
 
@@ -69,18 +69,18 @@ func checkPermissionsAndLogin(sqlConnection *connection.SQLConnection) bool {
 	return true
 }
 
-func checkQueryStores(databaseDetails []models.DatabaseDetailsDto) bool {
+func queryStoresAreEnabledForAnyDB(databaseDetails []models.DatabaseDetailsDto) bool {
 	allQueryStoresOff := true
 	for _, database := range databaseDetails {
 		if database.IsQueryStoreOn {
-			log.Debug("Query store enabled for database %s and make sure query capture mode is ALL", database.Name)
+			log.Debug("Query store is enabled for this database %s. Please ensure that the query capture mode is set to \"ALL\" to capture all queries.", database.Name)
 			allQueryStoresOff = false
 		} else {
-			log.Debug("Query store disabled for database %s. Turn on with: ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
+			log.Debug("Query store is disabled for this database %s, so query monitoring will be skipped. To enable it, use the following command: `ALTER DATABASE %s SET QUERY_STORE = ON (QUERY_CAPTURE_MODE = ALL);", database.Name, database.Name)
 		}
 	}
 	if allQueryStoresOff {
-		log.Error("Query store is turned off for all databases. Turn on query store and set capture mode to ALL: https://docs.newrelic.com/install/microsoft-sql/")
+		log.Error("Query store is currently turned off for all databases, so query monitoring will be skipped. To enable it and set the capture mode to \"ALL,\" please refer to this guide: [New Relic Documentation for Microsoft SQL](https://docs.newrelic.com/install/microsoft-sql/).")
 	}
 	return !allQueryStoresOff
 }

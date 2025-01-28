@@ -40,7 +40,7 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
-	errQueryError := sqlmock.ErrCancelled // or use the appropriate error you expect
+	errQueryError := sqlmock.ErrCancelled
 	mock.ExpectQuery("SELECT @@VERSION\n").WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow("Microsoft SQL Server 2019 - 15.0.2000.5 (X64) \n\tSep 24 2019 13:48:23 \n\tCopyright (c) 1988-2019, Microsoft Corporation \n\tDeveloper Edition (64-bit) on Windows 10 Pro 10.0 <X64> (Build 18363: )"))
 	mock.ExpectQuery(regexp.QuoteMeta(getDatabaseDetailsQuery)).
 		WillReturnError(errQueryError)

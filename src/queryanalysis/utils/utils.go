@@ -120,7 +120,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 
 	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
 	if err != nil {
-		log.Error("Failed to execute query: %s", err)
+		log.Error("Failed to execute execution plan query: %s", err)
 		return
 	}
 	defer rows.Close()
@@ -129,7 +129,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList,
 
 	for rows.Next() {
 		if err := rows.StructScan(&model); err != nil {
-			log.Error("Could not scan row: %s", err)
+			log.Error("Could not scan execution plan row: %s", err)
 			return
 		}
 		AnonymizeQueryText(model.SQLText)
