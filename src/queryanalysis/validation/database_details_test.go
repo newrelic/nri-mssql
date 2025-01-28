@@ -51,11 +51,13 @@ func TestGetDatabaseDetails_Error(t *testing.T) {
 }
 
 func TestGetDatabaseDetails_UnsupportedVersion(t *testing.T) {
-	db, _, err := sqlmock.New()
+	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()
 	sqlConnection := &connection.SQLConnection{Connection: sqlx.NewDb(db, "sqlmock")}
+	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow("Microsoft SQL Server 2005 - 9.00.1399.06 (X64) \n\tSep 24 2005 13:48:23 \n\tCopyright (c) 1988-2005, Microsoft Corporation \n\tDeveloper Edition (64-bit) on Windows 10 Pro 10.0 <X64> (Build 18363: )"))
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 	assert.Nil(t, err)
 	assert.Nil(t, databaseDetails)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
