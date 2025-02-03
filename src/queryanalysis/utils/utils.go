@@ -111,7 +111,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			AnonymizeQueryText(model.QueryText)
+			*model.QueryText = AnonymizeQueryText(*model.QueryText)
 			results = append(results, model)
 
 			// Collect query IDs for fetching executionPlans
@@ -125,7 +125,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			AnonymizeQueryText(model.QueryText)
+			*model.QueryText = AnonymizeQueryText(*model.QueryText)
 
 			results = append(results, model)
 		case "blockingSessions":
@@ -134,8 +134,8 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			AnonymizeQueryText(model.BlockedQueryText)
-			AnonymizeQueryText(model.BlockingQueryText)
+			*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
+			*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
 			results = append(results, model)
 		default:
 			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
@@ -183,7 +183,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 			log.Error("Could not scan execution plan row: %s", err)
 			return
 		}
-		AnonymizeQueryText(model.SQLText)
+		*model.SQLText = AnonymizeQueryText(*model.SQLText)
 		results = append(results, model)
 	}
 
@@ -286,12 +286,9 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	return nil
 }
 
-func AnonymizeQueryText(query *string) {
-	if query == nil {
-		return
-	}
-	anonymizedQuery := literalAnonymizer.ReplaceAllString(*query, "?")
-	*query = anonymizedQuery
+func AnonymizeQueryText(query string) string {
+	anonymizedQuery := literalAnonymizer.ReplaceAllString(query, "?")
+	return anonymizedQuery
 }
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults

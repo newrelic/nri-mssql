@@ -466,7 +466,7 @@ func TestAnonymizeQueryText_SingleQuotedStrings(t *testing.T) {
 	query := "SELECT * FROM users WHERE username = 'admin' AND password = 'secret'"
 	expected := "SELECT * FROM users WHERE username = ? AND password = ?"
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should replace single-quoted strings with '?'")
 }
@@ -475,7 +475,7 @@ func TestAnonymizeQueryText_DoubleQuotedStrings(t *testing.T) {
 	query := `SELECT * FROM config WHERE name = "config_value"`
 	expected := "SELECT * FROM config WHERE name = ?"
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should replace double-quoted strings with '?'")
 }
@@ -484,7 +484,7 @@ func TestAnonymizeQueryText_Numbers(t *testing.T) {
 	query := "UPDATE orders SET price = 299, quantity = 3 WHERE order_id = 42"
 	expected := "UPDATE orders SET price = ?, quantity = ? WHERE order_id = ?"
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should replace numbers with '?'")
 }
@@ -493,7 +493,7 @@ func TestAnonymizeQueryText_MixedContent(t *testing.T) {
 	query := "SELECT name, 'value' FROM table WHERE age > 30 AND id = 2"
 	expected := "SELECT name, ? FROM table WHERE age > ? AND id = ?"
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should handle mixed content of strings and numbers")
 }
@@ -502,7 +502,7 @@ func TestAnonymizeQueryText_EmptyString(t *testing.T) {
 	query := ""
 	expected := ""
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should handle empty string gracefully")
 }
@@ -511,7 +511,7 @@ func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 	query := "SELECT name FROM users"
 	expected := query // No change expected
 
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 
 	assert.Equal(t, expected, query, "anonymized query should remain unchanged if there is no sensitive data")
 }
@@ -519,10 +519,10 @@ func TestAnonymizeQueryText_NoSensitiveData(t *testing.T) {
 func TestAnonymizeQueryText(t *testing.T) {
 	query := "SELECT * FROM users WHERE id = 1 AND name = 'John'"
 	expected := "SELECT * FROM users WHERE id = ? AND name = ?"
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 	assert.Equal(t, expected, query)
 	query = "SELECT * FROM employees WHERE id = 10 OR name <> 'John Doe'   OR name != 'John Doe'   OR age < 30 OR age <= 30   OR salary > 50000OR salary >= 50000  OR department LIKE 'Sales%' OR department ILIKE 'sales%'OR join_date BETWEEN '2023-01-01' AND '2023-12-31' OR department IN ('HR', 'Engineering', 'Marketing') OR department IS NOT NULL OR department IS NULL;"
 	expected = "SELECT * FROM employees WHERE id = ? OR name <> ?   OR name != ?   OR age < ? OR age <= ?   OR salary > ?OR salary >= ?  OR department LIKE ? OR department ILIKE ?OR join_date BETWEEN ? AND ? OR department IN (?, ?, ?) OR department IS NOT NULL OR department IS NULL;"
-	AnonymizeQueryText(&query)
+	query = AnonymizeQueryText(query)
 	assert.Equal(t, expected, query)
 }
