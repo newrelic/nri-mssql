@@ -2,7 +2,7 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 
@@ -11,7 +11,14 @@ const versionCompatibility = 90
 // ValidatePreConditions checks if the database is compatible with the integration
 func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 	log.Debug("Starting pre-requisite validation")
-
+	isSupported, err := checkSQLServerVersion(sqlConnection)
+	if err != nil {
+		return false
+	}
+	if !isSupported {
+		log.Error("Unsupported SQL Server version.")
+		return false
+	}
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 	if err != nil {
 		log.Error("Error getting database details:", err)

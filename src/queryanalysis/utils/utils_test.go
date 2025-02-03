@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/metrics"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
@@ -32,9 +33,9 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "SlowQueries",
-		Query: query,
-		Type:  "slowQueries",
+		EventName: "SlowQueries",
+		Query:     query,
+		Type:      "slowQueries",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -88,9 +89,9 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "WaitTimeAnalysisQuery",
-		Query: query,
-		Type:  "waitAnalysis",
+		EventName: "WaitTimeAnalysisQuery",
+		Query:     query,
+		Type:      "waitAnalysis",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -150,9 +151,9 @@ func TestExecuteQuery_BlockingSessionsSuccess(t *testing.T) {
 			))
 
 	queryDetails := models.QueryDetailsDto{
-		Name:  "BlockingSessionsQuery",
-		Query: query,
-		Type:  "blockingSessions",
+		EventName: "BlockingSessionsQuery",
+		Query:     query,
+		Type:      "blockingSessions",
 	}
 
 	integrationObj := &integration.Integration{}
@@ -219,26 +220,29 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 		t.Fatalf("could not find 'slowQueries' in the list of queries")
 	}
 
-	queries, err := LoadQueries(arguments)
+	queries, err := LoadQueries(config.Queries, arguments)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
-		arguments.FetchInterval, arguments.QueryCountThreshold,
-		arguments.QueryResponseTimeThreshold, config.TextTruncateLimit)
+		arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
+		arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
 	}
 }
 
 func TestLoadQueries_WaitAnalysis(t *testing.T) {
+	// Initial Configuration and Argument Setup
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	args.FetchInterval = 15
-	args.QueryCountThreshold = 10
+	// Prepare Arguments
+	args.QueryMonitoringFetchInterval = 15
+	args.QueryMonitoringCountThreshold = 10
 
+	// Locate the index of the "waitAnalysis" query
 	waitQueriesIndex := -1
 	for i, query := range configQueries {
 		if query.Type == "waitAnalysis" {
@@ -247,30 +251,33 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 		}
 	}
 
-	// Ensure the correct query was found
+	// Ensure the "waitAnalysis" query is found
 	if waitQueriesIndex == -1 {
 		t.Fatalf("could not find 'waitAnalysis' in the list of queries")
 	}
 
-	queries, err := LoadQueries(args)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	// Modify the query string in preparation for comparison
+	expectedQuery := fmt.Sprintf(
+		configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
-	configQueries[waitQueriesIndex].Query = fmt.Sprintf(
-		configQueries[waitQueriesIndex].Query, args.FetchInterval, args.FetchInterval, args.QueryCountThreshold, config.TextTruncateLimit)
-	if queries[waitQueriesIndex].Query != configQueries[waitQueriesIndex].Query {
-		t.Errorf("expected: %s, got: %s", configQueries[waitQueriesIndex].Query, queries[waitQueriesIndex].Query)
-	}
+	// Invoke the function under test
+	queries, err := LoadQueries(config.Queries, args)
+	assert.Nil(t, err, "expected no error, got an error instead")
+
+	// Verify that the "waitAnalysis" query was modified as expected
+	assert.Equal(t, expectedQuery, queries[waitQueriesIndex].Query, "expected query to match the modified query definition")
 }
 
 func TestLoadQueries_BlockingSessions(t *testing.T) {
+	// Initial Configuration and Argument Setup
 	configQueries := config.Queries
 	var args args.ArgumentList
 
-	args.FetchInterval = 15
-	args.QueryCountThreshold = 10
+	// Prepare Arguments
+	args.QueryMonitoringFetchInterval = 15
+	args.QueryMonitoringCountThreshold = 10
 
+	// Locate the index of the "blockingSessions" query
 	blockQueriesIndex := -1
 	for i, query := range configQueries {
 		if query.Type == "blockingSessions" {
@@ -279,92 +286,99 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 		}
 	}
 
-	// Ensure the correct query was found
+	// Ensure the "blockingSessions" query is found
 	if blockQueriesIndex == -1 {
 		t.Fatalf("could not find 'blockingSessions' in the list of queries")
 	}
 
-	queries, err := LoadQueries(args)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	// Modify the expected query string in preparation for comparison
+	expectedQuery := fmt.Sprintf(
+		configQueries[blockQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
-	configQueries[blockQueriesIndex].Query = fmt.Sprintf(
-		configQueries[blockQueriesIndex].Query, config.TextTruncateLimit)
-	if queries[blockQueriesIndex].Query != configQueries[blockQueriesIndex].Query {
-		t.Errorf("expected: %s, got: %s", configQueries[blockQueriesIndex].Query, queries[blockQueriesIndex].Query)
-	}
+	// Invoke the function under test
+	queries, err := LoadQueries(config.Queries, args)
+	assert.Nil(t, err, "expected no error, got an error instead")
+
+	// Verify that the "blockingSessions" query was modified as expected
+	assert.Equal(t, expectedQuery, queries[blockQueriesIndex].Query, "expected query to match the modified query definition")
 }
 
 func TestLoadQueries_UnknownType(t *testing.T) {
 	config.Queries = []models.QueryDetailsDto{
 		{
-			Name:  "UnknownTypeQuery",
-			Query: "SELECT * FROM mysterious_table",
-			Type:  "unknownType",
+			EventName: "UnknownTypeQuery",
+			Query:     "SELECT * FROM mysterious_table",
+			Type:      "unknownType",
 		},
 	}
 
-	var args args.ArgumentList
-	args.FetchInterval = 15
-
-	queries, err := LoadQueries(args)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	args := args.ArgumentList{
+		QueryMonitoringFetchInterval:         15,
+		QueryMonitoringCountThreshold:        100,
+		QueryMonitoringResponseTimeThreshold: 200,
 	}
 
-	if queries[0].Query != "SELECT * FROM mysterious_table" {
-		t.Errorf("unexpected query content for unknown type: %s", queries[0].Query)
+	// Call the function under test
+	_, err := LoadQueries(config.Queries, args)
+	if err == nil {
+		t.Fatalf("expected error for unknown query type, got nil")
+	}
+
+	// Verify that the error message is as expected
+	expectedError := "unknown query type: unknownType"
+	if err.Error() != expectedError {
+		t.Errorf("expected error %q, got %q", expectedError, err.Error())
 	}
 }
 
 // utils_test.go
+
 func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 	// Setup: Ensure config.Queries uses all %d format specifiers as intended
 	config.Queries = []models.QueryDetailsDto{
 		{
-			Name:  "MSSQLTopSlowQueries",
-			Type:  "slowQueries",
-			Query: "SELECT * FROM slow_queries WHERE condition",
+			EventName: "MSSQLTopSlowQueries",
+			Type:      "slowQueries",
+			Query:     "SELECT * FROM slow_queries WHERE condition",
 		},
 		{
-			Name:  "MSSQLWaitTimeAnalysis",
-			Type:  "waitAnalysis",
-			Query: "SELECT * FROM wait_analysis WHERE condition",
+			EventName: "MSSQLWaitTimeAnalysis",
+			Type:      "waitAnalysis",
+			Query:     "SELECT * FROM wait_analysis WHERE condition",
 		},
 		{
-			Name:  "MSSQLBlockingSessionQueries",
-			Type:  "blockingSessions",
-			Query: "SELECT * FROM blocking_sessions WHERE condition",
+			EventName: "MSSQLBlockingSessionQueries",
+			Type:      "blockingSessions",
+			Query:     "SELECT * FROM blocking_sessions WHERE condition",
 		},
 	}
 
 	// Setup: Create a sample ArgumentList with realistic values that will be used to replace the %d format specifiers
 	sampleArgs := args.ArgumentList{
-		FetchInterval:              15,
-		QueryCountThreshold:        25,
-		QueryResponseTimeThreshold: 35,
+		QueryMonitoringFetchInterval:         15,
+		QueryMonitoringCountThreshold:        25,
+		QueryMonitoringResponseTimeThreshold: 35,
 	}
 	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
-			Name:  "MSSQLTopSlowQueries",
-			Type:  "slowQueries",
-			Query: fmt.Sprintf(config.Queries[0].Query, sampleArgs.FetchInterval, sampleArgs.QueryCountThreshold, sampleArgs.QueryResponseTimeThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLTopSlowQueries",
+			Type:      "slowQueries",
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
 		},
 		{
-			Name:  "MSSQLWaitTimeAnalysis",
-			Type:  "waitAnalysis",
-			Query: fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLWaitTimeAnalysis",
+			Type:      "waitAnalysis",
+			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 		{
-			Name:  "MSSQLBlockingSessionQueries",
-			Type:  "blockingSessions",
-			Query: fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryCountThreshold, config.TextTruncateLimit),
+			EventName: "MSSQLBlockingSessionQueries",
+			Type:      "blockingSessions",
+			Query:     fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 	}
 	// Execute the function
-	loadedQueries, err := LoadQueries(sampleArgs)
+	loadedQueries, err := LoadQueries(config.Queries, sampleArgs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -376,8 +390,8 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		if len(loadedQueries) <= i {
 			t.Fatalf("missing query at index %d", i)
 		}
-		if loadedQueries[i].Name != expected.Name {
-			t.Errorf("query %d: expected name '%s', got '%s'", i, expected.Name, loadedQueries[i].Name)
+		if loadedQueries[i].EventName != expected.EventName {
+			t.Errorf("query %d: expected name '%s', got '%s'", i, expected.EventName, loadedQueries[i].EventName)
 		}
 		if loadedQueries[i].Type != expected.Type {
 			t.Errorf("query %d: expected type '%s', got '%s'", i, expected.Type, loadedQueries[i].Type)
@@ -395,13 +409,13 @@ func TestLoadQueries_EmptyConfig(t *testing.T) {
 
 	// Setup: Sample ArgumentList
 	sampleArgs := args.ArgumentList{
-		FetchInterval:              10,
-		QueryCountThreshold:        20,
-		QueryResponseTimeThreshold: 30,
+		QueryMonitoringFetchInterval:         10,
+		QueryMonitoringCountThreshold:        20,
+		QueryMonitoringResponseTimeThreshold: 30,
 	}
 
 	// Execute the function
-	loadedQueries, err := LoadQueries(sampleArgs)
+	loadedQueries, err := LoadQueries(config.Queries, sampleArgs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -416,7 +430,7 @@ func TestDetectMetricType_GaugeCase(t *testing.T) {
 	value := "123.45"
 	expected := metric.GAUGE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected GAUGE for a parsable float string")
 }
@@ -425,7 +439,7 @@ func TestDetectMetricType_AttributeCase(t *testing.T) {
 	value := "NotANumber123"
 	expected := metric.ATTRIBUTE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected ATTRIBUTE for a non-parsable float string")
 }
@@ -434,7 +448,7 @@ func TestDetectMetricType_EmptyString(t *testing.T) {
 	value := ""
 	expected := metric.ATTRIBUTE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected ATTRIBUTE for an empty string")
 }
@@ -443,7 +457,7 @@ func TestDetectMetricType_Integer(t *testing.T) {
 	value := "78"
 	expected := metric.GAUGE
 
-	result := DetectMetricType(value)
+	result := metrics.DetectMetricType(value)
 
 	assert.Equal(t, expected, result, "expected GAUGE for integer string")
 }

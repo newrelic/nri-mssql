@@ -1,7 +1,7 @@
 package validation
 
 import (
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/connection"
 )
 
 const checkSQLServerLoginEnabledQuery = `

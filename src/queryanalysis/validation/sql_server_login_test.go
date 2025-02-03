@@ -1,4 +1,3 @@
-// src/queryAnalysis/validation/sql_server_login_test.go
 package validation
 
 import (

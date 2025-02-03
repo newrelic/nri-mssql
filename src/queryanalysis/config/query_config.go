@@ -2,9 +2,11 @@ package config
 
 import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 
+// Documentation: https://newrelic.atlassian.net/wiki/spaces/GROWTHCXP/pages/3932848457/Queries+and+Data+Models+for+QueryAnalysis
+// The above link contains all the queries, data models, and query details for QueryAnalysis.
 var Queries = []models.QueryDetailsDto{
 	{
-		Name: "MSSQLTopSlowQueries",
+		EventName: "MSSQLTopSlowQueries",
 		Query: `DECLARE @IntervalSeconds INT = %d; 		-- Define the interval in seconds
 				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
 				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
@@ -121,7 +123,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "slowQueries",
 	},
 	{
-		Name: "MSSQLWaitTimeAnalysis",
+		EventName: "MSSQLWaitTimeAnalysis",
 		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
 				DECLARE @sql NVARCHAR(MAX) = '';
@@ -233,7 +235,7 @@ var Queries = []models.QueryDetailsDto{
 		Type: "waitAnalysis",
 	},
 	{
-		Name: "MSSQLBlockingSessionQueries",
+		EventName: "MSSQLBlockingSessionQueries",
 		Query: `DECLARE @Limit INT = %d; -- Define the limit for the number of rows returned
 				DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
 				WITH blocking_info AS (
@@ -290,9 +292,17 @@ var Queries = []models.QueryDetailsDto{
 const ExecutionPlanQueryTemplate = `
 DECLARE @TopN INT = %d; 
 DECLARE @ElapsedTimeThreshold INT = %d;  -- Define the elapsed time threshold in milliseconds
-DECLARE @QueryID NVARCHAR(50) = %s;      -- Change the query ID to a string
+DECLARE @QueryIDs NVARCHAR(1000) = '%s';      -- Change the query ID to a string
 DECLARE @IntervalSeconds INT = %d;       -- Define the interval in seconds (e.g., 3600 for the last hour)
 DECLARE @TextTruncateLimit INT = %d;     -- Define the dynamic limit for truncation of SQL text
+
+-- Declare and fill the temporary table
+DECLARE @QueryIdTable TABLE (QueryId BINARY(8));
+
+-- Use a conversion that properly removes the 0x prefix and casts to BINARY
+INSERT INTO @QueryIdTable (QueryId)
+SELECT CONVERT(BINARY(8), value, 1)
+FROM STRING_SPLIT(@QueryIDs, ',');
 
 WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan'),
 TopPlans AS (
@@ -307,7 +317,7 @@ TopPlans AS (
     FROM sys.dm_exec_query_stats AS qs
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
-    WHERE CONVERT(NVARCHAR(50), qs.query_hash) = @QueryID 
+	WHERE qs.query_hash IN (SELECT QueryId FROM @QueryIdTable)
     AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE()) AND GETUTCDATE() 
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
@@ -344,10 +354,24 @@ ORDER BY plan_handle, NodeId;
 // We need to use this limit of long strings that we are injesting because the logs datastore in New Relic limits the field length to 4,094 characters. Any data longer than that is truncated during ingestion.
 const TextTruncateLimit = 4094
 
-var (
+const (
+	// QueryResponseTimeThresholdDefault defines the default threshold in milliseconds
+	// for determining if a query is considered slow based on its response time.
 	QueryResponseTimeThresholdDefault = 500
-	SlowQueryCountThresholdDefault    = 20
-	IndividualQueryCountMax           = 10
-	GroupedQueryCountMax              = 30
-	MaxSystemDatabaseID               = 4
+
+	// SlowQueryCountThresholdDefault sets the default maximum number of slow queries
+	// that is ingested in an analysis cycle/interval.
+	SlowQueryCountThresholdDefault = 20
+
+	// IndividualQueryCountMax represents the maximum number of individual queries
+	// that is ingested at one time for any grouped query in detailed analysis.
+	IndividualQueryCountMax = 10
+
+	// GroupedQueryCountMax specifies the maximum number of grouped queries
+	// that is ingested in  an analysis cycle/interval.
+	GroupedQueryCountMax = 30
+
+	// MaxSystemDatabaseID indicates the highest database ID value considered
+	// a system database, used to filter out system databases from certain operations.
+	MaxSystemDatabaseID = 4
 )

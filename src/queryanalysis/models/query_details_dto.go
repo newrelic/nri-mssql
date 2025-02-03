@@ -1,7 +1,7 @@
 package models
 
 type QueryDetailsDto struct {
-	Name  string `json:"name"`
-	Query string `json:"query"`
-	Type  string `json:"type"`
+	EventName string
+	Query     string
+	Type      string
 }

@@ -1,4 +1,3 @@
-// src/queryAnalysis/validation/permissions_test.go
 package validation
 
 import (

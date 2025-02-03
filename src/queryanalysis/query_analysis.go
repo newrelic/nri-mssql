@@ -4,7 +4,8 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
+	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
@@ -30,7 +31,8 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 
 	utils.ValidateAndSetDefaults(&arguments)
 
-	queryDetails, err := utils.LoadQueries(arguments)
+	queries := config.Queries
+	queryDetails, err := utils.LoadQueries(queries, arguments)
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return

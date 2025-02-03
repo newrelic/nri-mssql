@@ -2,8 +2,8 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
 
@@ -14,15 +14,6 @@ const getDatabaseDetailsQuery = `
 
 // GetDatabaseDetails gets the details of user databases
 func GetDatabaseDetails(sqlConnection *connection.SQLConnection) ([]models.DatabaseDetailsDto, error) {
-	isSupported, err := checkSQLServerVersion(sqlConnection)
-	if err != nil {
-		return nil, err
-	}
-	if !isSupported {
-		log.Error("Unsupported SQL Server version.")
-		return nil, nil
-	}
-
 	rows, err := sqlConnection.Queryx(getDatabaseDetailsQuery)
 	if err != nil {
 		log.Error("Error getting database details:", err)
