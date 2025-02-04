@@ -111,7 +111,9 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
 			results = append(results, model)
 
 			// Collect query IDs for fetching executionPlans
@@ -125,8 +127,9 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			*model.QueryText = AnonymizeQueryText(*model.QueryText)
-
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
 			results = append(results, model)
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
@@ -134,8 +137,12 @@ func BindQueryResults(arguments args.ArgumentList,
 				fmt.Println("Could not scan row: ", err)
 				continue
 			}
-			*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
-			*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
+			if model.BlockingQueryText != nil {
+				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
+			}
+			if model.BlockedQueryText != nil {
+				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
+			}
 			results = append(results, model)
 		default:
 			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
