@@ -71,7 +71,6 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 		if !ok {
 			// Log the error and return an error instead of nil
 			err := fmt.Errorf("%w: %s", ErrUnknownQueryType, loadedQueries[i].Type)
-			log.Error(err.Error())
 			return nil, err
 		}
 		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
@@ -108,7 +107,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "slowQueries":
 			var model models.TopNSlowQueryDetails
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Debug("Could not scan row: ", err)
 				continue
 			}
 			if model.QueryText != nil {
@@ -124,7 +123,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Debug("Could not scan row: ", err)
 				continue
 			}
 			if model.QueryText != nil {
@@ -134,7 +133,7 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
-				fmt.Println("Could not scan row: ", err)
+				log.Debug("Could not scan row: ", err)
 				continue
 			}
 			if model.BlockingQueryText != nil {
@@ -209,10 +208,9 @@ func IngestQueryMetricsInBatches(results []interface{},
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 ) error {
-	const batchSize = 600 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
 
-	for start := 0; start < len(results); start += batchSize {
-		end := start + batchSize
+	for start := 0; start < len(results); start += config.BatchSize {
+		end := start + config.BatchSize
 		if end > len(results) {
 			end = len(results)
 		}

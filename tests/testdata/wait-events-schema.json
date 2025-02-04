@@ -54,7 +54,6 @@
                 "type": "object",
                 "required": [
                   "CollectionTimestamp",
-                  "Connection",
                   "avg_wait_time_ms",
                   "database_name",
                   "event_type",
@@ -71,10 +70,6 @@
                     "type": "string",
                     "format": "date-time",
                     "description": "Timestamp when the metrics were collected"
-                  },
-                  "Connection": {
-                    "type": ["string", "null"],
-                    "description": "Connection information"
                   },
                   "avg_wait_time_ms": {
                     "type": "number",

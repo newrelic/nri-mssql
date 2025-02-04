@@ -2,7 +2,7 @@ package config
 
 import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 
-// Documentation: https://newrelic.atlassian.net/wiki/spaces/GROWTHCXP/pages/3932848457/Queries+and+Data+Models+for+QueryAnalysis
+// Documentation: https:https://newrelic.atlassian.net/wiki/x/SYFq6g
 // The above link contains all the queries, data models, and query details for QueryAnalysis.
 var Queries = []models.QueryDetailsDto{
 	{
@@ -374,4 +374,6 @@ const (
 	// MaxSystemDatabaseID indicates the highest database ID value considered
 	// a system database, used to filter out system databases from certain operations.
 	MaxSystemDatabaseID = 4
+	BatchSize           = 600 // New Relic's Integration SDK imposes a limit of 1000 metrics per ingestion.To handle metric sets exceeding this limit, we process and ingest metrics in smaller chunks to ensure all data is successfully reported without exceeding the limit.
+
 )

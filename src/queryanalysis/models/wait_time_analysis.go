@@ -2,12 +2,9 @@ package models
 
 import (
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type WaitTimeAnalysis struct {
-	Connection          *sqlx.DB
 	QueryID             *HexString `db:"query_id" json:"query_id" metric_name:"query_id" source_type:"attribute"`
 	DatabaseName        *string    `db:"database_name" json:"database_name" metric_name:"database_name" source_type:"attribute"`
 	QueryText           *string    `db:"query_text" json:"query_text" metric_name:"query_text" source_type:"attribute"`
