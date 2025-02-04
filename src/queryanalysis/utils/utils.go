@@ -80,14 +80,20 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	log.Debug("Executing query: %s", queryDetailsDto.Query)
-
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
 	log.Debug("Query executed: %s", queryDetailsDto.Query)
-	return BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	rows.Close()
+
+	// Process collected query IDs for execution plan
+	if len(queryIDs) > 0 {
+		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
+	}
+	return result, err
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
@@ -95,11 +101,8 @@ func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	defer rows.Close()
-
+	sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
 	results := make([]interface{}, 0)
-
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
 	for rows.Next() {
@@ -144,13 +147,10 @@ func BindQueryResults(arguments args.ArgumentList,
 			}
 			results = append(results, model)
 		default:
-			return nil, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
+			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
-
-	// Process collected query IDs for execution plan
-	ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
-	return results, nil
+	return results, queryIDs, nil
 }
 
 // ProcessExecutionPlans processes execution plans for all collected queryIDs
