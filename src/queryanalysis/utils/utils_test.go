@@ -1,21 +1,136 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
+	"github.com/newrelic/infra-integrations-sdk/v3/integration"
+	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/metrics"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/newrelic/infra-integrations-sdk/v3/integration"
-	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
+
+var (
+	ErrQueryExecution = errors.New("query execution error")
+)
+
+func TestGenerateAndIngestExecutionPlan_Success(t *testing.T) {
+	sqlConn, mock := connection.CreateMockSQL(t)
+	defer sqlConn.Connection.Close()
+
+	// Match using parts of the SQL query
+	executionPlanQueryPattern := `(?s)DECLARE @TopN INT =.*?DECLARE @ElapsedTimeThreshold INT =.*?DECLARE @QueryIDs NVARCHAR\(1000\).*?INSERT INTO @QueryIdTable.*?SELECT.*?FROM PlanNodes ORDER BY plan_handle, NodeId;`
+
+	mock.ExpectQuery(executionPlanQueryPattern).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"query_id", "sql_text", "plan_handle", "query_plan_id",
+			"avg_elapsed_time_ms", "execution_count", "NodeId",
+			"PhysicalOp", "LogicalOp", "EstimateRows",
+			"EstimateIO", "EstimateCPU", "AvgRowSize",
+			"EstimatedExecutionMode", "TotalSubtreeCost",
+			"EstimatedOperatorCost", "GrantedMemoryKb",
+			"SpillOccurred", "NoJoinPredicate",
+		}).
+			AddRow(
+				[]byte{0x01, 0x02}, "SELECT * FROM table", "some_plan_handle",
+				"some_query_plan_id", 100, 10,
+				1, "PhysicalOp1", "LogicalOp1", 100,
+				1.0, 0.5, 4.0, "Row",
+				3.0, 5.0, 200,
+				false, false))
+
+	// Prepare your integration object and arguments list
+	integrationObj := &integration.Integration{}
+	argList := args.ArgumentList{}
+	queryIDString := "0102"
+
+	// Call your actual function
+	GenerateAndIngestExecutionPlan(argList, integrationObj, sqlConn, queryIDString)
+
+	// Verifying all expectations met ensures your mock was correct.
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestGenerateAndIngestExecutionPlan_QueryError(t *testing.T) {
+	sqlConn, mock := connection.CreateMockSQL(t)
+	defer sqlConn.Connection.Close()
+
+	// Simulate an error during the execution of the execution plan query
+	mock.ExpectQuery("DECLARE @TopN INT = (.+?);").WillReturnError(ErrQueryExecution)
+
+	integrationObj := &integration.Integration{}
+	argList := args.ArgumentList{}
+	queryIDString := "0102"
+
+	// Call the function
+	GenerateAndIngestExecutionPlan(argList, integrationObj, sqlConn, queryIDString)
+
+	// Ensure all expectations are met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestProcessExecutionPlans_Success(t *testing.T) {
+	sqlConn, mock := connection.CreateMockSQL(t)
+	defer sqlConn.Connection.Close()
+
+	// Setup your specific execution plan SQL query pattern
+	executionPlanQueryPattern := `(?s)DECLARE @TopN INT =.*?DECLARE @ElapsedTimeThreshold INT =.*?DECLARE @QueryIDs NVARCHAR\(1000\).*?INSERT INTO @QueryIdTable.*?SELECT.*?FROM PlanNodes ORDER BY plan_handle, NodeId;`
+
+	// Mocking SQL response to match expected output
+	mock.ExpectQuery(executionPlanQueryPattern).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"query_id", "sql_text", "plan_handle", "query_plan_id",
+			"avg_elapsed_time_ms", "execution_count", "NodeId",
+			"PhysicalOp", "LogicalOp", "EstimateRows",
+			"EstimateIO", "EstimateCPU", "AvgRowSize",
+			"EstimatedExecutionMode", "TotalSubtreeCost",
+			"EstimatedOperatorCost", "GrantedMemoryKb",
+			"SpillOccurred", "NoJoinPredicate",
+		}).
+			AddRow(
+				[]byte{0x01, 0x02}, "SELECT * FROM some_table", "some_plan_handle",
+				"some_query_plan_id", 100, 10, // Replace with realistic/mock values
+				1, "PhysicalOp1", "LogicalOp1", 100,
+				1.0, 0.5, 4.0, "Row",
+				3.0, 5.0, 200,
+				false, false))
+
+	integrationObj := &integration.Integration{}
+	argList := args.ArgumentList{}
+	queryIDs := []models.HexString{"0x0102"}
+
+	// Call the target function
+	ProcessExecutionPlans(argList, integrationObj, sqlConn, queryIDs)
+
+	// Ensure all expectations are met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %v", err)
+	}
+}
+
+func TestProcessExecutionPlans_NoQueryIDs(t *testing.T) {
+	// No database calls should be expected
+	sqlConn, _ := connection.CreateMockSQL(t)
+	defer sqlConn.Connection.Close()
+
+	integrationObj := &integration.Integration{}
+	argList := args.ArgumentList{}
+	queryIDs := []models.HexString{} // Empty query IDs
+
+	// Call the function
+	ProcessExecutionPlans(argList, integrationObj, sqlConn, queryIDs)
+}
 
 func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 	sqlConn, mock := connection.CreateMockSQL(t)
@@ -332,7 +447,6 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 }
 
 // utils_test.go
-
 func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 	// Setup: Ensure config.Queries uses all %d format specifiers as intended
 	config.Queries = []models.QueryDetailsDto{

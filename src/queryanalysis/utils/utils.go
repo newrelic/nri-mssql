@@ -97,6 +97,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
+// nolint:gocyclo
 func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
