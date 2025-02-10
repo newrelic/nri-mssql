@@ -39,7 +39,7 @@ func TestGenerateAndIngestExecutionPlan_Success(t *testing.T) {
 			"SpillOccurred", "NoJoinPredicate",
 		}).
 			AddRow(
-				[]byte{0x01, 0x02}, "SELECT * FROM table", "some_plan_handle",
+				[]byte{0x01, 0x02}, "SELECT * FROM table", []byte{0x01, 0x02},
 				"some_query_plan_id", 100, 10,
 				1, "PhysicalOp1", "LogicalOp1", 100,
 				1.0, 0.5, 4.0, "Row",
@@ -120,16 +120,24 @@ func TestProcessExecutionPlans_Success(t *testing.T) {
 }
 
 func TestProcessExecutionPlans_NoQueryIDs(t *testing.T) {
-	// No database calls should be expected
-	sqlConn, _ := connection.CreateMockSQL(t)
+	// Initialize a mock SQL connection
+	sqlConn, mock := connection.CreateMockSQL(t)
 	defer sqlConn.Connection.Close()
+
+	// There shouldn't be any SQL query execution when there are no query IDs
+	// Hence, no `ExpectQuery` call is needed when expecting zero interactions
 
 	integrationObj := &integration.Integration{}
 	argList := args.ArgumentList{}
 	queryIDs := []models.HexString{} // Empty query IDs
 
-	// Call the function
+	// Call the function, which should ideally do nothing
 	ProcessExecutionPlans(argList, integrationObj, sqlConn, queryIDs)
+
+	// Verify that no SQL expectations were set (and consequently met)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unexpected SQL execution: %v", err)
+	}
 }
 
 func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
