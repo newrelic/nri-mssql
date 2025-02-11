@@ -79,7 +79,7 @@ var Queries = []models.QueryDetailsDto{
 						AND qs.execution_count > 0
 						AND pa.attribute = 'dbid'
 						AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb')
-						AND qt.text NOT LIKE '%%sys%%'
+						AND qt.text NOT LIKE '%%sys.%%'
 						AND qt.text NOT LIKE '%%INFORMATION_SCHEMA%%'
 						AND qt.text NOT LIKE '%%schema_name()%%'
 						AND qt.text IS NOT NULL
@@ -171,8 +171,7 @@ var Queries = []models.QueryDetailsDto{
 					INNER JOIN 
 					  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
 					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+					  qsqt.query_sql_text NOT LIKE ''%%sys.%%''
 					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
 					GROUP BY 
 					  qsqt.query_sql_text 
