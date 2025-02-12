@@ -358,6 +358,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 
 func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	// Initial Configuration and Argument Setup
+
 	configQueries := config.Queries
 	var args args.ArgumentList
 
@@ -397,6 +398,7 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 	var args args.ArgumentList
 
 	// Prepare Arguments
+
 	args.QueryMonitoringFetchInterval = 15
 	args.QueryMonitoringCountThreshold = 10
 

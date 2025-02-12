@@ -209,7 +209,6 @@ func IngestQueryMetricsInBatches(results []interface{},
 	integration *integration.Integration,
 	sqlConnection *connection.SQLConnection,
 ) error {
-
 	for start := 0; start < len(results); start += config.BatchSize {
 		end := start + config.BatchSize
 		if end > len(results) {
