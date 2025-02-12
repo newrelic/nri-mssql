@@ -1,0 +1,171 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["name", "protocol_version", "integration_version", "data"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the integration"
+      },
+      "protocol_version": {
+        "type": "string",
+        "description": "Version of the protocol"
+      },
+      "integration_version": {
+        "type": "string",
+        "description": "Version of the integration"
+      },
+      "data": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["entity", "metrics", "inventory", "events"],
+          "properties": {
+            "entity": {
+              "type": "object",
+              "required": ["name", "type", "id_attributes"],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "id_attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["Key", "Value"],
+                    "properties": {
+                      "Key": {
+                        "type": "string"
+                      },
+                      "Value": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "AvgElapsedTimeMs",
+                  "AvgRowSize",
+                  "EstimateCPU",
+                  "EstimateIO",
+                  "EstimateRows",
+                  "EstimatedExecutionMode",
+                  "EstimatedOperatorCost",
+                  "ExecutionCount",
+                  "GrantedMemoryKb",
+                  "LogicalOp",
+                  "NoJoinPredicate",
+                  "NodeID",
+                  "PhysicalOp",
+                  "PlanHandle",
+                  "QueryID",
+                  "QueryPlanID",
+                  "SQLText",
+                  "SpillOccurred",
+                  "TotalElapsedTime",
+                  "TotalLogicalReads",
+                  "TotalLogicalWrites",
+                  "TotalSubtreeCost",
+                  "TotalWorkerTime",
+                  "event_type",
+                  "reportingEndpoint"
+                ],
+                "properties": {
+                  "AvgElapsedTimeMs": {
+                    "type": "number"
+                  },
+                  "AvgRowSize": {
+                    "type": "number"
+                  },
+                  "EstimateCPU": {
+                    "type": "number"
+                  },
+                  "EstimateIO": {
+                    "type": "number"
+                  },
+                  "EstimateRows": {
+                    "type": "number"
+                  },
+                  "EstimatedExecutionMode": {
+                    "type": "string"
+                  },
+                  "EstimatedOperatorCost": {
+                    "type": "number"
+                  },
+                  "ExecutionCount": {
+                    "type": "number"
+                  },
+                  "GrantedMemoryKb": {
+                    "type": "number"
+                  },
+                  "LogicalOp": {
+                    "type": "string"
+                  },
+                  "NoJoinPredicate": {
+                    "type": "string"
+                  },
+                  "NodeID": {
+                    "type": "number"
+                  },
+                  "PhysicalOp": {
+                    "type": "string"
+                  },
+                  "PlanHandle": {
+                    "type": "string"
+                  },
+                  "QueryID": {
+                    "type": "string"
+                  },
+                  "QueryPlanID": {
+                    "type": "string"
+                  },
+                  "SQLText": {
+                    "type": "string"
+                  },
+                  "SpillOccurred": {
+                    "type": "string"
+                  },
+                  "TotalElapsedTime": {
+                    "type": ["string", "null"]
+                  },
+                  "TotalLogicalReads": {
+                    "type": ["string", "null"]
+                  },
+                  "TotalLogicalWrites": {
+                    "type": ["string", "null"]
+                  },
+                  "TotalSubtreeCost": {
+                    "type": "number"
+                  },
+                  "TotalWorkerTime": {
+                    "type": ["string", "null"]
+                  },
+                  "event_type": {
+                    "type": "string"
+                  },
+                  "reportingEndpoint": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "inventory": {
+              "type": "object"
+            },
+            "events": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    }
+  }
