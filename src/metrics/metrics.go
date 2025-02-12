@@ -250,7 +250,7 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 		default:
 			name := query.Prefix + columnName
 			value := row[i]
-			metrics[name] = customQueryMetricValue{value: value, sourceType: detectMetricType(value)}
+			metrics[name] = customQueryMetricValue{value: value, sourceType: DetectMetricType(value)}
 		}
 	}
 
@@ -288,7 +288,7 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 		}
 		sourceType = sourceTypeFromQuery
 	} else {
-		sourceType = detectMetricType(metricValue)
+		sourceType = DetectMetricType(metricValue)
 	}
 
 	return &customQueryMetricValue{value: metricValue, sourceType: sourceType}, nil
@@ -392,7 +392,7 @@ func dbMetricPopulator(dbSetLookup database.DBMetricSetLookup, modelChan <-chan 
 	}
 }
 
-func detectMetricType(value string) metric.SourceType {
+func DetectMetricType(value string) metric.SourceType {
 	if _, err := strconv.ParseFloat(value, 64); err != nil {
 		return metric.ATTRIBUTE
 	}

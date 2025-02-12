@@ -2,16 +2,19 @@ package connection
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/newrelic/nri-mssql/src/args"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
+var ErrConnectionFailure = errors.New("something went wrong while trying to create the SQL connection")
+
 func Test_SQLConnection_Close(t *testing.T) {
 	conn, mock := CreateMockSQL(t)
 
-	mock.ExpectClose().WillReturnError(errors.New("error"))
+	mock.ExpectClose().WillReturnError(fmt.Errorf("critical operation failed: %w", ErrConnectionFailure))
 	conn.Close()
 
 	if err := mock.ExpectationsWereMet(); err != nil {
