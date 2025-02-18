@@ -16,11 +16,6 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 - Added Reporting for Wait Events
 - Added Reporting for Blocking Sessions
 
-## v2.16.1 - 2025-02-04
-
-### ⛓️ Dependencies
-- Updated golang patch version to v1.23.5
-
 ## v2.16.0 - 2024-12-19
 
 ### 🚀 Enhancements
