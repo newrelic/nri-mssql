@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- handle null values while populating custom query metrics
+
 ## v2.17.0 - 2025-02-19
 
 ### 🚀 Enhancements
