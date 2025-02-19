@@ -2,6 +2,7 @@
 package metrics
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -178,7 +179,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 	var rowCount = 0
 	for rows.Next() {
 		rowCount++
-		values := make([]string, len(columns))                 // All values are represented as strings (the corresponding conversion is handled while scanning)
+		values := make([]sql.NullString, len(columns))         // All values are represented as null strings (the corresponding conversion is handled while scanning)
 		valuesForScanning := make([]interface{}, len(columns)) // the `rows.Scan` function requires an array of interface{}
 		for i := range valuesForScanning {
 			valuesForScanning[i] = &values[i]
@@ -230,7 +231,7 @@ func populateCustomMetrics(instanceEntity *integration.Entity, connection *conne
 // When both are defined, the query columns have precedence. Besides, if type is not defined it is automatically deteced.
 // The rest of the query columns are also taken as metrics/attributes (detecting their types automatically).
 // Besides, if `query.Prefix` is defined, all metric and attribute names will include the corresponding prefix.
-func metricsFromCustomQueryRow(row []string, columns []string, query customQuery) (map[string]customQueryMetricValue, error) {
+func metricsFromCustomQueryRow(row []sql.NullString, columns []string, query customQuery) (map[string]customQueryMetricValue, error) {
 	metrics := map[string]customQueryMetricValue{}
 
 	var metricValue string
@@ -238,18 +239,23 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 	metricName := query.Name
 
 	for i, columnName := range columns { // Scan the query columns to extract the corresponding metrics
+		elementValue := extractValue(row[i])
 		switch columnName {
 		// Handle columns with 'special' meaning
 		case "metric_name":
-			metricName = row[i]
+			metricName = elementValue
 		case "metric_type":
-			metricType = row[i]
+			metricType = elementValue
 		case "metric_value":
-			metricValue = row[i]
+			metricValue = elementValue
 		// The rest of the values are taken as metrics/attributes with automatically detected type.
 		default:
 			name := query.Prefix + columnName
-			value := row[i]
+			// value is passed as empty string if row[i] value is nil
+			value := ""
+			if row[i].Valid {
+				value = row[i].String
+			}
 			metrics[name] = customQueryMetricValue{value: value, sourceType: DetectMetricType(value)}
 		}
 	}
@@ -263,6 +269,20 @@ func metricsFromCustomQueryRow(row []string, columns []string, query customQuery
 		metrics[metricName] = *customQueryMetric
 	}
 	return metrics, nil
+}
+
+/*
+In Order to handle null values in the output of custom query the extractValue function is used.
+
+The extractValue checks if the given sql.NullString is not null.
+  - If not null it returns the string value
+  - Otherwise it returns empty string
+*/
+func extractValue(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
 }
 
 // metricFromTargetColumns builds a customQueryMetricValue from the values in target columns (or defaults in the yaml

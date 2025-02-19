@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"database/sql"
 	"flag"
 	"os"
 	"path/filepath"
@@ -311,6 +312,56 @@ func Test_populateCustomQuery(t *testing.T) { //nolint: funlen
 			},
 			expectedFileName: "customQueryPrefix.json",
 		},
+		{
+			Name: "Custom metrics, query with null values",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_name", "metric_value", "metric_type", "otherValue", "attrValue"}).
+					AddRow("myMetric", 0.5, "gauge", nil, nil).
+					AddRow("myMetric", 1.5, "gauge", 43, nil).
+					AddRow("myMetric", 2.5, "gauge", nil, "cc").
+					AddRow("myMetric", nil, "gauge", 44, nil).
+					AddRow("myMetric", 4.5, "gauge", 45, "dd")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					'myMetric' as metric_name,
+					value as metric_value,
+					'gauge' as metric_type,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+				Name:   "other",
+				Type:   "delta",
+				Prefix: "prefix_",
+			},
+			expectedFileName: "customQueryNull.json",
+		},
+		{
+			Name: "Custom metrics in config with null values in query output",
+			setupMock: func(mock sqlmock.Sqlmock, cq customQuery) {
+				customQueryRows := sqlmock.NewRows([]string{"metric_value", "otherValue", "attrValue"}).
+					AddRow(0.5, nil, nil).
+					AddRow(1.5, 43, nil).
+					AddRow(2.5, nil, "cc").
+					AddRow(nil, 44, nil).
+					AddRow(4.5, 45, "dd")
+				mock.ExpectQuery(cq.Query).WillReturnRows(customQueryRows)
+				mock.ExpectClose()
+			},
+			cq: customQuery{
+				Query: `SELECT
+					value as metric_value,
+					value2 as 'otherValue'
+					attr as 'attrValue'
+					FROM my_table`,
+				Name:   "myMetric",
+				Type:   "gauge",
+				Prefix: "prefix_",
+			},
+			expectedFileName: "customQueryNull.json",
+		},
 	}
 
 	for _, tc := range cases {
@@ -323,6 +374,32 @@ func Test_populateCustomQuery(t *testing.T) { //nolint: funlen
 			actual, _ := i.MarshalJSON()
 			expectedFile := filepath.Join("..", "testdata", tc.expectedFileName)
 			checkAgainstFile(t, actual, expectedFile)
+		})
+	}
+}
+
+func Test_extractValue(t *testing.T) { //nolint: funlen
+	cases := []struct {
+		Name          string
+		input         sql.NullString
+		expectedValue string
+	}{
+		{
+			Name:          "Valid NullString",
+			input:         sql.NullString{String: "abc", Valid: true},
+			expectedValue: "abc",
+		},
+		{
+			Name:          "nil NullString",
+			input:         sql.NullString{Valid: false},
+			expectedValue: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) { //nolint: paralleltest // setup mocks
+			actualValue := extractValue(tc.input)
+			assert.Equal(t, tc.expectedValue, actualValue)
 		})
 	}
 }
