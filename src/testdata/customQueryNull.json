@@ -1,0 +1,65 @@
+{
+    "name": "test",
+    "protocol_version": "3",
+    "integration_version": "1.0.0",
+    "data": [
+        {
+            "entity": {
+                "name": "test",
+                "type": "instance",
+                "id_attributes": []
+            },
+            "metrics": [
+                {
+                    "prefix_attrValue": "",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "prefix_myMetric": 0.5,
+                    "prefix_otherValue": ""
+                },
+                {
+                    "prefix_attrValue": "",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "prefix_myMetric": 1.5,
+                    "prefix_otherValue": 43
+                },
+                {
+                    "prefix_attrValue": "cc",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "prefix_myMetric": 2.5,
+                    "prefix_otherValue": ""
+                },
+                {
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test"
+                },
+                {
+                    "prefix_attrValue": "dd",
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlCustomQuerySample",
+                    "host": "testhost",
+                    "instance": "test",
+                    "prefix_myMetric": 4.5,
+                    "prefix_otherValue": 45
+                }
+            ],
+            "inventory": {},
+            "events": []
+        }
+    ]
+}
