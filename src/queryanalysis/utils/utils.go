@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
 	"regexp"
 	"strconv"
 	"strings"
@@ -171,7 +172,7 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 }
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
+	executionPlanQuery := fmt.Sprintf(queries.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
 		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
