@@ -82,7 +82,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	log.Debug("Executing query: %s", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return nil, err
 	}
 	defer rows.Close()
 	log.Debug("Query executed: %s", queryDetailsDto.Query)
