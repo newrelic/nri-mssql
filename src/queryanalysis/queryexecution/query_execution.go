@@ -25,7 +25,6 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	log.Debug("Query executed: %s", queryDetailsDto.Query)
 	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
-
 	if err != nil {
 		return nil, err
 	}
@@ -39,20 +38,13 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
 // nolint:gocyclo
-func BindQueryResults(arguments args.ArgumentList,
-	rows *sqlx.Rows,
-	queryDetailsDto models.QueryDetailsDto,
-	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
-
+func BindQueryResults(arguments args.ArgumentList, rows *sqlx.Rows, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
 	results := make([]interface{}, 0)
 	queryIDs := make([]models.HexString, 0)
-
 	queryType, err := querytype.CreateQueryType(queryDetailsDto.Type)
 	if err != nil {
 		return nil, queryIDs, err
 	}
-
 	for rows.Next() {
 		if err := queryType.Bind(&results, &queryIDs, rows); err != nil {
 			continue
