@@ -6,6 +6,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queryexecution"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
@@ -38,7 +39,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	}
 
 	for _, queryDetailsDto := range queryDetails {
-		queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+		queryResults, err := queryexecution.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 		if err != nil {
 			log.Error("Failed to execute query %s : %s", queryDetailsDto.Type, err.Error())
 			continue

@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/metrics"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
@@ -76,132 +74,6 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
 	}
 	return loadedQueries, nil
-}
-
-func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	log.Debug("Executing query: %s", queryDetailsDto.Query)
-	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	log.Debug("Query executed: %s", queryDetailsDto.Query)
-	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
-	rows.Close()
-
-	// Process collected query IDs for execution plan
-	if len(queryIDs) > 0 {
-		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
-	}
-	return result, err
-}
-
-// BindQueryResults binds query results to the specified data model using `sqlx`
-// nolint:gocyclo
-func BindQueryResults(arguments args.ArgumentList,
-	rows *sqlx.Rows,
-	queryDetailsDto models.QueryDetailsDto,
-	integration *integration.Integration,
-	sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
-	results := make([]interface{}, 0)
-	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
-
-	for rows.Next() {
-		switch queryDetailsDto.Type {
-		case "slowQueries":
-			var model models.TopNSlowQueryDetails
-			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
-				continue
-			}
-			if model.QueryText != nil {
-				*model.QueryText = AnonymizeQueryText(*model.QueryText)
-			}
-			results = append(results, model)
-
-			// Collect query IDs for fetching executionPlans
-			if model.QueryID != nil {
-				queryIDs = append(queryIDs, *model.QueryID)
-			}
-
-		case "waitAnalysis":
-			var model models.WaitTimeAnalysis
-			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
-				continue
-			}
-			if model.QueryText != nil {
-				*model.QueryText = AnonymizeQueryText(*model.QueryText)
-			}
-			results = append(results, model)
-		case "blockingSessions":
-			var model models.BlockingSessionQueryDetails
-			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
-				continue
-			}
-			if model.BlockingQueryText != nil {
-				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
-			}
-			if model.BlockedQueryText != nil {
-				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
-			}
-			results = append(results, model)
-		default:
-			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
-		}
-	}
-	return results, queryIDs, nil
-}
-
-// ProcessExecutionPlans processes execution plans for all collected queryIDs
-func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDs []models.HexString) {
-	if len(queryIDs) == 0 {
-		return
-	}
-	stringIDs := make([]string, len(queryIDs))
-	for i, qid := range queryIDs {
-		stringIDs[i] = string(qid) // Cast HexString to string
-	}
-
-	// Join the converted string slice into a comma-separated list
-	queryIDString := strings.Join(stringIDs, ",")
-
-	GenerateAndIngestExecutionPlan(arguments, integration, sqlConnection, queryIDString)
-}
-
-func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
-	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
-		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
-
-	var model models.ExecutionPlanResult
-
-	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
-	if err != nil {
-		log.Error("Failed to execute execution plan query: %s", err)
-		return
-	}
-	defer rows.Close()
-
-	results := make([]interface{}, 0)
-
-	for rows.Next() {
-		if err := rows.StructScan(&model); err != nil {
-			log.Error("Could not scan execution plan row: %s", err)
-			return
-		}
-		*model.SQLText = AnonymizeQueryText(*model.SQLText)
-		results = append(results, model)
-	}
-
-	queryDetailsDto := models.QueryDetailsDto{
-		EventName: "MSSQLQueryExecutionPlans",
-	}
-
-	// Ingest the execution plan
-	if err := IngestQueryMetricsInBatches(results, queryDetailsDto, integration, sqlConnection); err != nil {
-		log.Error("Failed to ingest execution plan: %s", err)
-	}
 }
 
 func IngestQueryMetricsInBatches(results []interface{},
@@ -310,5 +182,39 @@ func ValidateAndSetDefaults(args *args.ArgumentList) {
 	} else if args.QueryMonitoringCountThreshold >= config.GroupedQueryCountMax {
 		args.QueryMonitoringCountThreshold = config.GroupedQueryCountMax
 		log.Warn("Query count threshold is greater than max supported value, setting to max supported value: %d", config.GroupedQueryCountMax)
+	}
+}
+
+func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
+	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
+		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
+
+	var model models.ExecutionPlanResult
+
+	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
+	if err != nil {
+		log.Error("Failed to execute execution plan query: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	results := make([]interface{}, 0)
+
+	for rows.Next() {
+		if err := rows.StructScan(&model); err != nil {
+			log.Error("Could not scan execution plan row: %s", err)
+			return
+		}
+		*model.SQLText = AnonymizeQueryText(*model.SQLText)
+		results = append(results, model)
+	}
+
+	queryDetailsDto := models.QueryDetailsDto{
+		EventName: "MSSQLQueryExecutionPlans",
+	}
+
+	// Ingest the execution plan
+	if err := IngestQueryMetricsInBatches(results, queryDetailsDto, integration, sqlConnection); err != nil {
+		log.Error("Failed to ingest execution plan: %s", err)
 	}
 }
