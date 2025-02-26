@@ -40,7 +40,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	for _, queryDetailsDto := range queryDetails {
 		queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 		if err != nil {
-			log.Error("Failed to execute query: %s", err.Error())
+			log.Error("Failed to execute query %s : %s", queryDetailsDto.Type, err.Error())
 			continue
 		}
 		err = utils.IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
