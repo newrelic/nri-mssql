@@ -3,9 +3,10 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
 	"testing"
 	"time"
+
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"

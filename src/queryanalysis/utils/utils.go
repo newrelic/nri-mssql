@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
 
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/instance"
