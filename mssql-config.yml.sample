@@ -40,7 +40,7 @@ integrations:
 
     # Query count limit for fetching grouped slow query, wait query, blocking sessions and execution plan query performance metrics in each FETCH_INTERVAL
     # QUERY_MONITORING_COUNT_THRESHOLD : "20"
-    # Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval.
+    # Interval in seconds for fetching grouped slow queries; Should always be same as mssql-config interval.
     # QUERY_MONITORING_FETCH_INTERVAL : "15"
   interval: 15s
   labels:
