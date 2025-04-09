@@ -17,6 +17,7 @@ const (
 	lastSupportedVersion     = 16
 	firstSupportedVersion    = 14
 	// Represents the first supported version for Azure SQL Server in the cloud.
+	azureLastSupportedVersion  = 16
 	azureFirstSupportedVersion = 12
 )
 
@@ -60,7 +61,7 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error
 		return false, err
 	}
 	if strings.Contains(strings.ToLower(serverVersion), "azure") {
-		return version.Major >= azureFirstSupportedVersion && version.Major <= lastSupportedVersion, nil
+		return version.Major >= azureFirstSupportedVersion && version.Major <= azureLastSupportedVersion, nil
 	}
 	return version.Major >= firstSupportedVersion && version.Major <= lastSupportedVersion, nil
 }
