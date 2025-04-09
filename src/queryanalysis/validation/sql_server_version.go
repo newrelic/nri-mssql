@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	versionRegexPattern        = `\b(\d+\.\d+\.\d+)\b`
-	getSQLServerVersionQuery   = "SELECT @@VERSION"
-	lastSupportedVersion       = 16
-	firstSupportedVersion      = 14
+	versionRegexPattern      = `\b(\d+\.\d+\.\d+)\b`
+	getSQLServerVersionQuery = "SELECT @@VERSION"
+	lastSupportedVersion     = 16
+	firstSupportedVersion    = 14
+	// Represents the first supported version for Azure SQL Server in the cloud.
 	azureFirstSupportedVersion = 12
 )
 

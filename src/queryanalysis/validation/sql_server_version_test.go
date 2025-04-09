@@ -22,30 +22,31 @@ func TestCheckSqlServerVersion_SupportedVersion(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestCheckSqlServerVersion_AzureSupportedVersion(t *testing.T) {
-	sqlConnection, mock := setupMockDB(t)
-	defer sqlConnection.Connection.Close()
+func TestCheckSQLServerVersionforAzure(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		expected bool
+	}{
+		{"AzureSupportedVersion", "Microsoft SQL Azure (RTM) - 12.0.2000.8", true},
+		{"AzureUnsupportedVersion", "Microsoft SQL Azure (RTM) - 11.0.2000.7", false},
+	}
 
-	// Mocking a supported Azure SQL Server version response
-	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow("Microsoft SQL Azure (RTM) - 12.0.2000.8"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sqlConnection, mock := setupMockDB(t)
+			defer sqlConnection.Connection.Close()
 
-	result, _ := checkSQLServerVersion(sqlConnection)
-	assert.True(t, result)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
+			// Mocking the SQL Server version response based on the test case
+			mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
+				WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow(tt.version))
 
-func TestCheckSqlServerVersion_AzureUnsupportedVersion(t *testing.T) {
-	sqlConnection, mock := setupMockDB(t)
-	defer sqlConnection.Connection.Close()
-
-	// Mocking an unsupported Azure SQL Server version response
-	mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow("Microsoft SQL Azure (RTM) - 11.0.2000.7"))
-
-	result, _ := checkSQLServerVersion(sqlConnection)
-	assert.False(t, result)
-	assert.NoError(t, mock.ExpectationsWereMet())
+			result, err := checkSQLServerVersion(sqlConnection)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
 func TestCheckSqlServerVersion_UnsupportedVersion(t *testing.T) {
