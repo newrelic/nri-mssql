@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/newrelic/nri-mssql/src/connection"
 
@@ -11,10 +12,11 @@ import (
 )
 
 const (
-	versionRegexPattern      = `\b(\d+\.\d+\.\d+)\b`
-	getSQLServerVersionQuery = "SELECT @@VERSION"
-	lastSupportedVersion     = 16
-	firstSupportedVersion    = 14
+	versionRegexPattern        = `\b(\d+\.\d+\.\d+)\b`
+	getSQLServerVersionQuery   = "SELECT @@VERSION"
+	lastSupportedVersion       = 16
+	firstSupportedVersion      = 14
+	azureFirstSupportedVersion = 12
 )
 
 var (
@@ -55,6 +57,9 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error
 	version, err := parseSQLServerVersion(serverVersion)
 	if err != nil {
 		return false, err
+	}
+	if strings.Contains(strings.ToLower(serverVersion), "azure") {
+		return version.Major >= azureFirstSupportedVersion && version.Major <= lastSupportedVersion, nil
 	}
 	return version.Major >= firstSupportedVersion && version.Major <= lastSupportedVersion, nil
 }
