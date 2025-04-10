@@ -16,9 +16,9 @@ const (
 	getSQLServerVersionQuery = "SELECT @@VERSION"
 	lastSupportedVersion     = 16
 	firstSupportedVersion    = 14
-	// Represents the first supported version for Azure SQL Server in the cloud.
-	azureLastSupportedVersion  = 16
+	// Defines the supported version range for Azure SQL Server in the cloud, from version 12 to 16.
 	azureFirstSupportedVersion = 12
+	azureLastSupportedVersion  = 16
 )
 
 var (

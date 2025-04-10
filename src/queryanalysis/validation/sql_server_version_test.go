@@ -29,7 +29,9 @@ func TestCheckSQLServerVersionforAzure(t *testing.T) {
 		expected bool
 	}{
 		{"AzureSupportedVersion", "Microsoft SQL Azure (RTM) - 12.0.2000.8", true},
-		{"AzureUnsupportedVersion", "Microsoft SQL Azure (RTM) - 11.0.2000.7", false},
+		{"AzureUnsupportedVersion", "Microsoft SQL azure (RTM) - 11.0.2000.7", false},
+		{"AzureUnsupportedVersion", "Microsoft SQL (RTM) - 12.0.2000.8", false},
+		{"AzureUnsupportedVersion", "Microsoft SQL Azure (RTM) - 17.0.2000.8", false},
 	}
 
 	for _, tt := range tests {
