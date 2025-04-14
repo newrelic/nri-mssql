@@ -22,6 +22,35 @@ func TestCheckSqlServerVersion_SupportedVersion(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestCheckSQLServerVersionforAzure(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		expected bool
+	}{
+		{"AzureSupportedVersion", "Microsoft SQL Azure (RTM) - 12.0.2000.8", true},
+		{"AzureUnsupportedVersion", "Microsoft SQL azure (RTM) - 11.0.2000.7", false},
+		{"AzureUnsupportedVersion", "Microsoft SQL (RTM) - 12.0.2000.8", false},
+		{"AzureUnsupportedVersion", "Microsoft SQL Azure (RTM) - 17.0.2000.8", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sqlConnection, mock := setupMockDB(t)
+			defer sqlConnection.Connection.Close()
+
+			// Mocking the SQL Server version response based on the test case
+			mock.ExpectQuery(regexp.QuoteMeta(getSQLServerVersionQuery)).
+				WillReturnRows(sqlmock.NewRows([]string{"@@VERSION"}).AddRow(tt.version))
+
+			result, err := checkSQLServerVersion(sqlConnection)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestCheckSqlServerVersion_UnsupportedVersion(t *testing.T) {
 	sqlConnection, mock := setupMockDB(t)
 	defer sqlConnection.Connection.Close()

@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/newrelic/nri-mssql/src/connection"
 
@@ -15,6 +16,9 @@ const (
 	getSQLServerVersionQuery = "SELECT @@VERSION"
 	lastSupportedVersion     = 16
 	firstSupportedVersion    = 14
+	// Defines the supported version range for Azure SQL Server in the cloud, from version 12 to 16.
+	azureFirstSupportedVersion = 12
+	azureLastSupportedVersion  = 16
 )
 
 var (
@@ -55,6 +59,9 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error
 	version, err := parseSQLServerVersion(serverVersion)
 	if err != nil {
 		return false, err
+	}
+	if strings.Contains(strings.ToLower(serverVersion), "azure") {
+		return version.Major >= azureFirstSupportedVersion && version.Major <= azureLastSupportedVersion, nil
 	}
 	return version.Major >= firstSupportedVersion && version.Major <= lastSupportedVersion, nil
 }
