@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancements
+- Added version support of Azure SQL in nri-mssql.
+
 ## v2.17.2 - 2025-03-12
 
 ### 🐞 Bug fixes
