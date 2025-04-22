@@ -9,8 +9,13 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancements
+## v2.18.0 - 2025-04-22
+
+### 🚀 Enhancements
 - Added version support of Azure SQL in nri-mssql.
+
+### ⛓️ Dependencies
+- Upgraded golang.org/x/crypto from 0.31.0 to 0.35.0
 
 ## v2.17.2 - 2025-03-12
 
