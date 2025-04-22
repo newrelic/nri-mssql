@@ -72,6 +72,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if args.QueryMonitoringOnly {
+		queryanalysis.PopulateQueryPerformanceMetrics(i, args)
+		return
+	}
+
 	// Inventory collection
 	if args.HasInventory() {
 		inventory.PopulateInventory(instanceEntity, con)
