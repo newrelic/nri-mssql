@@ -9,8 +9,11 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
+
+const azureSQLManagedInstanceEngineEditionNumber = 8
 
 func Test_createDatabaseEntities_QueryError(t *testing.T) {
 	i, err := integration.New("test", "1.0.0")
@@ -179,5 +182,93 @@ func Test_createDBEntitySetLookUp(t *testing.T) {
 	out := CreateDBEntitySetLookup(entities, "MSSQL", "myHost")
 	if !reflect.DeepEqual(out, expected) {
 		t.Errorf("Expected %+v got %+v", expected, out)
+	}
+}
+
+func TestGetEngineEdition(t *testing.T) {
+	testCases := []struct {
+		name            string
+		setupMock       func(sqlmock.Sqlmock)
+		expectedEdition int
+		expectError     bool
+	}{
+		{
+			name: "Successful query - Azure SQL DB",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				expectedRows := sqlmock.NewRows([]string{"EngineEdition"}).
+					AddRow(azureSQLDatabaseEngineEditionNumber)
+				mock.ExpectQuery("SELECT (.+)").WillReturnRows(expectedRows)
+			},
+			expectedEdition: azureSQLDatabaseEngineEditionNumber,
+			expectError:     false,
+		},
+		{
+			name: "Successful query - Other SQL Server",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				expectedRows := sqlmock.NewRows([]string{"EngineEdition"}).
+					AddRow(azureSQLManagedInstanceEngineEditionNumber)
+				mock.ExpectQuery("SELECT (.+)").WillReturnRows(expectedRows)
+			},
+			expectedEdition: azureSQLManagedInstanceEngineEditionNumber,
+			expectError:     false,
+		},
+		{
+			name: "Query error",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT (.+)").WillReturnError(assert.AnError)
+			},
+			expectedEdition: 0,
+			expectError:     true,
+		},
+		{
+			name: "Empty output from engine edition query",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				expectedRows := sqlmock.NewRows([]string{"EngineEdition"})
+				mock.ExpectQuery("SELECT (.+)").WillReturnRows(expectedRows)
+			},
+			expectedEdition: 0,
+			expectError:     false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			conn, mock := connection.CreateMockSQL(t)
+			tc.setupMock(mock)
+			actualEdition, err := GetEngineEdition(conn)
+
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, tc.expectedEdition, actualEdition)
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestIsAzureSQLDatabase(t *testing.T) {
+	testCases := []struct {
+		name          string
+		engineEdition int
+		expected      bool
+	}{
+		{
+			name:          "Azure SQL Database",
+			engineEdition: azureSQLDatabaseEngineEditionNumber,
+			expected:      true,
+		},
+		{
+			name:          "Azure SQL Managed Instance",
+			engineEdition: azureSQLManagedInstanceEngineEditionNumber,
+			expected:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := IsAzureSQLDatabase(tc.engineEdition)
+			assert.Equal(t, tc.expected, actual)
+		})
 	}
 }
