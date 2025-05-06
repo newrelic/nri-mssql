@@ -12,6 +12,7 @@ import (
 
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/database"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
@@ -72,6 +73,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	engineEdition, err := database.GetEngineEdition(con)
+	if err != nil {
+		log.Debug("Unable to fetch engine edition: %s", err.Error())
+	}
+	isAzureSQLDatabase := database.IsAzureSQLDatabase(engineEdition)
+
 	// Inventory collection
 	if args.HasInventory() {
 		inventory.PopulateInventory(instanceEntity, con)
@@ -79,7 +86,7 @@ func main() {
 
 	// Metric collection
 	if args.HasMetrics() {
-		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args); err != nil {
+		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args, isAzureSQLDatabase); err != nil {
 			log.Error("Error collecting metrics for databases: %s", err.Error())
 		}
 

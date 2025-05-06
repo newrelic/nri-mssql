@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -53,42 +54,134 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 	assert.JSONEq(t, string(expectedData), string(data))
 }
 
-func Test_populateDatabaseMetrics(t *testing.T) {
-	i, _ := createTestEntity(t)
+// Mock connection and args for testing
+type mockSQLConnection struct {
+	db    *sql.DB
+	mock  sqlmock.Sqlmock
+	query string
+}
 
-	conn, mock := connection.CreateMockSQL(t)
-	defer conn.Close()
+func (m *mockSQLConnection) Query(dest interface{}, query string, args ...interface{}) error {
+	m.query = query                                               //capture the query
+	rows := sqlmock.NewRows([]string{"column1"}).AddRow("value1") //dummy row
+	m.mock.ExpectQuery(query).WillReturnRows(rows)
+	return nil // Use m.mock to set expectations
+}
 
-	databaseRows := sqlmock.NewRows([]string{"db_name"}).
-		AddRow("master").
-		AddRow("otherdb")
-	logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
-		AddRow("master", 0).
-		AddRow("otherdb", 1)
-	bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
-		AddRow("master", 0).
-		AddRow("otherdb", 1)
-
-	// only match the performance counter query
-	mock.ExpectQuery(`select name as db_name from sys\.databases`).
-		WillReturnRows(databaseRows)
-
-	mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
-		WillReturnRows(logGrowthRows)
-
-	mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
-
-	mock.ExpectClose()
-
-	args := args.ArgumentList{
-		EnableBufferMetrics: true,
+// Mock NewDatabaseConnection
+func newMockDatabaseConnection(t *testing.T, expectedDBName string) (*mockSQLConnection, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
 	}
-	assert.NoError(t, PopulateDatabaseMetrics(i, "MSSQL", conn, args))
 
-	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
-	assert.NoError(t, updateGoldenFile(actual, expectedFile))
-	checkAgainstFile(t, actual, expectedFile)
+	conn := &mockSQLConnection{db: db, mock: mock}
+	return conn, nil
+}
+
+func Test_populateDatabaseMetrics(t *testing.T) {
+	testCases := []struct {
+		name               string
+		setupMock          func(sqlmock.Sqlmock)
+		args               args.ArgumentList
+		isAzureSQLDatabase bool
+		expectedFile       string
+		expectError        bool
+	}{
+		{
+			name: "Successful mssql db",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				databaseRows := sqlmock.NewRows([]string{"db_name"}).
+					AddRow("master").
+					AddRow("otherdb")
+				logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
+					AddRow("master", 0).
+					AddRow("otherdb", 1)
+				bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
+					AddRow("master", 0).
+					AddRow("otherdb", 1)
+
+				mock.ExpectQuery(`select name as db_name from sys\.databases`).
+					WillReturnRows(databaseRows)
+
+				mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
+					WillReturnRows(logGrowthRows)
+
+				mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
+
+				mock.ExpectClose()
+			},
+			args: args.ArgumentList{
+				EnableBufferMetrics: true,
+			},
+			isAzureSQLDatabase: false,
+			expectedFile:       filepath.Join("..", "testdata", "databaseMetrics.json.golden"),
+			expectError:        false,
+		},
+		{
+			name: "Successful azure sql db",
+			setupMock: func(mock sqlmock.Sqlmock) {
+				databaseRows := sqlmock.NewRows([]string{"db_name"}).
+					AddRow("master").
+					AddRow("otherdb")
+
+				mock.ExpectQuery(`select name as db_name from sys\.databases`).
+					WillReturnRows(databaseRows)
+
+				mock.ExpectClose()
+			},
+			args: args.ArgumentList{
+				EnableBufferMetrics: true,
+			},
+			isAzureSQLDatabase: true,
+			expectedFile:       filepath.Join("..", "testdata", "databaseMetrics.json.golden"),
+			expectError:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			i, _ := createTestEntity(t)
+			conn, mock := connection.CreateMockSQL(t)
+			tc.setupMock(mock)
+			// Override NewDatabaseConnection
+			originalNewDatabaseConnection := connection.CreateDatabaseConnection
+			defer func() {
+				connection.CreateDatabaseConnection = originalNewDatabaseConnection
+			}()
+
+			connections := make(map[string]*mockSQLConnection) //store created connections
+
+			connection.CreateDatabaseConnection = func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				mockConn, err := newMockDatabaseConnection(t, dbName)
+				if err != nil {
+					return nil, err
+				}
+				logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
+					AddRow("master", 0).
+					AddRow("otherdb", 1)
+				bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
+					AddRow("master", 0).
+					AddRow("otherdb", 1)
+
+				mockConn.mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
+					WillReturnRows(logGrowthRows)
+
+				mockConn.mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
+
+				connections[dbName] = mockConn
+				return &connection.SQLConnection{Connection: sqlx.NewDb(mockConn.db, "sqlmock"), Host: "test_host"}, nil
+			}
+
+			assert.NoError(t, PopulateDatabaseMetrics(i, "MSSQL", conn, tc.args, tc.isAzureSQLDatabase))
+
+			actual, _ := i.MarshalJSON()
+			expectedFile := filepath.Join("..", "testdata", "databaseMetrics.json.golden")
+			assert.NoError(t, updateGoldenFile(actual, expectedFile))
+			checkAgainstFile(t, actual, expectedFile)
+		})
+	}
+
 }
 
 func Test_dbMetric_Populator_DBNameError(t *testing.T) {

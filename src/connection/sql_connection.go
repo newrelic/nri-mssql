@@ -21,7 +21,22 @@ type SQLConnection struct {
 
 // NewConnection creates a new SQLConnection from args
 func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
-	db, err := sqlx.Connect("mssql", CreateConnectionURL(args))
+	db, err := sqlx.Connect("mssql", CreateConnectionURL(args, ""))
+	if err != nil {
+		return nil, err
+	}
+	return &SQLConnection{
+		Connection: db,
+		Host:       args.Hostname,
+	}, nil
+}
+
+// Declare a package-level variable to hold the original function which is needed to mock this NewDatabaseConnection for unit testing.
+var CreateDatabaseConnection = NewDatabaseConnection
+
+// NewDatabaseConnection creates a new SQLConnection from args
+func NewDatabaseConnection(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
+	db, err := sqlx.Connect("mssql", CreateConnectionURL(args, dbName))
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +67,7 @@ func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 
 // CreateConnectionURL tags in args and creates the connection string.
 // All args should be validated before calling this.
-func CreateConnectionURL(args *args.ArgumentList) string {
+func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 
 	connectionString := ""
 
@@ -73,6 +88,9 @@ func CreateConnectionURL(args *args.ArgumentList) string {
 	query := url.Values{}
 	query.Add("dial timeout", args.Timeout)
 	query.Add("connection timeout", args.Timeout)
+	if dbName != "" { // Add the database to the query parameters.
+		query.Add("database", dbName)
+	}
 
 	if args.ExtraConnectionURLArgs != "" {
 		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)

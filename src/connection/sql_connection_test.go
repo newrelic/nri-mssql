@@ -54,9 +54,10 @@ func Test_SQLConnection_Query(t *testing.T) {
 
 func Test_createConnectionURL(t *testing.T) {
 	testCases := []struct {
-		name string
-		arg  *args.ArgumentList
-		want string
+		name   string
+		arg    *args.ArgumentList
+		dbName string
+		want   string
 	}{
 		{
 			"Port No SSL",
@@ -68,6 +69,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Port:      "1443",
 				Timeout:   "30",
 			},
+			"",
 			"sqlserver://user:pass@localhost:1443?connection+timeout=30&dial+timeout=30",
 		},
 		{
@@ -80,6 +82,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:  "SQLExpress",
 				Timeout:   "30",
 			},
+			"",
 			"sqlserver://user:pass@localhost/SQLExpress?connection+timeout=30&dial+timeout=30",
 		},
 		{
@@ -93,6 +96,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:               "SQLExpress",
 				Timeout:                "30",
 			},
+			"",
 			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=true&connection+timeout=30&dial+timeout=30&encrypt=true",
 		},
 		{
@@ -107,6 +111,7 @@ func Test_createConnectionURL(t *testing.T) {
 				Instance:               "SQLExpress",
 				Timeout:                "30",
 			},
+			"",
 			"sqlserver://user:pass@localhost/SQLExpress?TrustServerCertificate=false&certificate=file.ca&connection+timeout=30&dial+timeout=30&encrypt=true",
 		},
 		{
@@ -120,12 +125,26 @@ func Test_createConnectionURL(t *testing.T) {
 				Timeout:                "30",
 				ExtraConnectionURLArgs: "applicationIntent=true",
 			},
+			"",
 			"sqlserver://user:pass@localhost:1443?applicationIntent=true&connection+timeout=30&dial+timeout=30",
+		},
+		{
+			"Database Name",
+			&args.ArgumentList{
+				Username:  "user",
+				Password:  "pass",
+				Hostname:  "localhost",
+				EnableSSL: false,
+				Port:      "1443",
+				Timeout:   "30",
+			},
+			"test-db",
+			"sqlserver://user:pass@localhost:1443?connection+timeout=30&database=test-db&dial+timeout=30",
 		},
 	}
 
 	for _, tc := range testCases {
-		if out := CreateConnectionURL(tc.arg); out != tc.want {
+		if out := CreateConnectionURL(tc.arg, tc.dbName); out != tc.want {
 			t.Errorf("Test Case %s Failed: Expected '%s' got '%s'", tc.name, tc.want, out)
 		}
 	}
