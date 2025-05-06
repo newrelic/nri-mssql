@@ -315,7 +315,7 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
-func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList) error {
+func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList, isAzureSQLDatabase bool) error {
 	// create database entities
 	dbEntities, err := database.CreateDatabaseEntities(i, connection, instanceName)
 	if err != nil {
@@ -324,6 +324,7 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 
 	// create database entities lookup for fast metric set
 	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName, connection.Host)
+	dbNames := dbSetLookup.GetDBNames()
 
 	modelChan := make(chan interface{}, 10)
 	var wg sync.WaitGroup
@@ -331,6 +332,41 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
+	if isAzureSQLDatabase {
+		processDBDefinitionsForAzureSQLDatabase(modelChan, dbNames, arguments)
+	} else {
+		processDBDefinitions(connection, modelChan, arguments)
+	}
+
+	// run queries that are specific to a database
+	if arguments.EnableDatabaseReserveMetrics {
+		if isAzureSQLDatabase {
+			// pass connection as nil because a new connection should be created for each database in case of Azure SQL Database
+			processSpecificDBDefinitions(nil, dbSetLookup.GetDBNames(), modelChan, arguments)
+		} else {
+			processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan, arguments)
+		}
+	}
+
+	close(modelChan)
+	wg.Wait()
+
+	return nil
+}
+
+func processDBDefinitionsForAzureSQLDatabase(modelChan chan<- interface{}, dbNames []string, arguments args.ArgumentList) {
+	for _, dbName := range dbNames {
+		con, err := connection.CreateDatabaseConnection(&arguments, dbName)
+		if err != nil {
+			log.Error("Error creating connection to SQL Server: %s", err.Error())
+			log.Warn("Skipping processDBDefinitons for database : %s", dbName)
+			continue
+		}
+		processDBDefinitions(con, modelChan, arguments)
+	}
+}
+
+func processDBDefinitions(connection *connection.SQLConnection, modelChan chan<- interface{}, arguments args.ArgumentList) {
 	// run queries that are not specific to a database
 	processGeneralDBDefinitions(connection, modelChan)
 
@@ -338,16 +374,6 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	if arguments.EnableBufferMetrics {
 		processDBBufferDefinitions(connection, modelChan)
 	}
-
-	// run queries that are specific to a database
-	if arguments.EnableDatabaseReserveMetrics {
-		processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
-	}
-
-	close(modelChan)
-	wg.Wait()
-
-	return nil
 }
 
 func processGeneralDBDefinitions(con *connection.SQLConnection, modelChan chan<- interface{}) {
@@ -362,11 +388,23 @@ func processDBBufferDefinitions(con *connection.SQLConnection, modelChan chan<- 
 	}
 }
 
-func processSpecificDBDefinitions(con *connection.SQLConnection, dbNames []string, modelChan chan<- interface{}) {
+func processSpecificDBDefinitions(con *connection.SQLConnection, dbNames []string, modelChan chan<- interface{}, args args.ArgumentList) {
 	for _, queryDef := range specificDatabaseDefinitions {
 		for _, dbName := range dbNames {
 			query := queryDef.GetQuery(dbNameReplace(dbName))
-			makeDBQuery(con, query, queryDef.GetDataModels(), modelChan)
+			// connection is nil only in case of Azure SQL Database
+			if con == nil {
+				// Create new connection with Database as `USE` statement is not supported in case of Azure SQL Database
+				conn, err := connection.NewDatabaseConnection(&args, dbName)
+				if err != nil {
+					log.Error("Error creating connection to SQL Server: %s", err.Error())
+					log.Warn("Skipping running specificDatabaseDefinitions for database : %s", dbName)
+					continue
+				}
+				makeDBQuery(conn, query, queryDef.GetDataModels(), modelChan)
+			} else {
+				makeDBQuery(con, query, queryDef.GetDataModels(), modelChan)
+			}
 		}
 	}
 }
