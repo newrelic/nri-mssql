@@ -4,6 +4,7 @@ package inventory
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/common"
 	"github.com/newrelic/nri-mssql/src/connection"
 )
 
@@ -28,8 +29,8 @@ type ConfigQueryRow struct {
 }
 
 // PopulateInventory gathers inventory data for the SQL Server instance and populates it into entity
-func PopulateInventory(instanceEntity *integration.Entity, connection *connection.SQLConnection) {
-	if err := populateSPConfigItems(instanceEntity, connection); err != nil {
+func PopulateInventory(instanceEntity *integration.Entity, connection *connection.SQLConnection, engineEdition int) {
+	if err := populateSPConfigItems(instanceEntity, connection, engineEdition); err != nil {
 		log.Error("Error collecting inventory items from sp_config: %s", err.Error())
 	}
 
@@ -39,7 +40,12 @@ func PopulateInventory(instanceEntity *integration.Entity, connection *connectio
 }
 
 // populateSPConfigItems collects inventory items for sp_configure procedure
-func populateSPConfigItems(instanceEntity *integration.Entity, connection *connection.SQLConnection) error {
+func populateSPConfigItems(instanceEntity *integration.Entity, connection *connection.SQLConnection, engineEdition int) error {
+	if common.ShouldSkipQueryForEngineEdition(engineEdition, spConfigQuery) {
+		log.Debug("Skipping query '%s' for unsupported engine edition %d", spConfigQuery, engineEdition)
+
+		return nil
+	}
 	configRows := make([]*SPConfigRow, 0)
 	if err := connection.Query(&configRows, spConfigQuery); err != nil {
 		return err

@@ -15,7 +15,7 @@ import (
 // databaseNameQuery gets all database names
 const databaseNameQuery = "select name as db_name from sys.databases where name not in ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')"
 const engineEditionQuery = "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition;"
-const azureSQLDatabaseEngineEditionNumber = 5
+const AzureSQLDatabaseEngineEditionNumber = 5
 
 // NameRow is a row result in the databaseNameQuery
 type NameRow struct {
@@ -133,5 +133,5 @@ func GetEngineEdition(connection *connection.SQLConnection) (int, error) {
 
 // IsAzureSQLDatabase checks if the given engine edition corresponds to Azure SQL Database with EngineEdition value of 5
 func IsAzureSQLDatabase(engineEdition int) bool {
-	return engineEdition == azureSQLDatabaseEngineEditionNumber
+	return engineEdition == AzureSQLDatabaseEngineEditionNumber
 }
