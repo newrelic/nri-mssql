@@ -32,6 +32,7 @@ type ArgumentList struct {
 	QueryMonitoringResponseTimeThreshold int    `default:"500" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryMonitoringCountThreshold        int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	QueryMonitoringFetchInterval         int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
+	QueryMonitoringOnly                  bool   `default:"false" help:"If true, only query monitoring will be executed."`
 }
 
 // Validate validates SQL specific arguments
