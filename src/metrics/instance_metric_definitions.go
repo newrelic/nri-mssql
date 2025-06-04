@@ -160,7 +160,7 @@ type waitTimeModel struct {
 	WaitCount *int64  `db:"waiting_tasks_count"`
 }
 
-var diskMetricInBytesDefination = []*QueryDefinition{
+var diskMetricInBytesDefinition = []*QueryDefinition{
 	{
 		query: `SELECT Sum(total_bytes) AS total_disk_space FROM (
 			SELECT DISTINCT

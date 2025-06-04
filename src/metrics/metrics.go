@@ -15,6 +15,7 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/common"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/database"
 	"gopkg.in/yaml.v2"
@@ -34,11 +35,15 @@ type customQueryMetricValue struct {
 	sourceType metric.SourceType
 }
 
-var errMissingMetricValueCustomQuery = errors.New("missing 'metric_value' for custom query")
-var errMissingMetricNameCustomQuery = errors.New("missing 'metric_name' for custom query")
+var (
+	errMissingMetricValueCustomQuery = errors.New("missing 'metric_value' for custom query")
+	errMissingMetricNameCustomQuery  = errors.New("missing 'metric_name' for custom query")
+)
 
 // PopulateInstanceMetrics creates instance-level metrics
-func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
+//
+//nolint:gocyclo
+func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList, engineEdition int) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		attribute.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		attribute.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
@@ -50,11 +55,15 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 		collectionList = append(collectionList, instanceBufferDefinitions...)
 	}
 	if arguments.EnableDiskMetricsInBytes {
-		collectionList = append(collectionList, diskMetricInBytesDefination...)
+		collectionList = append(collectionList, diskMetricInBytesDefinition...)
 	}
 
 	for _, queryDef := range collectionList {
 		models := queryDef.GetDataModels()
+		if common.ShouldSkipQueryForEngineEdition(engineEdition, queryDef.GetQuery()) {
+			log.Debug("Skipping query '%s' for unsupported engine edition %d", queryDef.GetQuery(), engineEdition)
+			continue
+		}
 		if err := connection.Query(models, queryDef.GetQuery()); err != nil {
 			log.Error("Could not execute instance query: %s", err.Error())
 			continue
