@@ -196,10 +196,10 @@ func TestGetEngineEdition(t *testing.T) {
 			name: "Successful query - Azure SQL DB",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				expectedRows := sqlmock.NewRows([]string{"EngineEdition"}).
-					AddRow(azureSQLDatabaseEngineEditionNumber)
+					AddRow(AzureSQLDatabaseEngineEditionNumber)
 				mock.ExpectQuery("SELECT (.+)").WillReturnRows(expectedRows)
 			},
-			expectedEdition: azureSQLDatabaseEngineEditionNumber,
+			expectedEdition: AzureSQLDatabaseEngineEditionNumber,
 			expectError:     false,
 		},
 		{
@@ -255,7 +255,7 @@ func TestIsAzureSQLDatabase(t *testing.T) {
 	}{
 		{
 			name:          "Azure SQL Database",
-			engineEdition: azureSQLDatabaseEngineEditionNumber,
+			engineEdition: AzureSQLDatabaseEngineEditionNumber,
 			expected:      true,
 		},
 		{

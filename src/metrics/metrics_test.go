@@ -147,29 +147,78 @@ func Test_dbMetric_Populator_DBNameError(t *testing.T) {
 }
 
 func Test_populateInstanceMetrics(t *testing.T) {
-	i, e := createTestEntity(t)
 
-	conn, mock := connection.CreateMockSQL(t)
-	defer conn.Close()
+	// Enable logging if needed
+	// log.SetupLogging(true)
+	// defer log.SetupLogging(false)
 
-	perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
-		AddRow(22, 100, 4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
+	tests := []struct {
+		name               string
+		engineEditionValue int
+		perfCounterSetup   func(mock sqlmock.Sqlmock) // Function to mock performance counter query
+		expectedFile       string                     // Path to the expected file
+		args               args.ArgumentList          // Arguments to pass to PopulateInstanceMetrics
+		updateDefinitions  func()
+	}{
+		{
+			name:               "Engine edition 3: Collect all metrics",
+			engineEditionValue: 3,
+			perfCounterSetup: func(mock sqlmock.Sqlmock) {
+				perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
+					AddRow(22, 100, 4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
+				mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+			},
+			expectedFile: filepath.Join("..", "testdata", "perfCounter.json.golden"),
+			args: args.ArgumentList{
+				EnableBufferMetrics:      true,
+				EnableDiskMetricsInBytes: true,
+			},
+		},
+		{
+			name:               "Engine edition 5: Skip unsupported metrics",
+			engineEditionValue: database.AzureSQLDatabaseEngineEditionNumber, // Azure SQL Database engine edition
+			perfCounterSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`SELECT\s+physical_memory_in_use_kb\s+FROM\s+sys\.dm_os_process_memory`).WillReturnRows(sqlmock.NewRows([]string{"physical_memory_in_use_kb"}))
+				mock.ExpectQuery(`SELECT\s+name\s+FROM\s+sys\.master_files`).WillReturnRows(sqlmock.NewRows([]string{"name"}))
+			},
+			expectedFile: filepath.Join("..", "testdata", "empty.json.golden"),
+			args: args.ArgumentList{
+				EnableBufferMetrics:      true,
+				EnableDiskMetricsInBytes: true,
+			},
+		},
+		{
+			name:               "Engine edition 5: Get non-empty metrics",
+			engineEditionValue: database.AzureSQLDatabaseEngineEditionNumber,
+			perfCounterSetup: func(mock sqlmock.Sqlmock) {
+				// Mock the buffer_pool_hit_percent query
+				perfCounterRows := sqlmock.NewRows([]string{"buffer_pool_hit_percent"}).
+					AddRow(95.5)
+				mock.ExpectQuery(`SELECT\s+\(a\.cntr_value\s+\*\s+1\.0\s+/\s+b\.cntr_value\)\s+\*\s+100\.0\s+AS\s+buffer_pool_hit_percent\s+FROM\s+sys\.dm_os_performance_counters\s+a\s+JOIN\s+\(SELECT\s+cntr_value,\s+OBJECT_NAME\s+FROM\s+sys\.dm_os_performance_counters\s+WHERE\s+counter_name\s+=\s+'Buffer cache hit ratio base'\)\s+b\s+ON\s+a\.OBJECT_NAME\s+=\s+b\.OBJECT_NAME\s+WHERE\s+a\.counter_name\s+=\s+'Buffer cache hit ratio'`).WillReturnRows(perfCounterRows)
+			},
+			expectedFile: filepath.Join("..", "testdata", "nonEmptyMetrics.json.golden"),
+			args: args.ArgumentList{
+				EnableBufferMetrics:      true,
+				EnableDiskMetricsInBytes: true,
+			},
+		}}
 
-	// only match the performance counter query
-	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
-	mock.ExpectClose()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i, e := createTestEntity(t)
 
-	args := args.ArgumentList{
-		EnableBufferMetrics:      true,
-		EnableDiskMetricsInBytes: true,
+			conn, mock := connection.CreateMockSQL(t)
+			defer conn.Close()
+
+			tt.perfCounterSetup(mock)
+			PopulateInstanceMetrics(e, conn, tt.args, tt.engineEditionValue)
+
+			actual, _ := i.MarshalJSON()
+			assert.NoError(t, updateGoldenFile(actual, tt.expectedFile))
+
+			checkAgainstFile(t, actual, tt.expectedFile)
+		})
 	}
-	PopulateInstanceMetrics(e, conn, args)
-
-	actual, _ := i.MarshalJSON()
-	expectedFile := filepath.Join("..", "testdata", "perfCounter.json.golden")
-	assert.NoError(t, updateGoldenFile(actual, expectedFile))
-
-	checkAgainstFile(t, actual, expectedFile)
 }
 
 func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
@@ -187,7 +236,10 @@ func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
 	args := args.ArgumentList{
 		EnableBufferMetrics: true,
 	}
-	PopulateInstanceMetrics(e, conn, args)
+
+	engineEdition := 3
+
+	PopulateInstanceMetrics(e, conn, args, engineEdition)
 
 	actual, _ := i.MarshalJSON()
 	expectedFile := filepath.Join("..", "testdata", "empty.json.golden")

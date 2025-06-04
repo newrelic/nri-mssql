@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "entity": {
+        "id_attributes": [],
+        "name": "test",
+        "type": "instance"
+      },
+      "events": [],
+      "inventory": {},
+      "metrics": [
+        {
+          "displayName": "test",
+          "entityName": "instance:test",
+          "event_type": "MssqlInstanceSample",
+          "host": "testhost",
+          "system.bufferPoolHitPercent": 95.5
+        }
+      ]
+    }
+  ],
+  "integration_version": "1.0.0",
+  "name": "test",
+  "protocol_version": "3"
+}
