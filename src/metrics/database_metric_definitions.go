@@ -66,6 +66,70 @@ var databaseBufferDefinitions = []*QueryDefinition{
 	},
 }
 
+var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
+	{
+		query: `
+			SELECT 
+			    RTRIM(instance_name) AS db_name,
+			    cntr_value AS log_growth
+			FROM sys.dm_os_performance_counters WITH (NOLOCK)
+			WHERE counter_name = 'Log Growths'
+			    AND object_name LIKE '%:Databases%'
+			    AND RTRIM(instance_name) NOT IN (
+			        '_Total', 'mssqlsystemresource', 'master', 'tempdb', 
+			        'msdb', 'model', 'rdsadmin', 'distribution', 
+			        'model_msdb', 'model_replicatedmaster'
+    			)
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			LogGrowth int `db:"log_growth" metric_name:"log.transactionGrowth" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `		
+			SELECT
+			    DB_NAME() AS db_name,
+			    SUM(io_stall) AS io_stalls
+			FROM sys.dm_io_virtual_file_stats(NULL, NULL)
+			WHERE database_id = DB_ID()
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `
+			SELECT 
+			    DB_NAME() AS db_name, 
+			    COUNT_BIG(*) * (8 * 1024) AS buffer_pool_size
+			FROM sys.dm_os_buffer_descriptors WITH (NOLOCK) 
+			WHERE database_id = DB_ID()
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			BufferPoolSize int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `
+			SELECT
+				DB_NAME() AS db_name,
+				sum(a.total_pages)*8.0*1024 AS reserved_space,
+				(sum(a.total_pages)*8.0 -sum(a.used_pages)*8.0)* 1024 AS reserved_space_not_used
+			FROM sys.partitions p with (nolock)
+			INNER JOIN sys.allocation_units a WITH (NOLOCK) ON p.partition_id = a.container_id
+			LEFT JOIN sys.internal_tables it WITH (NOLOCK) ON p.object_id = it.object_id
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
+			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
+		}{},
+	},
+}
+
 var specificDatabaseDefinitions = []*QueryDefinition{
 	{
 		query: fmt.Sprintf(`USE "%s"
