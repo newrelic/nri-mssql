@@ -66,6 +66,7 @@ var databaseBufferDefinitions = []*QueryDefinition{
 	},
 }
 
+//nolint:all
 var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	{
 		query: `
