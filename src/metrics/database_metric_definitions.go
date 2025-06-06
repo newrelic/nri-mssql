@@ -78,7 +78,7 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 			    ON sd.physical_database_name = spc.instance_name
 			WHERE spc.counter_name = 'Log Growths'
 			    AND spc.object_name LIKE '%:Databases%'
-			    AND sd.name = DB_NAME()
+			    AND sd.database_id = DB_ID()
 		`,
 		dataModels: &[]struct {
 			database.DataModel
