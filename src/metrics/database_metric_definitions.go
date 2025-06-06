@@ -71,16 +71,14 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	{
 		query: `
 			SELECT 
-			    RTRIM(instance_name) AS db_name,
-			    cntr_value AS log_growth
-			FROM sys.dm_os_performance_counters WITH (NOLOCK)
-			WHERE counter_name = 'Log Growths'
-			    AND object_name LIKE '%:Databases%'
-			    AND RTRIM(instance_name) NOT IN (
-			        '_Total', 'mssqlsystemresource', 'master', 'tempdb', 
-			        'msdb', 'model', 'rdsadmin', 'distribution', 
-			        'model_msdb', 'model_replicatedmaster'
-    			)
+			    sd.name AS db_name,
+			    spc.cntr_value AS log_growth
+			FROM sys.dm_os_performance_counters spc
+			INNER JOIN sys.databases sd 
+			    ON sd.physical_database_name = spc.instance_name
+			WHERE spc.counter_name = 'Log Growths'
+			    AND spc.object_name LIKE '%:Databases%'
+			    AND sd.name = DB_NAME()
 		`,
 		dataModels: &[]struct {
 			database.DataModel
@@ -117,8 +115,8 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 		query: `
 			SELECT
 				DB_NAME() AS db_name,
-				sum(a.total_pages)*8.0*1024 AS reserved_space,
-				(sum(a.total_pages)*8.0 -sum(a.used_pages)*8.0)* 1024 AS reserved_space_not_used
+				sum(a.total_pages) * 8.0 * 1024 AS reserved_space,
+				(sum(a.total_pages)*8.0 - sum(a.used_pages)*8.0) * 1024 AS reserved_space_not_used
 			FROM sys.partitions p with (nolock)
 			INNER JOIN sys.allocation_units a WITH (NOLOCK) ON p.partition_id = a.container_id
 			LEFT JOIN sys.internal_tables it WITH (NOLOCK) ON p.object_id = it.object_id
