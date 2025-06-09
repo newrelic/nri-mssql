@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queries"
+
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/nri-mssql/src/args"
@@ -327,7 +329,7 @@ func checkStringField(t *testing.T, name string, field *string, expected string)
 }
 
 func TestLoadQueries_SlowQueries(t *testing.T) {
-	configQueries := config.Queries
+	configQueries := queries.Queries
 	var arguments args.ArgumentList
 
 	slowQueriesIndex := -1
@@ -343,7 +345,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 		t.Fatalf("could not find 'slowQueries' in the list of queries")
 	}
 
-	queries, err := LoadQueries(config.Queries, arguments)
+	queries, err := LoadQueries(queries.Queries, arguments)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -359,7 +361,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 // nolint: dupl
 func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	// Initial Configuration and Argument Setup\
-	configQueries := config.Queries
+	configQueries := queries.Queries
 	var args args.ArgumentList
 
 	// Prepare Arguments
@@ -385,7 +387,7 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 		configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
 	// Invoke the function under test
-	queries, err := LoadQueries(config.Queries, args)
+	queries, err := LoadQueries(queries.Queries, args)
 	assert.Nil(t, err, "expected no error, got an error instead")
 
 	// Verify that the "waitAnalysis" query was modified as expected
@@ -395,7 +397,7 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 // nolint: dupl
 func TestLoadQueries_BlockingSessions(t *testing.T) {
 	// Initial Configuration and Argument Setup
-	configQueries := config.Queries
+	configQueries := queries.Queries
 	var args args.ArgumentList
 
 	// Prepare Arguments
@@ -421,7 +423,7 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 		configQueries[blockQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 
 	// Invoke the function under test
-	queries, err := LoadQueries(config.Queries, args)
+	queries, err := LoadQueries(queries.Queries, args)
 	assert.Nil(t, err, "expected no error, got an error instead")
 
 	// Verify that the "blockingSessions" query was modified as expected
@@ -429,7 +431,7 @@ func TestLoadQueries_BlockingSessions(t *testing.T) {
 }
 
 func TestLoadQueries_UnknownType(t *testing.T) {
-	config.Queries = []models.QueryDetailsDto{
+	queries.Queries = []models.QueryDetailsDto{
 		{
 			EventName: "UnknownTypeQuery",
 			Query:     "SELECT * FROM mysterious_table",
@@ -444,7 +446,7 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 	}
 
 	// Call the function under test
-	_, err := LoadQueries(config.Queries, args)
+	_, err := LoadQueries(queries.Queries, args)
 	if err == nil {
 		t.Fatalf("expected error for unknown query type, got nil")
 	}
@@ -458,8 +460,8 @@ func TestLoadQueries_UnknownType(t *testing.T) {
 
 // utils_test.go
 func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
-	// Setup: Ensure config.Queries uses all %d format specifiers as intended
-	config.Queries = []models.QueryDetailsDto{
+	// Setup: Ensure queries.Queries uses all %d format specifiers as intended
+	queries.Queries = []models.QueryDetailsDto{
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
@@ -488,21 +490,21 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
+			Query:     fmt.Sprintf(queries.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			Query:     fmt.Sprintf(queries.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
 			Type:      "blockingSessions",
-			Query:     fmt.Sprintf(config.Queries[2].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			Query:     fmt.Sprintf(queries.Queries[2].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
 		},
 	}
 	// Execute the function
-	loadedQueries, err := LoadQueries(config.Queries, sampleArgs)
+	loadedQueries, err := LoadQueries(queries.Queries, sampleArgs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -528,8 +530,8 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 }
 
 func TestLoadQueries_EmptyConfig(t *testing.T) {
-	// Setup: Empty config.Queries
-	config.Queries = []models.QueryDetailsDto{}
+	// Setup: Empty queries.Queries
+	queries.Queries = []models.QueryDetailsDto{}
 
 	// Setup: Sample ArgumentList
 	sampleArgs := args.ArgumentList{
@@ -539,7 +541,7 @@ func TestLoadQueries_EmptyConfig(t *testing.T) {
 	}
 
 	// Execute the function
-	loadedQueries, err := LoadQueries(config.Queries, sampleArgs)
+	loadedQueries, err := LoadQueries(queries.Queries, sampleArgs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
