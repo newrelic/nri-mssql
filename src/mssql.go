@@ -87,7 +87,7 @@ func main() {
 
 	// Metric collection
 	if args.HasMetrics() {
-		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args); err != nil {
+		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args, engineEdition); err != nil {
 			log.Error("Error collecting metrics for databases: %s", err.Error())
 		}
 

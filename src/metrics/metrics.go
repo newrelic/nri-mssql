@@ -40,6 +40,8 @@ var (
 	errMissingMetricNameCustomQuery  = errors.New("missing 'metric_name' for custom query")
 )
 
+const maxConcurrentWorkers = 10
+
 // PopulateInstanceMetrics creates instance-level metrics
 //
 //nolint:gocyclo
@@ -323,8 +325,20 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 	return &customQueryMetricValue{value: metricValue, sourceType: sourceType}, nil
 }
 
+type databaseMetricsProcessor func(*integration.Integration, string, *connection.SQLConnection, args.ArgumentList, database.DBMetricSetLookup, int, chan<- interface{})
+
+// returns a processor function based on the engine edition
+func getProcessorForEngine(engineEdition int) databaseMetricsProcessor {
+	switch engineEdition {
+	case database.AzureSQLDatabaseEngineEditionNumber:
+		return processAzureSQLDatabaseMetrics
+	default:
+		return processDefaultDBMetrics
+	}
+}
+
 // PopulateDatabaseMetrics collects per-database metrics
-func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList) error {
+func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList, engineEdition int) error {
 	// create database entities
 	dbEntities, err := database.CreateDatabaseEntities(i, connection, instanceName)
 	if err != nil {
@@ -340,6 +354,17 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
+	processor := getProcessorForEngine(engineEdition)
+	processor(i, instanceName, connection, arguments, dbSetLookup, engineEdition, modelChan)
+
+	close(modelChan)
+	wg.Wait()
+
+	return nil
+}
+
+// processDefaultDBMetrics handles metric collection for a standard SQL Server instance.
+func processDefaultDBMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList, dbSetLookup database.DBMetricSetLookup, _ int, modelChan chan<- interface{}) {
 	// run queries that are not specific to a database
 	processGeneralDBDefinitions(connection, modelChan)
 
@@ -352,11 +377,58 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	if arguments.EnableDatabaseReserveMetrics {
 		processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
 	}
+}
 
-	close(modelChan)
-	wg.Wait()
+func processSingleAzureDB(
+	wg *sync.WaitGroup,
+	dbChan chan struct{},
+	dbName string,
+	arguments args.ArgumentList,
+	engineEdition int,
+	modelChan chan<- interface{},
+) {
+	defer wg.Done()
+	defer func() { <-dbChan }()
 
-	return nil
+	con, err := connection.CreateDatabaseConnection(&arguments, dbName)
+	if err != nil {
+		log.Error("Error creating connection to SQL Server: %s", err.Error())
+		log.Warn("Skipping populating db metrics for database : %s", dbName)
+		return
+	}
+	defer con.Close()
+
+	processDBDefinitons(con, getDatabaseDefinitions(engineEdition), modelChan)
+
+	if arguments.EnableBufferMetrics {
+		processDBDefinitons(con, getDatabaseBufferDefinitions(engineEdition), modelChan)
+	}
+
+	if arguments.EnableDatabaseReserveMetrics {
+		processDBDefinitons(con, getSpecificDatabaseDefinitions(engineEdition), modelChan)
+	}
+}
+
+// processAzureSQLDatabaseMetrics handles metric collection for Azure SQL Database concurrently.
+// It dispatches the work of processing each database to a worker goroutine.
+func processAzureSQLDatabaseMetrics(i *integration.Integration, instanceName string, _ *connection.SQLConnection, arguments args.ArgumentList, dbSetLookup database.DBMetricSetLookup, engineEdition int, modelChan chan<- interface{}) {
+	databaseNames := dbSetLookup.GetDBNames()
+
+	dbChan := make(chan struct{}, maxConcurrentWorkers)
+	var waitGroup sync.WaitGroup
+
+	for _, dbName := range databaseNames {
+		waitGroup.Add(1)
+		dbChan <- struct{}{}
+		go processSingleAzureDB(&waitGroup, dbChan, dbName, arguments, engineEdition, modelChan)
+	}
+	waitGroup.Wait()
+}
+
+func processDBDefinitons(con *connection.SQLConnection, definitions []*QueryDefinition, modelChan chan<- interface{}) {
+	for _, queryDef := range definitions {
+		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
+	}
 }
 
 func processGeneralDBDefinitions(con *connection.SQLConnection, modelChan chan<- interface{}) {
