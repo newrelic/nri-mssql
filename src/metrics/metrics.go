@@ -40,7 +40,13 @@ var (
 	errMissingMetricNameCustomQuery  = errors.New("missing 'metric_name' for custom query")
 )
 
-const maxConcurrentWorkers = 10
+const (
+	// The max number of concurent db connections that can be created
+	maxConcurrentWorkers = 10
+
+	// approximate number of metrics retrieved from a single query execution
+	resultsBufferSizePerWorker = 5
+)
 
 // PopulateInstanceMetrics creates instance-level metrics
 //
@@ -348,7 +354,8 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	// create database entities lookup for fast metric set
 	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName, connection.Host)
 
-	modelChan := make(chan interface{}, 10)
+	// A buffer sized to allow each worker to offload a burst of results without blocking the worker pool.
+	modelChan := make(chan interface{}, maxConcurrentWorkers*resultsBufferSizePerWorker)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -398,14 +405,14 @@ func processSingleAzureDB(
 	}
 	defer con.Close()
 
-	processDBDefinitons(con, getDatabaseDefinitions(engineEdition), modelChan)
+	processDBDefinitions(con, getDatabaseDefinitions(engineEdition), modelChan)
 
 	if arguments.EnableBufferMetrics {
-		processDBDefinitons(con, getDatabaseBufferDefinitions(engineEdition), modelChan)
+		processDBDefinitions(con, getDatabaseBufferDefinitions(engineEdition), modelChan)
 	}
 
 	if arguments.EnableDatabaseReserveMetrics {
-		processDBDefinitons(con, getSpecificDatabaseDefinitions(engineEdition), modelChan)
+		processDBDefinitions(con, getSpecificDatabaseDefinitions(engineEdition), modelChan)
 	}
 }
 
@@ -425,7 +432,7 @@ func processAzureSQLDatabaseMetrics(i *integration.Integration, instanceName str
 	waitGroup.Wait()
 }
 
-func processDBDefinitons(con *connection.SQLConnection, definitions []*QueryDefinition, modelChan chan<- interface{}) {
+func processDBDefinitions(con *connection.SQLConnection, definitions []*QueryDefinition, modelChan chan<- interface{}) {
 	for _, queryDef := range definitions {
 		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
 	}
