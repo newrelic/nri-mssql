@@ -88,6 +88,7 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 	query.Add("connection timeout", args.Timeout)
 	if dbName != "" {
 		query.Add("database", dbName)
+		log.Debug("using database name : %s as a query parameter in the connection url", dbName)
 	}
 
 	if args.ExtraConnectionURLArgs != "" {

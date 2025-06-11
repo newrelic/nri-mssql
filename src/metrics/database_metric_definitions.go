@@ -83,15 +83,6 @@ var databaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	},
 }
 
-func getDatabaseDefinitions(engineEdition int) []*QueryDefinition {
-	switch engineEdition {
-	case database.AzureSQLDatabaseEngineEditionNumber:
-		return databaseDefinitionsForAzureSQLDatabase
-	default:
-		return databaseDefinitions
-	}
-}
-
 // databaseBufferDefinitions definitions for Database Queries
 var databaseBufferDefinitions = []*QueryDefinition{
 	{
@@ -122,15 +113,6 @@ var databaseBufferDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 			BufferPoolSize int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
 		}{},
 	},
-}
-
-func getDatabaseBufferDefinitions(engineEdition int) []*QueryDefinition {
-	switch engineEdition {
-	case database.AzureSQLDatabaseEngineEditionNumber:
-		return databaseBufferDefinitionsForAzureSQLDatabase
-	default:
-		return databaseBufferDefinitions
-	}
 }
 
 var specificDatabaseDefinitions = []*QueryDefinition{
@@ -180,11 +162,47 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	},
 }
 
-func getSpecificDatabaseDefinitions(engineEdition int) []*QueryDefinition {
-	switch engineEdition {
-	case database.AzureSQLDatabaseEngineEditionNumber:
-		return specificDatabaseDefinitionsForAzureSQLDatabase
-	default:
-		return specificDatabaseDefinitions
+// engineSet is a generic struct that acts as a "bucket" for holding
+// the default and Azure-specific implementations for a given resource.
+type engineSet[T any] struct {
+	Default T
+	Azure   T
+}
+
+// Select returns the correct implementation from the set based on the engine edition.
+func (s engineSet[T]) Select(engineEdition int) T {
+	if engineEdition == database.AzureSQLDatabaseEngineEditionNumber {
+		return s.Azure
 	}
+	return s.Default
+}
+
+// Bucket for standard database query definitions
+var databaseDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: databaseDefinitions,
+	Azure:   databaseDefinitionsForAzureSQLDatabase,
+}
+
+// Bucket for buffer query definitions
+var databaseBufferDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: databaseBufferDefinitions,
+	Azure:   databaseBufferDefinitionsForAzureSQLDatabase,
+}
+
+// Bucket for specific database query definitions
+var specificDatabaseDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: specificDatabaseDefinitions,
+	Azure:   specificDatabaseDefinitionsForAzureSQLDatabase,
+}
+
+func getDatabaseDefinitions(engineEdition int) []*QueryDefinition {
+	return databaseDefinitionSet.Select(engineEdition)
+}
+
+func getDatabaseBufferDefinitions(engineEdition int) []*QueryDefinition {
+	return databaseBufferDefinitionSet.Select(engineEdition)
+}
+
+func getSpecificDatabaseDefinitions(engineEdition int) []*QueryDefinition {
+	return specificDatabaseDefinitionSet.Select(engineEdition)
 }

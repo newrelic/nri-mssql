@@ -41,10 +41,10 @@ var (
 )
 
 const (
-	// The max number of concurent db connections that can be created
+	// Maximum number of concurent db connections that can be created
 	maxConcurrentWorkers = 10
 
-	// approximate number of metrics retrieved from a single query execution
+	// Maximum number of metrics retrieved from a single query execution
 	resultsBufferSizePerWorker = 5
 )
 
@@ -333,14 +333,15 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 
 type databaseMetricsProcessor func(*integration.Integration, string, *connection.SQLConnection, args.ArgumentList, database.DBMetricSetLookup, int, chan<- interface{})
 
+// Bucket for processor functions
+var processorFunctionSet = engineSet[databaseMetricsProcessor]{
+	Default: processDefaultDBMetrics,
+	Azure:   processAzureSQLDatabaseMetrics,
+}
+
 // returns a processor function based on the engine edition
 func getProcessorForEngine(engineEdition int) databaseMetricsProcessor {
-	switch engineEdition {
-	case database.AzureSQLDatabaseEngineEditionNumber:
-		return processAzureSQLDatabaseMetrics
-	default:
-		return processDefaultDBMetrics
-	}
+	return processorFunctionSet.Select(engineEdition)
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
