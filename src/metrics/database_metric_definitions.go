@@ -50,24 +50,7 @@ var databaseDefinitions = []*QueryDefinition{
 	},
 }
 
-// databaseBufferDefinitions definitions for Database Queries
-var databaseBufferDefinitions = []*QueryDefinition{
-	{
-		query: `SELECT DB_NAME(database_id) AS db_name, buffer_pool_size * (8*1024) AS buffer_pool_size
-		FROM ( SELECT database_id, COUNT_BIG(*) AS buffer_pool_size FROM sys.dm_os_buffer_descriptors a WITH (NOLOCK)
-		INNER JOIN sys.sysdatabases b WITH (NOLOCK) ON b.dbid=a.database_id 
-		WHERE b.dbid in (SELECT dbid FROM sys.sysdatabases WITH (NOLOCK)
-		WHERE name NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
-		UNION ALL SELECT 32767) GROUP BY database_id) a`,
-		dataModels: &[]struct {
-			database.DataModel
-			IOStalls int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
-		}{},
-	},
-}
-
-//nolint:all
-var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
+var databaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	{
 		query: `
 			SELECT 
@@ -98,6 +81,25 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
 		}{},
 	},
+}
+
+// databaseBufferDefinitions definitions for Database Queries
+var databaseBufferDefinitions = []*QueryDefinition{
+	{
+		query: `SELECT DB_NAME(database_id) AS db_name, buffer_pool_size * (8*1024) AS buffer_pool_size
+		FROM ( SELECT database_id, COUNT_BIG(*) AS buffer_pool_size FROM sys.dm_os_buffer_descriptors a WITH (NOLOCK)
+		INNER JOIN sys.sysdatabases b WITH (NOLOCK) ON b.dbid=a.database_id 
+		WHERE b.dbid in (SELECT dbid FROM sys.sysdatabases WITH (NOLOCK)
+		WHERE name NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+		UNION ALL SELECT 32767) GROUP BY database_id) a`,
+		dataModels: &[]struct {
+			database.DataModel
+			IOStalls int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
+		}{},
+	},
+}
+
+var databaseBufferDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	{
 		query: `
 			SELECT 
@@ -109,22 +111,6 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 		dataModels: &[]struct {
 			database.DataModel
 			BufferPoolSize int `db:"buffer_pool_size" metric_name:"bufferpool.sizePerDatabaseInBytes" source_type:"gauge"`
-		}{},
-	},
-	{
-		query: `
-			SELECT
-				DB_NAME() AS db_name,
-				sum(a.total_pages) * 8.0 * 1024 AS reserved_space,
-				(sum(a.total_pages)*8.0 - sum(a.used_pages)*8.0) * 1024 AS reserved_space_not_used
-			FROM sys.partitions p with (nolock)
-			INNER JOIN sys.allocation_units a WITH (NOLOCK) ON p.partition_id = a.container_id
-			LEFT JOIN sys.internal_tables it WITH (NOLOCK) ON p.object_id = it.object_id
-		`,
-		dataModels: &[]struct {
-			database.DataModel
-			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
-			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
 		}{},
 	},
 }
@@ -155,4 +141,68 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
 		}{},
 	},
+}
+
+var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
+	{
+		query: `
+			SELECT
+				DB_NAME() AS db_name,
+				sum(a.total_pages) * 8.0 * 1024 AS reserved_space,
+				(sum(a.total_pages)*8.0 - sum(a.used_pages)*8.0) * 1024 AS reserved_space_not_used
+			FROM sys.partitions p with (nolock)
+			INNER JOIN sys.allocation_units a WITH (NOLOCK) ON p.partition_id = a.container_id
+			LEFT JOIN sys.internal_tables it WITH (NOLOCK) ON p.object_id = it.object_id
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
+			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
+		}{},
+	},
+}
+
+// engineSet is a generic struct that acts as a "bucket" for holding
+// the default and Azure-specific implementations for a given resource.
+type engineSet[T any] struct {
+	Default T
+	Azure   T
+}
+
+// Select returns the correct implementation from the set based on the engine edition.
+func (s engineSet[T]) Select(engineEdition int) T {
+	if engineEdition == database.AzureSQLDatabaseEngineEditionNumber {
+		return s.Azure
+	}
+	return s.Default
+}
+
+// Bucket for standard database query definitions
+var databaseDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: databaseDefinitions,
+	Azure:   databaseDefinitionsForAzureSQLDatabase,
+}
+
+// Bucket for buffer query definitions
+var databaseBufferDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: databaseBufferDefinitions,
+	Azure:   databaseBufferDefinitionsForAzureSQLDatabase,
+}
+
+// Bucket for specific database query definitions
+var specificDatabaseDefinitionSet = engineSet[[]*QueryDefinition]{
+	Default: specificDatabaseDefinitions,
+	Azure:   specificDatabaseDefinitionsForAzureSQLDatabase,
+}
+
+func getDatabaseDefinitions(engineEdition int) []*QueryDefinition {
+	return databaseDefinitionSet.Select(engineEdition)
+}
+
+func getDatabaseBufferDefinitions(engineEdition int) []*QueryDefinition {
+	return databaseBufferDefinitionSet.Select(engineEdition)
+}
+
+func getSpecificDatabaseDefinitions(engineEdition int) []*QueryDefinition {
+	return specificDatabaseDefinitionSet.Select(engineEdition)
 }
