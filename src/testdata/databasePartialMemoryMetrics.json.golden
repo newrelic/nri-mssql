@@ -30,18 +30,14 @@
             },
             "metrics": [
                 {
-                    "bufferpool.sizePerDatabaseInBytes": 0,
                     "displayName": "db-1",
                     "entityName": "ms-database:db-1",
                     "event_type": "MssqlDatabaseSample",
                     "host": "testhost",
                     "instance": "MSSQL",
-                    "maxDiskSizeInBytes": 104857600,
                     "io.stallInMilliseconds": 0,
                     "log.transactionGrowth": 0,
                     "memoryUtilization": 31.18,
-                    "memoryTotal": 2097152,
-                    "memoryAvailable": 1443260.0063999998, 
                     "pageFileTotal": 0,
                     "pageFileAvailable": 0,
                     "reportingEndpoint": "testhost"
@@ -67,18 +63,14 @@
             },
             "metrics": [
                 {
-                    "bufferpool.sizePerDatabaseInBytes": 1,
                     "displayName": "db-2",
                     "entityName": "ms-database:db-2",
                     "event_type": "MssqlDatabaseSample",
                     "host": "testhost",
                     "instance": "MSSQL",
-                    "maxDiskSizeInBytes": 104857600,
                     "io.stallInMilliseconds": 1,
                     "log.transactionGrowth": 1,
                     "memoryUtilization": 31.18,
-                    "memoryTotal": 2097152,
-                    "memoryAvailable": 1443260.0063999998,
                     "pageFileTotal": 1,
                     "pageFileAvailable": 1,
                     "reportingEndpoint": "testhost"

@@ -23,6 +23,9 @@ import (
 var (
 	update                  = flag.Bool("update", false, "update .golden files")
 	errCreateConnectionToDB = errors.New("couldn't create connection to db")
+	errQueringDiskSpace     = errors.New("disk space error")
+	errQueringUtilization   = errors.New("utilization error")
+	errQueringMemory        = errors.New("total memory error")
 )
 
 func updateGoldenFile(data []byte, sourceFile string) error {
@@ -56,105 +59,117 @@ func checkAgainstFile(t *testing.T, data []byte, expectedFile string) {
 	assert.JSONEq(t, string(expectedData), string(data))
 }
 
-// Mock connection and args for testing
-type mockSQLConnection struct {
-	db   *sql.DB
-	mock sqlmock.Sqlmock
+type mockConnectionBuilder struct {
+	mock   sqlmock.Sqlmock
+	db     *sql.DB
+	args   *args.ArgumentList
+	dbName string
 }
 
-// Mock NewDatabaseConnection
-func newMockDatabaseConnection() (*mockSQLConnection, error) {
+func newMockConnectionBuilder(args *args.ArgumentList, dbName string) (*mockConnectionBuilder, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
 	}
-
-	conn := &mockSQLConnection{db: db, mock: mock}
-	return conn, nil
+	return &mockConnectionBuilder{
+		mock:   mock,
+		db:     db,
+		args:   args,
+		dbName: dbName,
+	}, nil
 }
 
-func getNewDatabaseConnection1(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-	mockConn, err := newMockDatabaseConnection()
-	if err != nil {
-		return nil, err
-	}
-
-	var metricValue int
-	if dbName == "db-1" {
+// expectStandardQueries adds expectations for the standard log growth and IO stalls queries.
+func (b *mockConnectionBuilder) expectStandardQueries() *mockConnectionBuilder {
+	metricValue := 1
+	if b.dbName == "db-1" {
 		metricValue = 0
-	} else {
-		metricValue = 1
 	}
-
-	logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
-		AddRow(dbName, metricValue)
-	ioStallsMetricsRows := sqlmock.NewRows([]string{"db_name", "io_stalls"}).
-		AddRow(dbName, metricValue)
-	bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
-		AddRow(dbName, metricValue)
-	spaceMetricsRows := sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).
-		AddRow(dbName, metricValue, metricValue)
-
-	mockConn.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth\s+FROM\s+sys\.dm_os_performance_counters\s+spc\s+INNER\s+JOIN\s+sys\.databases\s+sd\s+ON\s+sd\.physical_database_name\s+=\s+spc\.instance_name\s+WHERE\s+spc\.counter_name\s+=\s+'Log Growths'\s+AND\s+spc\.object_name\s+LIKE\s+'%:Databases%'\s+AND\s+sd\.database_id\s+=\s+DB_ID\(\)$`).
-		WillReturnRows(logGrowthRows)
-
-	mockConn.mock.ExpectQuery(`^*\s+SUM\(io_stall\)\s+AS\s+io_stalls\s+FROM\s+sys\.dm_io_virtual_file_stats\(NULL,\s+NULL\)\s+WHERE\s+database_id\s+=\s+DB_ID\(\)$`).
-		WillReturnRows(ioStallsMetricsRows)
-
-	mockConn.mock.ExpectQuery(`^*\s+COUNT_BIG\(\*\)\s+\*\s+\(8\s+\*\s+1024\)\s+AS\s+buffer_pool_size\s+FROM\s+sys\.dm_os_buffer_descriptors\s+WITH\s+\(NOLOCK\)\s+WHERE\s+database_id\s+=\s+DB_ID\(\)$`).
-		WillReturnRows(bufferMetricsRows)
-
-	mockConn.mock.ExpectQuery(`^*\s+sum\(a\.total_pages\)\s+\*\s+8\.0\s+\*\s+1024\s+AS\s+reserved_space,\s+\(sum\(a\.total_pages\)\*8\.0\s+-\s+sum\(a\.used_pages\)\*8\.0\)\s+\*\s+1024\s+AS\s+reserved_space_not_used\s+FROM\s+sys\.partitions\s+p\s+with\s+\(nolock\)\s+INNER\s+JOIN\s+sys\.allocation_units\s+a\s+WITH\s+\(NOLOCK\)\s+ON\s+p\.partition_id\s+=\s+a\.container_id\s+LEFT\s+JOIN\s+sys\.internal_tables\s+it\s+WITH\s+\(NOLOCK\)\s+ON\s+p\.object_id\s+=\s+it\.object_id$`).
-		WillReturnRows(spaceMetricsRows)
-
-	mockConn.mock.ExpectClose()
-	return &connection.SQLConnection{Connection: sqlx.NewDb(mockConn.db, "sqlmock"), Host: "test_host"}, nil
+	b.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth*`).
+		WillReturnRows(sqlmock.NewRows([]string{"db_name", "log_growth"}).AddRow(b.dbName, metricValue))
+	b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+SUM\(io_stall\).*`).
+		WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}).AddRow(b.dbName, metricValue))
+	return b
 }
 
-func getNewDatabaseConnection2(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-	mockConn, err := newMockDatabaseConnection()
-	if err != nil {
-		return nil, err
-	}
-
-	var metricValue int
-	if dbName == "db-1" {
-		return nil, errCreateConnectionToDB
+// expectMemoryAndDiskQueries adds expectations for memory and disk space, optionally returning errors.
+func (b *mockConnectionBuilder) expectMemoryAndDiskQueries(withErrors bool, withPartialErrors bool) *mockConnectionBuilder {
+	// Memory Utilization
+	utilQuery := b.mock.ExpectQuery(`^SELECT\s+top\s+1\s+DB_NAME\(\)\s+AS\s+db_name,\s+avg_memory_usage_percent\s+AS\s+memory_utilization\s+FROM\s+sys\.dm_db_resource_stats\s+ORDER\s+BY\s+end_time\s+DESC;?$`)
+	if withErrors {
+		utilQuery.WillReturnError(errQueringUtilization)
 	} else {
-		metricValue = 1
+		utilQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "memory_utilization"}).AddRow(b.dbName, 31.18))
 	}
 
-	logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
-		AddRow(dbName, metricValue)
-	ioStallsMetricsRows := sqlmock.NewRows([]string{"db_name", "io_stalls"}).
-		AddRow(dbName, metricValue)
-	spaceMetricsRows := sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).
-		AddRow(dbName, metricValue, metricValue)
+	// Total Memory
+	totalMemQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+\(process_memory_limit_mb\s+\*\s+1024\s+\*\s+1024\)\s+AS\s+total_physical_memory\s+FROM\s+sys\.dm_os_job_object;?$`)
+	if withErrors || withPartialErrors {
+		totalMemQuery.WillReturnError(errQueringMemory)
+	} else {
+		totalMemQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "total_physical_memory"}).AddRow(b.dbName, 2097152))
+	}
+	return b
+}
 
-	mockConn.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth\s+FROM\s+sys\.dm_os_performance_counters\s+spc\s+INNER\s+JOIN\s+sys\.databases\s+sd\s+ON\s+sd\.physical_database_name\s+=\s+spc\.instance_name\s+WHERE\s+spc\.counter_name\s+=\s+'Log Growths'\s+AND\s+spc\.object_name\s+LIKE\s+'%:Databases%'\s+AND\s+sd\.database_id\s+=\s+DB_ID\(\)$`).
-		WillReturnRows(logGrowthRows)
+// expectBufferQueries adds expectations for buffer metrics if enabled.
+func (b *mockConnectionBuilder) expectDiskQueries(withErrors bool) *mockConnectionBuilder {
+	if b.args.EnableDiskMetricsInBytes {
+		// Disk Space
+		diskQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+CAST\(DATABASEPROPERTYEX\(DB_NAME\(\),\s+'MaxSizeInBytes'\)\s+AS\s+BIGINT\)\s+AS\s+max_disk_space;?$`)
+		if withErrors {
+			diskQuery.WillReturnError(errQueringDiskSpace)
+		} else {
+			diskQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "max_disk_space"}).AddRow(b.dbName, 104857600))
+		}
+	}
+	return b
+}
 
-	mockConn.mock.ExpectQuery(`^*\s+SUM\(io_stall\)\s+AS\s+io_stalls\s+FROM\s+sys\.dm_io_virtual_file_stats\(NULL,\s+NULL\)\s+WHERE\s+database_id\s+=\s+DB_ID\(\)$`).
-		WillReturnRows(ioStallsMetricsRows)
+// expectBufferQueries adds expectations for buffer metrics if enabled.
+func (b *mockConnectionBuilder) expectBufferQueries() *mockConnectionBuilder {
+	if b.args.EnableBufferMetrics {
+		metricValue := 1
+		if b.dbName == "db-1" {
+			metricValue = 0
+		}
+		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name.*buffer_pool_size.*`).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).AddRow(b.dbName, metricValue))
+	}
+	return b
+}
 
-	mockConn.mock.ExpectQuery(`^*\s+sum\(a\.total_pages\)\s+\*\s+8\.0\s+\*\s+1024\s+AS\s+reserved_space,\s+\(sum\(a\.total_pages\)\*8\.0\s+-\s+sum\(a\.used_pages\)\*8\.0\)\s+\*\s+1024\s+AS\s+reserved_space_not_used\s+FROM\s+sys\.partitions\s+p\s+with\s+\(nolock\)\s+INNER\s+JOIN\s+sys\.allocation_units\s+a\s+WITH\s+\(NOLOCK\)\s+ON\s+p\.partition_id\s+=\s+a\.container_id\s+LEFT\s+JOIN\s+sys\.internal_tables\s+it\s+WITH\s+\(NOLOCK\)\s+ON\s+p\.object_id\s+=\s+it\.object_id$`).
-		WillReturnRows(spaceMetricsRows)
+// expectReserveQueries adds expectations for reserve space metrics if enabled.
+func (b *mockConnectionBuilder) expectReserveQueries() *mockConnectionBuilder {
+	if b.args.EnableDatabaseReserveMetrics {
+		metricValue := 1
+		if b.dbName == "db-1" {
+			metricValue = 0
+		}
+		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name.*reserved_space.*`).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow(b.dbName, metricValue, metricValue))
+	}
+	return b
+}
 
-	mockConn.mock.ExpectClose()
-	return &connection.SQLConnection{Connection: sqlx.NewDb(mockConn.db, "sqlmock"), Host: "test_host"}, nil
+func (b *mockConnectionBuilder) build() (*connection.SQLConnection, error) {
+	b.mock.ExpectClose()
+	return &connection.SQLConnection{Connection: sqlx.NewDb(b.db, "sqlmock"), Host: "test_host"}, nil
+}
+
+type DatabaseMetricsTesCase struct {
+	name                  string
+	setupMock             func(sqlmock.Sqlmock)
+	newDatabaseConnection func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error)
+	args                  args.ArgumentList
+	engineEdition         int
+	expectedFile          string
+	expectError           bool
 }
 
 func runPopulateDatabaseMetricsTest(
 	t *testing.T,
-	tc struct {
-		name                  string
-		setupMock             func(sqlmock.Sqlmock)
-		newDatabaseConnection func() func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error)
-		args                  args.ArgumentList
-		engineEdition         int
-		expectedFile          string
-		expectError           bool
-	},
+	tc DatabaseMetricsTesCase,
 ) {
 	i, _ := createTestEntity(t)
 	conn, mock := connection.CreateMockSQL(t)
@@ -165,7 +180,7 @@ func runPopulateDatabaseMetricsTest(
 		connection.CreateDatabaseConnection = originalNewDatabaseConnection
 	}()
 
-	connection.CreateDatabaseConnection = tc.newDatabaseConnection()
+	connection.CreateDatabaseConnection = tc.newDatabaseConnection
 
 	assert.NoError(t, PopulateDatabaseMetrics(i, "MSSQL", conn, tc.args, tc.engineEdition))
 
@@ -174,20 +189,23 @@ func runPopulateDatabaseMetricsTest(
 	checkAgainstFile(t, actual, tc.expectedFile)
 }
 
+func setupMockForDatabaseDiscovery(mock sqlmock.Sqlmock) {
+	databaseRows := sqlmock.NewRows([]string{"db_name"}).
+		AddRow("db-1").
+		AddRow("db-2")
+
+	mock.ExpectQuery(`select name as db_name from sys\.databases`).
+		WillReturnRows(databaseRows)
+
+	mock.ExpectClose()
+}
+
 func Test_populateDatabaseMetrics(t *testing.T) {
 	// Enable logging if needed
 	// log.SetupLogging(true)
 	// defer log.SetupLogging(false)
 
-	testCases := []struct {
-		name                  string
-		setupMock             func(sqlmock.Sqlmock)
-		newDatabaseConnection func() func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error)
-		args                  args.ArgumentList
-		engineEdition         int
-		expectedFile          string
-		expectError           bool
-	}{
+	testCases := []DatabaseMetricsTesCase{
 		{
 			name: "Engine edition 3: Collect metrics",
 			setupMock: func(mock sqlmock.Sqlmock) {
@@ -211,8 +229,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 
 				mock.ExpectClose()
 			},
-			newDatabaseConnection: func() func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-				return nil
+			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				return nil, nil
 			},
 			args: args.ArgumentList{
 				EnableBufferMetrics: true,
@@ -222,48 +240,103 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 			expectError:   false,
 		},
 		{
-			name: "Engine edition 5: Collect all metrics",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				databaseRows := sqlmock.NewRows([]string{"db_name"}).
-					AddRow("db-1").
-					AddRow("db-2")
-
-				mock.ExpectQuery(`select name as db_name from sys\.databases`).
-					WillReturnRows(databaseRows)
-
-				mock.ExpectClose()
-			},
-			newDatabaseConnection: func() func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-				return getNewDatabaseConnection1
+			name:      "Engine edition 5: Collect all metrics",
+			setupMock: setupMockForDatabaseDiscovery,
+			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				builder, err := newMockConnectionBuilder(args, dbName)
+				if err != nil {
+					return nil, err
+				}
+				return builder.
+					expectStandardQueries().
+					expectMemoryAndDiskQueries(false, false).
+					expectDiskQueries(false).
+					expectBufferQueries().
+					expectReserveQueries().
+					build()
 			},
 			args: args.ArgumentList{
 				EnableBufferMetrics:          true,
 				EnableDatabaseReserveMetrics: true,
+				EnableDiskMetricsInBytes:     true,
 			},
 			engineEdition: database.AzureSQLDatabaseEngineEditionNumber,
 			expectedFile:  filepath.Join("..", "testdata", "azureSQLDatabaseMetrics.json.golden"),
 			expectError:   false,
 		},
 		{
-			name: "Engine edition 5: Error creating connection to db-1, collect db-2 metircs",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				databaseRows := sqlmock.NewRows([]string{"db_name"}).
-					AddRow("db-1").
-					AddRow("db-2")
-
-				mock.ExpectQuery(`select name as db_name from sys\.databases`).
-					WillReturnRows(databaseRows)
-
-				mock.ExpectClose()
-			},
-			newDatabaseConnection: func() func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-				return getNewDatabaseConnection2
+			name:      "Engine edition 5: Error creating connection to db-1, collect db-2 metircs",
+			setupMock: setupMockForDatabaseDiscovery,
+			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				if dbName == "db-1" {
+					return nil, errCreateConnectionToDB
+				}
+				builder, err := newMockConnectionBuilder(args, dbName)
+				if err != nil {
+					return nil, err
+				}
+				return builder.
+					expectStandardQueries().
+					expectMemoryAndDiskQueries(false, false).
+					expectDiskQueries(false).
+					expectBufferQueries().
+					expectReserveQueries().
+					build()
 			},
 			args: args.ArgumentList{
 				EnableDatabaseReserveMetrics: true,
+				EnableDiskMetricsInBytes:     true,
 			},
 			engineEdition: database.AzureSQLDatabaseEngineEditionNumber,
 			expectedFile:  filepath.Join("..", "testdata", "partialAzureSQLDatabaseMetrics.json.golden"),
+			expectError:   true,
+		},
+		{
+			name:      "Engine edition 5: Error collecting memory metrics",
+			setupMock: setupMockForDatabaseDiscovery,
+			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				builder, err := newMockConnectionBuilder(args, dbName)
+				if err != nil {
+					return nil, err
+				}
+				return builder.
+					expectStandardQueries().
+					expectMemoryAndDiskQueries(true, false).
+					expectDiskQueries(true).
+					expectBufferQueries().
+					expectReserveQueries().
+					build()
+			},
+			args: args.ArgumentList{
+				EnableDatabaseReserveMetrics: true,
+				EnableDiskMetricsInBytes:     true,
+			},
+			engineEdition: database.AzureSQLDatabaseEngineEditionNumber,
+			expectedFile:  filepath.Join("..", "testdata", "azureSQLDatabaseMetricsWithoutMemoryMetrics.json.golden"),
+			expectError:   true,
+		},
+		{
+			name:      "Engine edition 5: collecting partial memory metrics and disable disk metrics",
+			setupMock: setupMockForDatabaseDiscovery,
+			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+				builder, err := newMockConnectionBuilder(args, dbName)
+				if err != nil {
+					return nil, err
+				}
+				return builder.
+					expectStandardQueries().
+					expectMemoryAndDiskQueries(false, true).
+					expectDiskQueries(false).
+					expectBufferQueries().
+					expectReserveQueries().
+					build()
+			},
+			args: args.ArgumentList{
+				EnableDatabaseReserveMetrics: true,
+				EnableDiskMetricsInBytes:     false,
+			},
+			engineEdition: database.AzureSQLDatabaseEngineEditionNumber,
+			expectedFile:  filepath.Join("..", "testdata", "databasePartialMemoryMetrics.json.golden"),
 			expectError:   true,
 		},
 	}

@@ -13,9 +13,10 @@ MS SQL,stats.userErrorsPerSecond,Rate,true,Number of user errors per second sinc
 MS SQL,stats.killConnectionErrorsPerSecond,Rate,true,Number of kill connection errors per second since last restart
 MS SQL,log.transactionGrowth,Gauge,true,Total number of times the transaction log for the database has been expanded last restart
 MS SQL,iO.stallInMiliseconds,Gauge,true,Wait time of stall since last restart in Miliseconds
-MS SQL,memoryUtilization,Gauge,true,Percentage of Memory Utilization
-MS SQL,memoryTotal,Gauge,true,Total Physical memory in Bytes
-MS SQL,memoryAvailable,Gauge,true,Available physical memory in Bytes
+MS SQL,maxDiskSizeInBytes,Gauge,true,Maximum database size in bytes. Applies to: Azure SQL Database.
+MS SQL,memoryUtilization,Gauge,true,Percentage of Memory Utilization. Note: This metric is populated per database in case of Azure SQL Database.
+MS SQL,memoryTotal,Gauge,true,Total Physical memory in Bytes. Note: This metric is populated per database in case of Azure SQL Database.
+MS SQL,memoryAvailable,Gauge,true,Available physical memory in Bytes. Note: This metric is populated per database in case of Azure SQL Database.
 MS SQL,pageFileTotal,Gauge,true,Total Page File in Bytes
 MS SQL,pageFileAvailable,Gauge,true,Availbe page file in Bytes
 MS SQL,system.bufferPoolHit,Gauge,true,The percentage of buffer pools hits on the instance
