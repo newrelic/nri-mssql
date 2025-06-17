@@ -4,11 +4,31 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/database"
 )
 
-// databasePlaceHolder placeholder for Database name in a query
-const databasePlaceHolder = "%DATABASE%"
+const (
+	// databasePlaceHolder placeholder for Database name in a query
+	databasePlaceHolder      = "%DATABASE%"
+	memoryUtilizationQuery   = "SELECT top 1 DB_NAME() AS db_name, avg_memory_usage_percent AS memory_utilization FROM sys.dm_db_resource_stats ORDER BY end_time DESC;"
+	totalPhysicalMemoryQuery = "SELECT DB_NAME() AS db_name, (process_memory_limit_mb * 1024 * 1024) AS total_physical_memory FROM sys.dm_os_job_object;"
+)
+
+type MemoryUtilizationModel struct {
+	database.DataModel
+	MemoryUtilization *float64 `db:"memory_utilization" metric_name:"memoryUtilization" source_type:"gauge"`
+}
+
+type TotalPhysicalMemoryModel struct {
+	database.DataModel
+	TotalPhysicalMemory *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
+}
+
+type AvailablePhysicalMemoryModel struct {
+	database.DataModel
+	AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
+}
 
 // dbNameReplace inserts the dbName into a query anywhere
 // databasePlaceHolder is present
@@ -79,6 +99,18 @@ var databaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 		dataModels: &[]struct {
 			database.DataModel
 			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
+		}{},
+	},
+}
+
+var databaseDiskDefinitionsForAzureSQLDatabase = []*QueryDefinition{
+	{
+		query: `
+			SELECT DB_NAME() AS db_name, CAST(DATABASEPROPERTYEX(DB_NAME(), 'MaxSizeInBytes') AS BIGINT) AS max_disk_space;
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			MaxDiskSpace *int64 `db:"max_disk_space" metric_name:"maxDiskSizeInBytes" source_type:"gauge"`
 		}{},
 	},
 }
@@ -162,47 +194,51 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	},
 }
 
-// engineSet is a generic struct that acts as a "bucket" for holding
+// EngineSet is a generic struct that acts as a "bucket" for holding
 // the default and Azure-specific implementations for a given resource.
-type engineSet[T any] struct {
-	Default T
-	Azure   T
+type EngineSet[T any] struct {
+	Default          T
+	AzureSQLDatabase T
 }
 
 // Select returns the correct implementation from the set based on the engine edition.
-func (s engineSet[T]) Select(engineEdition int) T {
+func (s EngineSet[T]) Select(engineEdition int) T {
 	if engineEdition == database.AzureSQLDatabaseEngineEditionNumber {
-		return s.Azure
+		return s.AzureSQLDatabase
 	}
 	return s.Default
 }
 
-// Bucket for standard database query definitions
-var databaseDefinitionSet = engineSet[[]*QueryDefinition]{
-	Default: databaseDefinitions,
-	Azure:   databaseDefinitionsForAzureSQLDatabase,
+// QueryDefinitionType is a custom type for identifying different query sets.
+type QueryDefinitionType int
+
+// Enum of the different query definition types.
+const (
+	StandardQueries = iota
+	BufferQueries
+	SpecificQueries
+)
+
+var queryDefinitionSets = map[QueryDefinitionType]EngineSet[[]*QueryDefinition]{
+	StandardQueries: {
+		Default:          databaseDefinitions,
+		AzureSQLDatabase: databaseDefinitionsForAzureSQLDatabase,
+	},
+	BufferQueries: {
+		Default:          databaseBufferDefinitions,
+		AzureSQLDatabase: databaseBufferDefinitionsForAzureSQLDatabase,
+	},
+	SpecificQueries: {
+		Default:          specificDatabaseDefinitions,
+		AzureSQLDatabase: specificDatabaseDefinitionsForAzureSQLDatabase,
+	},
 }
 
-// Bucket for buffer query definitions
-var databaseBufferDefinitionSet = engineSet[[]*QueryDefinition]{
-	Default: databaseBufferDefinitions,
-	Azure:   databaseBufferDefinitionsForAzureSQLDatabase,
-}
-
-// Bucket for specific database query definitions
-var specificDatabaseDefinitionSet = engineSet[[]*QueryDefinition]{
-	Default: specificDatabaseDefinitions,
-	Azure:   specificDatabaseDefinitionsForAzureSQLDatabase,
-}
-
-func getDatabaseDefinitions(engineEdition int) []*QueryDefinition {
-	return databaseDefinitionSet.Select(engineEdition)
-}
-
-func getDatabaseBufferDefinitions(engineEdition int) []*QueryDefinition {
-	return databaseBufferDefinitionSet.Select(engineEdition)
-}
-
-func getSpecificDatabaseDefinitions(engineEdition int) []*QueryDefinition {
-	return specificDatabaseDefinitionSet.Select(engineEdition)
+func GetQueryDefinitions(defType QueryDefinitionType, engineEdition int) []*QueryDefinition {
+	definitionSet, ok := queryDefinitionSets[defType]
+	if !ok {
+		log.Error("Error: Invalid query definition type provided: %d", defType)
+		return nil
+	}
+	return definitionSet.Select(engineEdition)
 }

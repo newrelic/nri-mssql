@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -334,14 +335,9 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 type databaseMetricsProcessor func(*integration.Integration, string, *connection.SQLConnection, args.ArgumentList, database.DBMetricSetLookup, int, chan<- interface{})
 
 // Bucket for processor functions
-var processorFunctionSet = engineSet[databaseMetricsProcessor]{
-	Default: processDefaultDBMetrics,
-	Azure:   processAzureSQLDatabaseMetrics,
-}
-
-// returns a processor function based on the engine edition
-func getProcessorForEngine(engineEdition int) databaseMetricsProcessor {
-	return processorFunctionSet.Select(engineEdition)
+var processorFunctionSet = EngineSet[databaseMetricsProcessor]{
+	Default:          processDefaultDBMetrics,
+	AzureSQLDatabase: processAzureSQLDatabaseMetrics,
 }
 
 // PopulateDatabaseMetrics collects per-database metrics
@@ -362,7 +358,7 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
-	processor := getProcessorForEngine(engineEdition)
+	processor := processorFunctionSet.Select(engineEdition)
 	processor(i, instanceName, connection, arguments, dbSetLookup, engineEdition, modelChan)
 
 	close(modelChan)
@@ -387,14 +383,7 @@ func processDefaultDBMetrics(i *integration.Integration, instanceName string, co
 	}
 }
 
-func processSingleAzureDB(
-	wg *sync.WaitGroup,
-	dbChan chan struct{},
-	dbName string,
-	arguments args.ArgumentList,
-	engineEdition int,
-	modelChan chan<- interface{},
-) {
+func processSingleAzureDB(wg *sync.WaitGroup, dbChan chan struct{}, dbName string, arguments args.ArgumentList, engineEdition int, modelChan chan<- interface{}) {
 	defer wg.Done()
 	defer func() { <-dbChan }()
 
@@ -406,14 +395,52 @@ func processSingleAzureDB(
 	}
 	defer con.Close()
 
-	processDBDefinitions(con, getDatabaseDefinitions(engineEdition), modelChan)
+	processDBDefinitions(con, GetQueryDefinitions(StandardQueries, engineEdition), modelChan)
+
+	processMemoryDBDefinitions(con, dbName, modelChan)
+
+	if arguments.EnableDiskMetricsInBytes {
+		processDBDefinitions(con, databaseDiskDefinitionsForAzureSQLDatabase, modelChan)
+	}
 
 	if arguments.EnableBufferMetrics {
-		processDBDefinitions(con, getDatabaseBufferDefinitions(engineEdition), modelChan)
+		processDBDefinitions(con, GetQueryDefinitions(BufferQueries, engineEdition), modelChan)
 	}
 
 	if arguments.EnableDatabaseReserveMetrics {
-		processDBDefinitions(con, getSpecificDatabaseDefinitions(engineEdition), modelChan)
+		processDBDefinitions(con, GetQueryDefinitions(SpecificQueries, engineEdition), modelChan)
+	}
+}
+
+func processMemoryDBDefinitions(con *connection.SQLConnection, dbName string, modelChan chan<- interface{}) {
+	var memUtilResult []*MemoryUtilizationModel
+	if err := con.Query(&memUtilResult, memoryUtilizationQuery); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), memoryUtilizationQuery)
+	} else {
+		sendModelsToPopulator(modelChan, memUtilResult)
+	}
+
+	var totalMemResult []*TotalPhysicalMemoryModel
+	if err := con.Query(&totalMemResult, totalPhysicalMemoryQuery); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), totalPhysicalMemoryQuery)
+	} else {
+		sendModelsToPopulator(modelChan, totalMemResult)
+	}
+
+	if len(memUtilResult) > 0 && memUtilResult[0].MemoryUtilization != nil &&
+		len(totalMemResult) > 0 && totalMemResult[0].TotalPhysicalMemory != nil {
+		utilization := *memUtilResult[0].MemoryUtilization
+		totalMemory := *totalMemResult[0].TotalPhysicalMemory
+
+		memoryAvailable := (math.Abs((100.0 - utilization)) / 100) * totalMemory
+
+		availableModel := &AvailablePhysicalMemoryModel{
+			DataModel:               database.DataModel{DBName: dbName},
+			AvailablePhysicalMemory: &memoryAvailable,
+		}
+		sendModelsToPopulator(modelChan, []*AvailablePhysicalMemoryModel{availableModel})
+	} else {
+		log.Debug("Could not calculate memoryAvailable due to missing memoryUtilization or memoryTotal metrics.")
 	}
 }
 
