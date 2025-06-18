@@ -92,40 +92,54 @@ func (b *mockConnectionBuilder) expectStandardQueries() *mockConnectionBuilder {
 	return b
 }
 
+// mockResponseType defines the possible outcomes for a mocked query.
+type mockResponseType int
+
+const (
+	mockSuccess mockResponseType = iota // Return successful rows
+	mockError                           // Return an error
+	mockEmpty                           // Return an empty rowset
+	mockPartialError
+)
+
 // expectMemoryAndDiskQueries adds expectations for memory and disk space, optionally returning errors.
-func (b *mockConnectionBuilder) expectMemoryAndDiskQueries(withErrors bool, withPartialErrors bool, hasEmptyOutput bool) *mockConnectionBuilder {
+func (b *mockConnectionBuilder) expectMemoryAndDiskQueries(mockRespType mockResponseType) *mockConnectionBuilder {
 	// Memory Utilization
 	utilQuery := b.mock.ExpectQuery(`^SELECT\s+top\s+1\s+DB_NAME\(\)\s+AS\s+db_name,\s+avg_memory_usage_percent\s+AS\s+memory_utilization\s+FROM\s+sys\.dm_db_resource_stats\s+ORDER\s+BY\s+end_time\s+DESC;?$`)
-	if withErrors {
+	switch mockRespType {
+	case mockError:
 		utilQuery.WillReturnError(errQueringUtilization)
-	} else if hasEmptyOutput {
+	case mockEmpty:
 		utilQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "memory_utilization"}))
-	} else {
+	case mockPartialError, mockSuccess:
 		utilQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "memory_utilization"}).AddRow(b.dbName, 31.18))
 	}
 
 	// Total Memory
 	totalMemQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+\(process_memory_limit_mb\s+\*\s+1024\s+\*\s+1024\)\s+AS\s+total_physical_memory\s+FROM\s+sys\.dm_os_job_object;?$`)
-	if withErrors || withPartialErrors {
+
+	switch mockRespType {
+	case mockError, mockPartialError:
 		totalMemQuery.WillReturnError(errQueringMemory)
-	} else if hasEmptyOutput {
+	case mockEmpty:
 		totalMemQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "total_physical_memory"}))
-	} else {
+	case mockSuccess:
 		totalMemQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "total_physical_memory"}).AddRow(b.dbName, 2097152))
 	}
 	return b
 }
 
 // expectBufferQueries adds expectations for buffer metrics if enabled.
-func (b *mockConnectionBuilder) expectDiskQueries(withErrors bool, hasEmptyOutput bool) *mockConnectionBuilder {
+func (b *mockConnectionBuilder) expectDiskQueries(mockRespType mockResponseType) *mockConnectionBuilder {
 	if b.args.EnableDiskMetricsInBytes {
 		// Disk Space
 		diskQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+CAST\(DATABASEPROPERTYEX\(DB_NAME\(\),\s+'MaxSizeInBytes'\)\s+AS\s+BIGINT\)\s+AS\s+max_disk_space;?$`)
-		if withErrors {
+		switch mockRespType {
+		case mockError:
 			diskQuery.WillReturnError(errQueringDiskSpace)
-		} else if hasEmptyOutput {
+		case mockEmpty:
 			diskQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "max_disk_space"}))
-		} else {
+		case mockPartialError, mockSuccess:
 			diskQuery.WillReturnRows(sqlmock.NewRows([]string{"db_name", "max_disk_space"}).AddRow(b.dbName, 104857600))
 		}
 	}
@@ -255,8 +269,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 				}
 				return builder.
 					expectStandardQueries().
-					expectMemoryAndDiskQueries(false, false, false).
-					expectDiskQueries(false, false).
+					expectMemoryAndDiskQueries(mockSuccess).
+					expectDiskQueries(mockSuccess).
 					expectBufferQueries().
 					expectReserveQueries().
 					build()
@@ -283,8 +297,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 				}
 				return builder.
 					expectStandardQueries().
-					expectMemoryAndDiskQueries(false, false, false).
-					expectDiskQueries(false, false).
+					expectMemoryAndDiskQueries(mockSuccess).
+					expectDiskQueries(mockSuccess).
 					expectBufferQueries().
 					expectReserveQueries().
 					build()
@@ -307,8 +321,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 				}
 				return builder.
 					expectStandardQueries().
-					expectMemoryAndDiskQueries(true, false, false).
-					expectDiskQueries(true, false).
+					expectMemoryAndDiskQueries(mockError).
+					expectDiskQueries(mockError).
 					expectBufferQueries().
 					expectReserveQueries().
 					build()
@@ -331,8 +345,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 				}
 				return builder.
 					expectStandardQueries().
-					expectMemoryAndDiskQueries(false, true, false).
-					expectDiskQueries(false, false).
+					expectMemoryAndDiskQueries(mockPartialError).
+					expectDiskQueries(mockSuccess).
 					expectBufferQueries().
 					expectReserveQueries().
 					build()
@@ -355,8 +369,8 @@ func Test_populateDatabaseMetrics(t *testing.T) {
 				}
 				return builder.
 					expectStandardQueries().
-					expectMemoryAndDiskQueries(false, false, true).
-					expectDiskQueries(false, true).
+					expectMemoryAndDiskQueries(mockEmpty).
+					expectDiskQueries(mockEmpty).
 					expectBufferQueries().
 					expectReserveQueries().
 					build()

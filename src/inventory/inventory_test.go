@@ -79,7 +79,7 @@ func runTestPopulateInventory(t *testing.T, tt InventoryTestCase) {
 	})
 }
 
-func Test_populateInventory(t *testing.T) {
+func Test_populateInventory_SuccessCases(t *testing.T) {
 	// Uncomment the following line to enable logging during tests
 	// log.SetupLogging(true)
 	// defer log.SetupLogging(false)
@@ -128,6 +128,17 @@ func Test_populateInventory(t *testing.T) {
 			},
 			engineEditionValue: database.AzureSQLDatabaseEngineEditionNumber, // Azure SQL Database
 		},
+	}
+	for _, tt := range tests {
+		runTestPopulateInventory(t, tt)
+	}
+}
+
+func Test_populateInventory_SPConfigErrorCases(t *testing.T) {
+	// Uncomment the following line to enable logging during tests
+	// log.SetupLogging(true)
+	// defer log.SetupLogging(false)
+	tests := []InventoryTestCase{
 		{
 			name: "Error spConfig and success sysConfig for regular sql server",
 			spConfigSetup: func(mock sqlmock.Sqlmock) {
@@ -162,6 +173,17 @@ func Test_populateInventory(t *testing.T) {
 			},
 			engineEditionValue: database.AzureSQLDatabaseEngineEditionNumber,
 		},
+	}
+	for _, tt := range tests {
+		runTestPopulateInventory(t, tt)
+	}
+}
+
+func Test_populateInventory_SysConfigErrorCases(t *testing.T) {
+	// Uncomment the following line to enable logging during tests
+	// log.SetupLogging(true)
+	// defer log.SetupLogging(false)
+	tests := []InventoryTestCase{
 		{
 			name: "Error sysConfig and success spConfig for regular sql server",
 			spConfigSetup: func(mock sqlmock.Sqlmock) {
