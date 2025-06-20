@@ -8,7 +8,7 @@ import (
 func Test_dbNameReplace(t *testing.T) {
 
 	dbName, format := "master", "use %s select * from %s"
-	query := fmt.Sprintf(format, databasePlaceHolder, databasePlaceHolder)
+	query := fmt.Sprintf(format, databasePlaceholder, databasePlaceholder)
 	expected := fmt.Sprintf(format, dbName, dbName)
 
 	modifier := dbNameReplace(dbName)
