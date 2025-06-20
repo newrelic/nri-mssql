@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// databasePlaceHolder placeholder for Database name in a query
-	databasePlaceHolder      = "%DATABASE%"
+	// databasePlaceholder placeholder for Database name in a query
+	databasePlaceholder      = "%DATABASE%"
 	memoryUtilizationQuery   = "SELECT top 1 DB_NAME() AS db_name, avg_memory_usage_percent AS memory_utilization FROM sys.dm_db_resource_stats ORDER BY end_time DESC;"
 	totalPhysicalMemoryQuery = "SELECT DB_NAME() AS db_name, (process_memory_limit_mb * 1024 * 1024) AS total_physical_memory FROM sys.dm_os_job_object;"
 )
@@ -34,7 +34,7 @@ type AvailablePhysicalMemoryModel struct {
 // databasePlaceHolder is present
 func dbNameReplace(dbName string) QueryModifier {
 	return func(query string) string {
-		return strings.Replace(query, databasePlaceHolder, dbName, -1)
+		return strings.ReplaceAll(query, databasePlaceholder, dbName)
 	}
 }
 
@@ -166,7 +166,7 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 		max(reserved_space_kb) * 1024 AS reserved_space,
 		max(reserved_space_not_used_kb) * 1024 AS reserved_space_not_used
 		FROM reserved_space
-		GROUP BY db_name`, databasePlaceHolder),
+		GROUP BY db_name`, databasePlaceholder),
 		dataModels: &[]struct {
 			database.DataModel
 			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`

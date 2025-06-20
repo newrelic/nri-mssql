@@ -16,7 +16,7 @@ var UnsupportedQueryPatterns = map[int][]string{
 	},
 }
 
-func ShouldSkipQueryForEngineEdition(engineEdition int, query string) bool {
+func SkipQueryForEngineEdition(engineEdition int, query string) bool {
 	for _, pattern := range UnsupportedQueryPatterns[engineEdition] {
 		if strings.Contains(strings.ToLower(query), strings.ToLower(pattern)) {
 			return true

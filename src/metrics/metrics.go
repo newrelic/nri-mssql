@@ -50,6 +50,7 @@ const (
 )
 
 // PopulateInstanceMetrics creates instance-level metrics
+// The below function has too many if's which is needed , so ignoring the golint error by adding below linter directive.
 //
 //nolint:gocyclo
 func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList, engineEdition int) {
@@ -69,7 +70,7 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 
 	for _, queryDef := range collectionList {
 		models := queryDef.GetDataModels()
-		if common.ShouldSkipQueryForEngineEdition(engineEdition, queryDef.GetQuery()) {
+		if common.SkipQueryForEngineEdition(engineEdition, queryDef.GetQuery()) {
 			log.Debug("Skipping query '%s' for unsupported engine edition %d", queryDef.GetQuery(), engineEdition)
 			continue
 		}
