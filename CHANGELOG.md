@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancement
+- Add support for monitoring Azure SQL Database
+
 ## v2.18.2 - 2025-06-03
 
 ### ⛓️ Dependencies

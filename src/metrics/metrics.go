@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
+	"github.com/newrelic/nri-mssql/src/common"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/database"
 	"gopkg.in/yaml.v2"
@@ -34,11 +36,24 @@ type customQueryMetricValue struct {
 	sourceType metric.SourceType
 }
 
-var errMissingMetricValueCustomQuery = errors.New("missing 'metric_value' for custom query")
-var errMissingMetricNameCustomQuery = errors.New("missing 'metric_name' for custom query")
+var (
+	errMissingMetricValueCustomQuery = errors.New("missing 'metric_value' for custom query")
+	errMissingMetricNameCustomQuery  = errors.New("missing 'metric_name' for custom query")
+)
+
+const (
+	// Maximum number of concurent db connections that can be created
+	maxConcurrentWorkers = 10
+
+	// Maximum number of metrics retrieved from a single query execution
+	resultsBufferSizePerWorker = 5
+)
 
 // PopulateInstanceMetrics creates instance-level metrics
-func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList) {
+// The below function has too many if's which is needed , so ignoring the golint error by adding below linter directive.
+//
+//nolint:gocyclo
+func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, arguments args.ArgumentList, engineEdition int) {
 	metricSet := instanceEntity.NewMetricSet("MssqlInstanceSample",
 		attribute.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
 		attribute.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
@@ -50,11 +65,15 @@ func PopulateInstanceMetrics(instanceEntity *integration.Entity, connection *con
 		collectionList = append(collectionList, instanceBufferDefinitions...)
 	}
 	if arguments.EnableDiskMetricsInBytes {
-		collectionList = append(collectionList, diskMetricInBytesDefination...)
+		collectionList = append(collectionList, diskMetricInBytesDefinition...)
 	}
 
 	for _, queryDef := range collectionList {
 		models := queryDef.GetDataModels()
+		if common.SkipQueryForEngineEdition(engineEdition, queryDef.GetQuery()) {
+			log.Debug("Skipping query '%s' for unsupported engine edition %d", queryDef.GetQuery(), engineEdition)
+			continue
+		}
 		if err := connection.Query(models, queryDef.GetQuery()); err != nil {
 			log.Error("Could not execute instance query: %s", err.Error())
 			continue
@@ -314,8 +333,16 @@ func metricFromTargetColumns(metricValue, metricName, metricType string, query c
 	return &customQueryMetricValue{value: metricValue, sourceType: sourceType}, nil
 }
 
+type databaseMetricsProcessor func(*integration.Integration, string, *connection.SQLConnection, args.ArgumentList, database.DBMetricSetLookup, int, chan<- interface{})
+
+// Bucket for processor functions
+var processorFunctionSet = EngineSet[databaseMetricsProcessor]{
+	Default:          processDefaultDBMetrics,
+	AzureSQLDatabase: processAzureSQLDatabaseMetrics,
+}
+
 // PopulateDatabaseMetrics collects per-database metrics
-func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList) error {
+func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList, engineEdition int) error {
 	// create database entities
 	dbEntities, err := database.CreateDatabaseEntities(i, connection, instanceName)
 	if err != nil {
@@ -325,12 +352,24 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	// create database entities lookup for fast metric set
 	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName, connection.Host)
 
-	modelChan := make(chan interface{}, 10)
+	// A buffer sized to allow each worker to offload a burst of results without blocking the worker pool.
+	modelChan := make(chan interface{}, maxConcurrentWorkers*resultsBufferSizePerWorker)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go dbMetricPopulator(dbSetLookup, modelChan, &wg)
 
+	processor := processorFunctionSet.Select(engineEdition)
+	processor(i, instanceName, connection, arguments, dbSetLookup, engineEdition, modelChan)
+
+	close(modelChan)
+	wg.Wait()
+
+	return nil
+}
+
+// processDefaultDBMetrics handles metric collection for a standard SQL Server instance.
+func processDefaultDBMetrics(i *integration.Integration, instanceName string, connection *connection.SQLConnection, arguments args.ArgumentList, dbSetLookup database.DBMetricSetLookup, _ int, modelChan chan<- interface{}) {
 	// run queries that are not specific to a database
 	processGeneralDBDefinitions(connection, modelChan)
 
@@ -343,11 +382,89 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	if arguments.EnableDatabaseReserveMetrics {
 		processSpecificDBDefinitions(connection, dbSetLookup.GetDBNames(), modelChan)
 	}
+}
 
-	close(modelChan)
-	wg.Wait()
+func processSingleAzureDB(wg *sync.WaitGroup, dbChan chan struct{}, dbName string, arguments args.ArgumentList, engineEdition int, modelChan chan<- interface{}) {
+	defer wg.Done()
+	defer func() { <-dbChan }()
 
-	return nil
+	con, err := connection.CreateDatabaseConnection(&arguments, dbName)
+	if err != nil {
+		log.Error("Error creating connection to SQL Server: %s", err.Error())
+		log.Warn("Skipping populating db metrics for database : %s", dbName)
+		return
+	}
+	defer con.Close()
+
+	processDBDefinitions(con, GetQueryDefinitions(StandardQueries, engineEdition), modelChan)
+
+	processMemoryDBDefinitions(con, dbName, modelChan)
+
+	if arguments.EnableDiskMetricsInBytes {
+		processDBDefinitions(con, databaseDiskDefinitionsForAzureSQLDatabase, modelChan)
+	}
+
+	if arguments.EnableBufferMetrics {
+		processDBDefinitions(con, GetQueryDefinitions(BufferQueries, engineEdition), modelChan)
+	}
+
+	if arguments.EnableDatabaseReserveMetrics {
+		processDBDefinitions(con, GetQueryDefinitions(SpecificQueries, engineEdition), modelChan)
+	}
+}
+
+func processMemoryDBDefinitions(con *connection.SQLConnection, dbName string, modelChan chan<- interface{}) {
+	var memUtilResult []*MemoryUtilizationModel
+	if err := con.Query(&memUtilResult, memoryUtilizationQuery); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), memoryUtilizationQuery)
+	} else {
+		sendModelsToPopulator(modelChan, memUtilResult)
+	}
+
+	var totalMemResult []*TotalPhysicalMemoryModel
+	if err := con.Query(&totalMemResult, totalPhysicalMemoryQuery); err != nil {
+		log.Error("Encountered the following error: %s. Running query '%s'", err.Error(), totalPhysicalMemoryQuery)
+	} else {
+		sendModelsToPopulator(modelChan, totalMemResult)
+	}
+
+	if len(memUtilResult) > 0 && memUtilResult[0].MemoryUtilization != nil &&
+		len(totalMemResult) > 0 && totalMemResult[0].TotalPhysicalMemory != nil {
+		utilization := *memUtilResult[0].MemoryUtilization
+		totalMemory := *totalMemResult[0].TotalPhysicalMemory
+
+		memoryAvailable := (math.Abs((100.0 - utilization)) / 100) * totalMemory
+
+		availableModel := &AvailablePhysicalMemoryModel{
+			DataModel:               database.DataModel{DBName: dbName},
+			AvailablePhysicalMemory: &memoryAvailable,
+		}
+		sendModelsToPopulator(modelChan, []*AvailablePhysicalMemoryModel{availableModel})
+	} else {
+		log.Debug("Could not calculate memoryAvailable due to missing memoryUtilization or memoryTotal metrics.")
+	}
+}
+
+// processAzureSQLDatabaseMetrics handles metric collection for Azure SQL Database concurrently.
+// It dispatches the work of processing each database to a worker goroutine.
+func processAzureSQLDatabaseMetrics(i *integration.Integration, instanceName string, _ *connection.SQLConnection, arguments args.ArgumentList, dbSetLookup database.DBMetricSetLookup, engineEdition int, modelChan chan<- interface{}) {
+	databaseNames := dbSetLookup.GetDBNames()
+
+	dbChan := make(chan struct{}, maxConcurrentWorkers)
+	var waitGroup sync.WaitGroup
+
+	for _, dbName := range databaseNames {
+		waitGroup.Add(1)
+		dbChan <- struct{}{}
+		go processSingleAzureDB(&waitGroup, dbChan, dbName, arguments, engineEdition, modelChan)
+	}
+	waitGroup.Wait()
+}
+
+func processDBDefinitions(con *connection.SQLConnection, definitions []*QueryDefinition, modelChan chan<- interface{}) {
+	for _, queryDef := range definitions {
+		makeDBQuery(con, queryDef.GetQuery(), queryDef.GetDataModels(), modelChan)
+	}
 }
 
 func processGeneralDBDefinitions(con *connection.SQLConnection, modelChan chan<- interface{}) {

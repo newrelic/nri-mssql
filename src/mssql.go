@@ -12,6 +12,7 @@ import (
 
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
+	"github.com/newrelic/nri-mssql/src/database"
 	"github.com/newrelic/nri-mssql/src/instance"
 	"github.com/newrelic/nri-mssql/src/inventory"
 	"github.com/newrelic/nri-mssql/src/metrics"
@@ -72,18 +73,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Get EngineEdition
+	engineEdition := 0 // Default to 0 (Unknown)
+	engineEdition, err = database.GetEngineEdition(con)
+	if err != nil {
+		log.Debug("Failed to get engine edition: %v", err)
+	}
+
 	// Inventory collection
 	if args.HasInventory() {
-		inventory.PopulateInventory(instanceEntity, con)
+		inventory.PopulateInventory(instanceEntity, con, engineEdition)
 	}
 
 	// Metric collection
 	if args.HasMetrics() {
-		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args); err != nil {
+		if err := metrics.PopulateDatabaseMetrics(i, instanceEntity.Metadata.Name, con, args, engineEdition); err != nil {
 			log.Error("Error collecting metrics for databases: %s", err.Error())
 		}
 
-		metrics.PopulateInstanceMetrics(instanceEntity, con, args)
+		metrics.PopulateInstanceMetrics(instanceEntity, con, args, engineEdition)
 	}
 
 	// Close connection when done

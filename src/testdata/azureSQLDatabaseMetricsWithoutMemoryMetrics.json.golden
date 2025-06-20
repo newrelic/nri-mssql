@@ -30,13 +30,15 @@
             },
             "metrics": [
                 {
-                    "bufferpool.sizePerDatabaseInBytes": 0,
                     "displayName": "db-1",
                     "entityName": "ms-database:db-1",
                     "event_type": "MssqlDatabaseSample",
                     "host": "testhost",
                     "instance": "MSSQL",
+                    "io.stallInMilliseconds": 0,
                     "log.transactionGrowth": 0,
+                    "pageFileTotal": 0,
+                    "pageFileAvailable": 0,
                     "reportingEndpoint": "testhost"
                 }
             ],
@@ -60,13 +62,15 @@
             },
             "metrics": [
                 {
-                    "bufferpool.sizePerDatabaseInBytes": 1,
                     "displayName": "db-2",
                     "entityName": "ms-database:db-2",
                     "event_type": "MssqlDatabaseSample",
                     "host": "testhost",
                     "instance": "MSSQL",
+                    "io.stallInMilliseconds": 1,
                     "log.transactionGrowth": 1,
+                    "pageFileTotal": 1,
+                    "pageFileAvailable": 1,
                     "reportingEndpoint": "testhost"
                 }
             ],

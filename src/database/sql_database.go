@@ -2,16 +2,20 @@
 package database
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
+	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/connection"
 )
 
 // databaseNameQuery gets all database names
 const databaseNameQuery = "select name as db_name from sys.databases where name not in ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')"
+const engineEditionQuery = "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition;"
+const AzureSQLDatabaseEngineEditionNumber = 5
 
 // NameRow is a row result in the databaseNameQuery
 type NameRow struct {
@@ -111,4 +115,23 @@ func CreateDBEntitySetLookup(dbEntities []*integration.Entity, instanceName, hos
 	}
 
 	return entitySetLookup
+}
+
+// GetEngineEdition retrieves the engine edition from the database.
+func GetEngineEdition(connection *connection.SQLConnection) (int, error) {
+	var engineEdition []int
+	if err := connection.Query(&engineEdition, engineEditionQuery); err != nil {
+		return 0, fmt.Errorf("error querying EngineEdition: %w", err)
+	}
+	if len(engineEdition) == 0 {
+		log.Debug("EngineEdition query returned empty output.")
+		return 0, nil
+	} else {
+		return engineEdition[0], nil
+	}
+}
+
+// IsAzureSQLDatabase checks if the given engine edition corresponds to Azure SQL Database with EngineEdition value of 5
+func IsAzureSQLDatabase(engineEdition int) bool {
+	return engineEdition == AzureSQLDatabaseEngineEditionNumber
 }
