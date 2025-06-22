@@ -26,6 +26,8 @@ var (
 	errQueringDiskSpace     = errors.New("disk space error")
 	errQueringUtilization   = errors.New("utilization error")
 	errQueringMemory        = errors.New("total memory error")
+	errQueringLogGrowth     = errors.New("log growth error")
+	errQueringIOStalls      = errors.New("io stalls error")
 )
 
 func updateGoldenFile(data []byte, sourceFile string) error {
@@ -214,7 +216,119 @@ func runPopulateDatabaseMetricsTest(
 	checkAgainstFile(t, actual, tc.expectedFile)
 }
 
-func setupMockForDatabaseDiscovery(mock sqlmock.Sqlmock) {
+func setupMockForDatabaseMetrics(mock sqlmock.Sqlmock, logGrowthResp mockResponseType, ioStallsResp mockResponseType, args args.ArgumentList, engineEdition int) {
+	databaseRows := sqlmock.NewRows([]string{"db_name"}).AddRow("db-1").AddRow("db-2")
+	mock.ExpectQuery(`select name as db_name from sys\.databases`).WillReturnRows(databaseRows)
+
+	var logGrowthRegex string
+	var ioStallsRegex string
+
+	if engineEdition == database.AzureSQLManagedInstanceEngineEditionNumber {
+		logGrowthRegex = `^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth.*`
+		ioStallsRegex = `^SELECT\s+DB_NAME\(database_id\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`
+	} else {
+		logGrowthRegex = `^select\s+RTRIM\(t1\.instance_name\).*`
+		ioStallsRegex = `^select.*as\s+io_stalls.*FROM\s+sys\.dm_io_virtual_file_stats.*`
+	}
+
+	switch logGrowthResp {
+	case mockSuccess:
+		mock.ExpectQuery(logGrowthRegex).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "log_growth"}).AddRow("db-1", 0).AddRow("db-2", 1))
+	case mockError:
+		mock.ExpectQuery(logGrowthRegex).WillReturnError(errQueringLogGrowth)
+	case mockEmpty:
+		mock.ExpectQuery(logGrowthRegex).WillReturnRows(sqlmock.NewRows([]string{"db_name", "log_growth"}))
+	}
+
+	switch ioStallsResp {
+	case mockSuccess:
+		mock.ExpectQuery(ioStallsRegex).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}).AddRow("db-1", 0).AddRow("db-2", 1))
+	case mockError:
+		mock.ExpectQuery(ioStallsRegex).WillReturnError(errQueringIOStalls)
+	case mockEmpty:
+		mock.ExpectQuery(ioStallsRegex).WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}))
+	}
+
+	if args.EnableBufferMetrics {
+		bufferRegex := `^SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`
+		mock.ExpectQuery(bufferRegex).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).AddRow("db-1", 0).AddRow("db-2", 1))
+	}
+
+	if args.EnableDatabaseReserveMetrics {
+		reserveRegex := `^USE\s+"[^"]+"\s+;\s*WITH\s+reserved_space.*`
+		mock.ExpectQuery(reserveRegex).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow("db-1", 0, 0))
+		mock.ExpectQuery(reserveRegex).
+			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow("db-2", 1, 1))
+	}
+}
+
+func Test_populateDatabaseMetrics(t *testing.T) {
+	// Enable logging if needed
+	// log.SetupLogging(true)
+	// defer log.SetupLogging(false)
+
+	scenarios := []struct {
+		name          string
+		logGrowthResp mockResponseType
+		ioStallsResp  mockResponseType
+		args          args.ArgumentList
+		expectedFile  string
+	}{
+		{
+			name:          "Collect all metrics",
+			logGrowthResp: mockSuccess,
+			ioStallsResp:  mockSuccess,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: true,
+			},
+			expectedFile: "databaseMetrics.json.golden",
+		},
+		{
+			name:          "Error querying log_growth, io_stalls metrics",
+			logGrowthResp: mockError,
+			ioStallsResp:  mockError,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: false,
+			},
+			expectedFile: "databaseMetricsWithoutDefaultDBMetrics.json.golden",
+		},
+		{
+			name:          "Empty output from log_growth and io_stalls queries",
+			logGrowthResp: mockEmpty,
+			ioStallsResp:  mockEmpty,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: false,
+			},
+			expectedFile: "databaseMetricsWithoutDefaultDBMetrics.json.golden",
+		},
+	}
+
+	for _, sc := range scenarios {
+		t.Run(sc.name, func(t *testing.T) {
+			tc := DatabaseMetricsTesCase{
+				setupMock: func(s sqlmock.Sqlmock) {
+					setupMockForDatabaseMetrics(s, sc.logGrowthResp, sc.ioStallsResp, sc.args, 3)
+				},
+				newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+					return nil, nil
+				},
+				args:          sc.args,
+				engineEdition: 3,
+				expectedFile:  filepath.Join("..", "testdata", sc.expectedFile),
+			}
+			runPopulateDatabaseMetricsTest(t, tc)
+		})
+	}
+}
+
+func setupMockExpectedMetricsForAzureSQLDatabase(mock sqlmock.Sqlmock) {
 	databaseRows := sqlmock.NewRows([]string{"db_name"}).
 		AddRow("db-1").
 		AddRow("db-2")
@@ -223,50 +337,6 @@ func setupMockForDatabaseDiscovery(mock sqlmock.Sqlmock) {
 		WillReturnRows(databaseRows)
 
 	mock.ExpectClose()
-}
-
-func Test_populateDatabaseMetrics(t *testing.T) {
-	testCases := []DatabaseMetricsTesCase{
-		{
-			name: "Engine edition 3: Collect metrics",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				databaseRows := sqlmock.NewRows([]string{"db_name"}).
-					AddRow("db-1").
-					AddRow("db-2")
-				logGrowthRows := sqlmock.NewRows([]string{"db_name", "log_growth"}).
-					AddRow("db-1", 0).
-					AddRow("db-2", 1)
-				bufferMetricsRows := sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).
-					AddRow("db-1", 0).
-					AddRow("db-2", 1)
-
-				mock.ExpectQuery(`select name as db_name from sys\.databases`).
-					WillReturnRows(databaseRows)
-
-				mock.ExpectQuery(`select\s+RTRIM\(t1\.instance_name\).*`).
-					WillReturnRows(logGrowthRows)
-
-				mock.ExpectQuery(`SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`).WillReturnRows(bufferMetricsRows)
-
-				mock.ExpectClose()
-			},
-			newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
-				return nil, nil
-			},
-			args: args.ArgumentList{
-				EnableBufferMetrics: true,
-			},
-			engineEdition: 3,
-			expectedFile:  filepath.Join("..", "testdata", "databaseMetrics.json.golden"),
-			expectError:   false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			runPopulateDatabaseMetricsTest(t, tc)
-		})
-	}
 }
 
 func Test_populateDatabaseMetrics_AzureSQLDatabase(t *testing.T) {
@@ -342,7 +412,7 @@ func Test_populateDatabaseMetrics_AzureSQLDatabase(t *testing.T) {
 	for _, sc := range scenarios {
 		t.Run(sc.name, func(t *testing.T) {
 			tc := DatabaseMetricsTesCase{
-				setupMock: setupMockForDatabaseDiscovery,
+				setupMock: setupMockExpectedMetricsForAzureSQLDatabase,
 				newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
 					if dbName == sc.dbNameToFail {
 						return nil, errCreateConnectionToDB
@@ -361,6 +431,68 @@ func Test_populateDatabaseMetrics_AzureSQLDatabase(t *testing.T) {
 				},
 				args:          sc.args,
 				engineEdition: database.AzureSQLDatabaseEngineEditionNumber,
+				expectedFile:  filepath.Join("..", "testdata", sc.expectedFile),
+			}
+			runPopulateDatabaseMetricsTest(t, tc)
+		})
+	}
+}
+
+func Test_populateDatabaseMetrics_AzureSQLManagedInstance(t *testing.T) {
+	// Enable logging if needed
+	// log.SetupLogging(true)
+	// defer log.SetupLogging(false)
+
+	scenarios := []struct {
+		name          string
+		logGrowthResp mockResponseType
+		ioStallsResp  mockResponseType
+		args          args.ArgumentList
+		expectedFile  string
+	}{
+		{
+			name:          "Collect all metrics",
+			logGrowthResp: mockSuccess,
+			ioStallsResp:  mockSuccess,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: true,
+			},
+			expectedFile: "azureSQLManagedInstanceMetrics.json.golden",
+		},
+		{
+			name:          "Error querying log_growth, io_stalls metrics",
+			logGrowthResp: mockError,
+			ioStallsResp:  mockError,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: false,
+			},
+			expectedFile: "azureSQLManagedInstanceMetricsWithoutDefaultDBMetrics.json.golden",
+		},
+		{
+			name:          "Empty output from log_growth and io_stalls queries",
+			logGrowthResp: mockEmpty,
+			ioStallsResp:  mockEmpty,
+			args: args.ArgumentList{
+				EnableBufferMetrics:          true,
+				EnableDatabaseReserveMetrics: false,
+			},
+			expectedFile: "azureSQLManagedInstanceMetricsWithoutDefaultDBMetrics.json.golden",
+		},
+	}
+
+	for _, sc := range scenarios {
+		t.Run(sc.name, func(t *testing.T) {
+			tc := DatabaseMetricsTesCase{
+				setupMock: func(s sqlmock.Sqlmock) {
+					setupMockForDatabaseMetrics(s, sc.logGrowthResp, sc.ioStallsResp, sc.args, database.AzureSQLManagedInstanceEngineEditionNumber)
+				},
+				newDatabaseConnection: func(args *args.ArgumentList, dbName string) (*connection.SQLConnection, error) {
+					return nil, nil
+				},
+				args:          sc.args,
+				engineEdition: database.AzureSQLManagedInstanceEngineEditionNumber,
 				expectedFile:  filepath.Join("..", "testdata", sc.expectedFile),
 			}
 			runPopulateDatabaseMetricsTest(t, tc)
@@ -441,9 +573,9 @@ func Test_populateInstanceMetrics(t *testing.T) {
 			name:               "Engine edition 3: Collect all metrics",
 			engineEditionValue: 3,
 			perfCounterSetup: func(mock sqlmock.Sqlmock) {
-				perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
-					AddRow(22, 100, 4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
-				mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+				perfCounterRows := sqlmock.NewRows([]string{"sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"}).
+					AddRow(4736, 142, 3, 641, 2509, 848, 0, 67, 0, 18021, 1112946000, 184700, 0)
+				mock.ExpectQuery(`^SELECT.*t1.cntr_value AS sql_compilations*`).WillReturnRows(perfCounterRows)
 			},
 			expectedFile: filepath.Join("..", "testdata", "perfCounter.json.golden"),
 			args: args.ArgumentList{
@@ -478,7 +610,22 @@ func Test_populateInstanceMetrics(t *testing.T) {
 				EnableBufferMetrics:      true,
 				EnableDiskMetricsInBytes: true,
 			},
-		}}
+		},
+		{
+			name:               "Engine edition 8: Get instance memory metrics",
+			engineEditionValue: database.AzureSQLManagedInstanceEngineEditionNumber,
+			perfCounterSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`^SELECT.*AS\s+memory_utilization\s+FROM.*WHERE\s+object_name\s+LIKE\s+'%:Memory Manager%'`).
+					WillReturnRows(sqlmock.NewRows([]string{"total_physical_memory", "available_physical_memory", "memory_utilization"}).
+						AddRow(100, 20, 80))
+			},
+			expectedFile: filepath.Join("..", "testdata", "instanceMemoryMetrics.json.golden"),
+			args: args.ArgumentList{
+				EnableBufferMetrics:      true,
+				EnableDiskMetricsInBytes: true,
+			},
+		},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -504,10 +651,10 @@ func Test_populateInstanceMetrics_NoReturn(t *testing.T) {
 	conn, mock := connection.CreateMockSQL(t)
 	defer conn.Close()
 
-	perfCounterRows := sqlmock.NewRows([]string{"buffer_cache_hit_ratio", "buffer_pool_hit_percent", "sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"})
+	perfCounterRows := sqlmock.NewRows([]string{"sql_compilations", "sql_recompilations", "user_connections", "lock_wait_time_ms", "page_splits_sec", "checkpoint_pages_sec", "deadlocks_sec", "user_errors", "kill_connection_errors", "batch_request_sec", "page_life_expectancy_ms", "transactions_sec", "forced_parameterizations_sec"})
 
 	// only match the performance counter query
-	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS buffer_cache_hit_ratio.*`).WillReturnRows(perfCounterRows)
+	mock.ExpectQuery(`SELECT\s+t1.cntr_value AS sql_compilations.*`).WillReturnRows(perfCounterRows)
 	mock.ExpectClose()
 
 	args := args.ArgumentList{

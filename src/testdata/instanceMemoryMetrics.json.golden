@@ -14,7 +14,10 @@
                     "displayName": "test",
                     "entityName": "instance:test",
                     "event_type": "MssqlInstanceSample",
-                    "host": "testhost"
+                    "host": "testhost",
+                    "memoryUtilization": 80,
+                    "memoryTotal": 100,
+                    "memoryAvailable": 20
                 }
             ],
             "inventory": {},

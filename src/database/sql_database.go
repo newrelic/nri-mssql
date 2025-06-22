@@ -12,10 +12,13 @@ import (
 	"github.com/newrelic/nri-mssql/src/connection"
 )
 
-// databaseNameQuery gets all database names
-const databaseNameQuery = "select name as db_name from sys.databases where name not in ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')"
-const engineEditionQuery = "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition;"
-const AzureSQLDatabaseEngineEditionNumber = 5
+const (
+	// databaseNameQuery gets all database names
+	databaseNameQuery                          = "select name as db_name from sys.databases where name not in ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')"
+	engineEditionQuery                         = "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition;"
+	AzureSQLDatabaseEngineEditionNumber        = 5
+	AzureSQLManagedInstanceEngineEditionNumber = 8
+)
 
 // NameRow is a row result in the databaseNameQuery
 type NameRow struct {
@@ -127,6 +130,7 @@ func GetEngineEdition(connection *connection.SQLConnection) (int, error) {
 		log.Debug("EngineEdition query returned empty output.")
 		return 0, nil
 	} else {
+		log.Debug("Detected EngineEdition: %d", engineEdition[0])
 		return engineEdition[0], nil
 	}
 }
