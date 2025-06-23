@@ -11,6 +11,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ### enhancement
 - Add support for monitoring Azure SQL Database
+- Add support for monitoring Azure SQL Managed Instance
 
 ## v2.18.2 - 2025-06-03
 

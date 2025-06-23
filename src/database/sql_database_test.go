@@ -13,8 +13,6 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-const azureSQLManagedInstanceEngineEditionNumber = 8
-
 func Test_createDatabaseEntities_QueryError(t *testing.T) {
 	i, err := integration.New("test", "1.0.0")
 	if err != nil {
@@ -206,10 +204,10 @@ func TestGetEngineEdition(t *testing.T) {
 			name: "Successful query - Other SQL Server",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				expectedRows := sqlmock.NewRows([]string{"EngineEdition"}).
-					AddRow(azureSQLManagedInstanceEngineEditionNumber)
+					AddRow(AzureSQLManagedInstanceEngineEditionNumber)
 				mock.ExpectQuery("SELECT (.+)").WillReturnRows(expectedRows)
 			},
-			expectedEdition: azureSQLManagedInstanceEngineEditionNumber,
+			expectedEdition: AzureSQLManagedInstanceEngineEditionNumber,
 			expectError:     false,
 		},
 		{
@@ -260,7 +258,7 @@ func TestIsAzureSQLDatabase(t *testing.T) {
 		},
 		{
 			name:          "Azure SQL Managed Instance",
-			engineEdition: azureSQLManagedInstanceEngineEditionNumber,
+			engineEdition: AzureSQLManagedInstanceEngineEditionNumber,
 			expected:      false,
 		},
 	}

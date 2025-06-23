@@ -81,8 +81,9 @@ func setItemOrLog(instanceEntity *integration.Entity, key string, value interfac
 
 // Bucket for processor functions
 var spConfigProcessorFunctionSet = metrics.EngineSet[spConfigItemsProcessor]{
-	Default:          processSPConfigItems,
-	AzureSQLDatabase: processAzureSQLDatabaseSPConfigItems,
+	Default:                 processSPConfigItems,
+	AzureSQLDatabase:        processAzureSQLDatabaseSPConfigItems,
+	AzureSQLManagedInstance: processSPConfigItems,
 }
 
 func processSPConfigItems(instanceEntity *integration.Entity, connection *connection.SQLConnection) error {

@@ -122,6 +122,9 @@ var instanceDefinitions = []*QueryDefinition{
 			InstanceActiveConnections *int64 `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
 		}{},
 	},
+}
+
+var instanceMemoryDefinitions = []*QueryDefinition{
 	{
 		query: `SELECT
 		Max(sys_mem.total_physical_memory_kb * 1024.0) AS total_physical_memory,
@@ -130,6 +133,25 @@ var instanceDefinitions = []*QueryDefinition{
 		FROM sys.dm_os_process_memory proc_mem,
 		  sys.dm_os_sys_memory sys_mem,
 		  sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'`,
+		dataModels: &[]struct {
+			TotalPhysicalMemory     *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
+			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
+			MemoryUtilization       *float64 `db:"memory_utilization" metric_name:"memoryUtilization" source_type:"gauge"`
+		}{},
+	},
+}
+
+var instanceMemoryDefinitionsForAzureSQLManagedInstance = []*QueryDefinition{
+	{
+		query: `
+			SELECT
+				Max(sys_mem.total_physical_memory_kb * 1024.0) AS total_physical_memory,
+				Max(sys_mem.available_physical_memory_kb * 1024.0) AS available_physical_memory,
+				(Max(proc_mem.physical_memory_in_use_kb) / (Max(sys_mem.total_physical_memory_kb) * 1.0)) * 100 AS memory_utilization
+			FROM sys.dm_os_process_memory proc_mem,
+				sys.dm_os_sys_memory sys_mem,
+				sys.dm_os_performance_counters perf_count WHERE object_name LIKE '%:Memory Manager%'
+		`,
 		dataModels: &[]struct {
 			TotalPhysicalMemory     *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
 			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`

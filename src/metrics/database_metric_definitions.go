@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/database"
 )
 
@@ -103,6 +102,41 @@ var databaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	},
 }
 
+var databaseDefinitionsForAzureSQLManagedInstance = []*QueryDefinition{
+	{
+		query: `
+			SELECT 
+				sd.name AS db_name,
+				spc.cntr_value AS log_growth 
+			FROM sys.dm_os_performance_counters spc WITH (NOLOCK)
+			INNER JOIN sys.databases sd 
+				ON sd.physical_database_name = spc.instance_name
+			WHERE spc.object_name LIKE '%:Databases%'
+				AND spc.counter_name = 'Log Growths'
+				AND sd.name NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+				AND spc.instance_name NOT IN ('_Total', 'mssqlsystemresource', 'master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			LogGrowth int `db:"log_growth" metric_name:"log.transactionGrowth" source_type:"gauge"`
+		}{},
+	},
+	{
+		query: `		
+			SELECT
+				DB_NAME(database_id) AS db_name,
+				SUM(io_stall) AS io_stalls
+				FROM sys.dm_io_virtual_file_stats(null,null)
+			WHERE DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
+				GROUP BY database_id
+		`,
+		dataModels: &[]struct {
+			database.DataModel
+			IOStalls int `db:"io_stalls" metric_name:"io.stallInMilliseconds" source_type:"gauge"`
+		}{},
+	},
+}
+
 var databaseDiskDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 	{
 		query: `
@@ -192,53 +226,4 @@ var specificDatabaseDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 			ReservedSpaceNotUsed float64 `db:"reserved_space_not_used" metric_name:"pageFileAvailable" source_type:"gauge"`
 		}{},
 	},
-}
-
-// EngineSet is a generic struct that acts as a "bucket" for holding
-// the default and Azure-specific implementations for a given resource.
-type EngineSet[T any] struct {
-	Default          T
-	AzureSQLDatabase T
-}
-
-// Select returns the correct implementation from the set based on the engine edition.
-func (s EngineSet[T]) Select(engineEdition int) T {
-	if engineEdition == database.AzureSQLDatabaseEngineEditionNumber {
-		return s.AzureSQLDatabase
-	}
-	return s.Default
-}
-
-// QueryDefinitionType is a custom type for identifying different query sets.
-type QueryDefinitionType int
-
-// Enum of the different query definition types.
-const (
-	StandardQueries = iota
-	BufferQueries
-	SpecificQueries
-)
-
-var queryDefinitionSets = map[QueryDefinitionType]EngineSet[[]*QueryDefinition]{
-	StandardQueries: {
-		Default:          databaseDefinitions,
-		AzureSQLDatabase: databaseDefinitionsForAzureSQLDatabase,
-	},
-	BufferQueries: {
-		Default:          databaseBufferDefinitions,
-		AzureSQLDatabase: databaseBufferDefinitionsForAzureSQLDatabase,
-	},
-	SpecificQueries: {
-		Default:          specificDatabaseDefinitions,
-		AzureSQLDatabase: specificDatabaseDefinitionsForAzureSQLDatabase,
-	},
-}
-
-func GetQueryDefinitions(defType QueryDefinitionType, engineEdition int) []*QueryDefinition {
-	definitionSet, ok := queryDefinitionSets[defType]
-	if !ok {
-		log.Error("Error: Invalid query definition type provided: %d", defType)
-		return nil
-	}
-	return definitionSet.Select(engineEdition)
 }
