@@ -42,9 +42,6 @@ var (
 )
 
 const (
-	// Maximum number of concurent db connections that can be created
-	maxConcurrentWorkers = 10
-
 	// Maximum number of metrics retrieved from a single query execution
 	resultsBufferSizePerWorker = 5
 )
@@ -354,8 +351,10 @@ func PopulateDatabaseMetrics(i *integration.Integration, instanceName string, co
 	// create database entities lookup for fast metric set
 	dbSetLookup := database.CreateDBEntitySetLookup(dbEntities, instanceName, connection.Host)
 
+	maxWorkers := arguments.GetMaxConcurrentWorkers()
+
 	// A buffer sized to allow each worker to offload a burst of results without blocking the worker pool.
-	modelChan := make(chan interface{}, maxConcurrentWorkers*resultsBufferSizePerWorker)
+	modelChan := make(chan interface{}, maxWorkers*resultsBufferSizePerWorker)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -391,7 +390,8 @@ func processDefaultDBMetrics(i *integration.Integration, instanceName string, co
 func processAzureSQLDatabaseMetrics(i *integration.Integration, instanceName string, _ *connection.SQLConnection, arguments args.ArgumentList, dbSetLookup database.DBMetricSetLookup, engineEdition int, modelChan chan<- interface{}) {
 	databaseNames := dbSetLookup.GetDBNames()
 
-	dbChan := make(chan struct{}, maxConcurrentWorkers)
+	maxWorkers := arguments.GetMaxConcurrentWorkers()
+	dbChan := make(chan struct{}, maxWorkers)
 	var waitGroup sync.WaitGroup
 
 	for _, dbName := range databaseNames {

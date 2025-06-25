@@ -2,6 +2,8 @@ package args
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidate(t *testing.T) {
@@ -76,5 +78,41 @@ func TestValidate(t *testing.T) {
 		} else if !tc.wantError && err != nil {
 			t.Errorf("Test Case %s Failed: Unexpected error: %v", tc.name, err)
 		}
+	}
+}
+
+func TestGetMaxConcurrentWorkers(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		maxConcurrentWorkers int
+		expected             int
+	}{
+		{
+			name:                 "Default value when not set (zero value)",
+			maxConcurrentWorkers: 0,
+			expected:             10,
+		},
+		{
+			name:                 "Custom value",
+			maxConcurrentWorkers: 15,
+			expected:             15,
+		},
+		{
+			name:                 "Negative value returns default",
+			maxConcurrentWorkers: -5,
+			expected:             10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := ArgumentList{
+				Hostname:             "localhost",
+				MaxConcurrentWorkers: tc.maxConcurrentWorkers,
+			}
+
+			result := args.GetMaxConcurrentWorkers()
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }
