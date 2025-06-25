@@ -67,7 +67,7 @@ func (al ArgumentList) Validate() error {
 
 func (al ArgumentList) GetMaxConcurrentWorkers() int {
 	if al.MaxConcurrentWorkers <= 0 {
-		return 10
+		return 10 //nolint:mnd // Default concurrent workers count
 	}
 	return al.MaxConcurrentWorkers
 }
