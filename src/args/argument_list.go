@@ -9,6 +9,11 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 )
 
+const (
+	// Default concurrent workers count
+	DefaultMaxConcurrentWorkers = 10
+)
+
 // ArgumentList struct that holds all MSSQL arguments
 type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
@@ -67,7 +72,7 @@ func (al ArgumentList) Validate() error {
 
 func (al ArgumentList) GetMaxConcurrentWorkers() int {
 	if al.MaxConcurrentWorkers <= 0 {
-		return 10 //nolint:mnd // Default concurrent workers count
+		return DefaultMaxConcurrentWorkers
 	}
 	return al.MaxConcurrentWorkers
 }
