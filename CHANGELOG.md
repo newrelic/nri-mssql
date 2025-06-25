@@ -11,6 +11,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## v2.19.0 - 2025-06-24
 
+### bugfix 
+- Fixed the query that computes IO stall in milliseconds 
+
 ### 🚀 Enhancements
 - Add support for monitoring Azure SQL Database
 - Add support for monitoring Azure SQL Managed Instance
