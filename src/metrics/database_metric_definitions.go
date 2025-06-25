@@ -58,7 +58,7 @@ var databaseDefinitions = []*QueryDefinition{
 	}, {
 		query: `select
 		DB_NAME(database_id) AS db_name,
-		SUM(io_stall_write_ms) + SUM(num_of_writes) as io_stalls
+		SUM(io_stall) AS io_stalls
 		FROM sys.dm_io_virtual_file_stats(null,null)
     WHERE DB_NAME(database_id) NOT IN ('master', 'tempdb', 'msdb', 'model', 'rdsadmin', 'distribution', 'model_msdb', 'model_replicatedmaster')
 		GROUP BY database_id`,
