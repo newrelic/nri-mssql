@@ -14,6 +14,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 ### 🚀 Enhancements
 - Add support for monitoring Azure SQL Database
 - Add support for monitoring Azure SQL Managed Instance
+- Make concurrent database connections configurable with MAX_CONCURRENT_WORKERS config option
 
 ## v2.18.2 - 2025-06-03
 

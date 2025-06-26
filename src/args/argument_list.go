@@ -9,6 +9,11 @@ import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 )
 
+const (
+	// Default concurrent workers count
+	DefaultMaxConcurrentWorkers = 10
+)
+
 // ArgumentList struct that holds all MSSQL arguments
 type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
@@ -22,6 +27,7 @@ type ArgumentList struct {
 	CertificateLocation                  string `default:"" help:"Certificate file to verify SSL encryption against"`
 	EnableBufferMetrics                  bool   `default:"true" help:"Enable collection of buffer space metrics."`
 	EnableDatabaseReserveMetrics         bool   `default:"true" help:"Enable collection of database reserve space metrics."`
+	MaxConcurrentWorkers                 int    `default:"10" help:"Maximum number of simultaneous database connections to be used while collecting metrics."`
 	Timeout                              string `default:"30" help:"Timeout in seconds for a single SQL Query. Set 0 for no timeout"`
 	CustomMetricsQuery                   string `default:"" help:"A SQL query to collect custom metrics. Query results 'metric_name', 'metric_value', and 'metric_type' have special meanings"`
 	CustomMetricsConfig                  string `default:"" help:"YAML configuration with one or more SQL queries to collect custom metrics"`
@@ -62,4 +68,11 @@ func (al ArgumentList) Validate() error {
 	}
 
 	return nil
+}
+
+func (al ArgumentList) GetMaxConcurrentWorkers() int {
+	if al.MaxConcurrentWorkers <= 0 {
+		return DefaultMaxConcurrentWorkers
+	}
+	return al.MaxConcurrentWorkers
 }
