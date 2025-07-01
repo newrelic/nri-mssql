@@ -9,8 +9,14 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### bugfix
+## v2.19.1 - 2025-07-01
+
+### 🐞 Bug fixes
 - Fixed the query for `instance.diskInBytes` to support instances with case-sensitive collation
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.9.2 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.9.2)
+- Updated golang version to v1.24.4
 
 ## v2.19.0 - 2025-06-24
 
