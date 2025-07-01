@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Fixed the query for `instance.diskInBytes` to support instances with case-sensitive collation
+
 ## v2.19.0 - 2025-06-24
 
 ### 🚀 Enhancements
