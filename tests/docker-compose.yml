@@ -10,7 +10,6 @@ services:
       ACCEPT_EULA: Y
       SA_PASSWORD: secret123!
       MSSQL_PID: Developer
-      MSSQL_COLLATION: SQL_Latin1_General_CP1_CS_AS
     ports:
       - "1433:1433"
     volumes:
