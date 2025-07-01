@@ -1,1 +1,25 @@
-{"name":"test","protocol_version":"3","integration_version":"1.0.0","data":[{"entity":{"name":"test","type":"instance","id_attributes":[]},"metrics":[{"displayName":"test","entityName":"instance:test","event_type":"MssqlInstanceSample","host":"testhost","system.bufferPoolHitPercent":95.5}],"inventory":{},"events":[]}]}
+{
+    "name": "test",
+    "protocol_version": "3",
+    "integration_version": "1.0.0",
+    "data": [
+        {
+            "entity": {
+                "name": "test",
+                "type": "instance",
+                "id_attributes": []
+            },
+            "metrics": [
+                {
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlInstanceSample",
+                    "host": "testhost",
+                    "system.bufferPoolHitPercent": 95.5
+                }
+            ],
+            "inventory": {},
+            "events": []
+        }
+    ]
+}

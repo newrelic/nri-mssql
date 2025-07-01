@@ -1,1 +1,74 @@
-{"name":"test","protocol_version":"3","integration_version":"1.0.0","data":[{"entity":{"name":"test","type":"instance","id_attributes":[]},"metrics":[],"inventory":{},"events":[]},{"entity":{"name":"db-1","type":"ms-database","id_attributes":[{"Key":"database","Value":"db-1"},{"Key":"instance","Value":"MSSQL"}]},"metrics":[{"displayName":"db-1","entityName":"ms-database:db-1","event_type":"MssqlDatabaseSample","host":"testhost","instance":"MSSQL","reportingEndpoint":"testhost"}],"inventory":{},"events":[]},{"entity":{"name":"db-2","type":"ms-database","id_attributes":[{"Key":"database","Value":"db-2"},{"Key":"instance","Value":"MSSQL"}]},"metrics":[{"displayName":"db-2","entityName":"ms-database:db-2","event_type":"MssqlDatabaseSample","host":"testhost","instance":"MSSQL","log.transactionGrowth":1,"reportingEndpoint":"testhost"}],"inventory":{},"events":[]}]}
+{
+    "name": "test",
+    "protocol_version": "3",
+    "integration_version": "1.0.0",
+    "data": [
+        {
+            "entity": {
+                "name": "test",
+                "type": "instance",
+                "id_attributes": []
+            },
+            "metrics": [],
+            "inventory": {},
+            "events": []
+        },
+        {
+            "entity": {
+                "name": "db-1",
+                "type": "ms-database",
+                "id_attributes": [
+                    {
+                        "Key": "database",
+                        "Value": "db-1"
+                    },
+                    {
+                        "Key": "instance",
+                        "Value": "MSSQL"
+                    }
+                ]
+            },
+            "metrics": [
+                {
+                    "displayName": "db-1",
+                    "entityName": "ms-database:db-1",
+                    "event_type": "MssqlDatabaseSample",
+                    "host": "testhost",
+                    "instance": "MSSQL",
+                    "reportingEndpoint": "testhost"
+                }
+            ],
+            "inventory": {},
+            "events": []
+        },
+        {
+            "entity": {
+                "name": "db-2",
+                "type": "ms-database",
+                "id_attributes": [
+                    {
+                        "Key": "database",
+                        "Value": "db-2"
+                    },
+                    {
+                        "Key": "instance",
+                        "Value": "MSSQL"
+                    }
+                ]
+            },
+            "metrics": [
+                {
+                    "displayName": "db-2",
+                    "entityName": "ms-database:db-2",
+                    "event_type": "MssqlDatabaseSample",
+                    "host": "testhost",
+                    "instance": "MSSQL",
+                    "log.transactionGrowth": 1,
+                    "reportingEndpoint": "testhost"
+                }
+            ],
+            "inventory": {},
+            "events": []
+        }
+    ]
+}
