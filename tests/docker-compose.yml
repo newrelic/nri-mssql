@@ -37,23 +37,23 @@ services:
   #     - mssql-oldest-log:/var/opt/mssql/log:rw
   #     - mssql-oldest-backup:/var/opt/mssql/backup:rw
 
-  # mssql-no-ext:
-  #   image: mcr.microsoft.com/mssql/server:2022-latest
-  #   restart: always 
-  #   container_name: "mssql-noext"
-  #   environment:
-  #     ACCEPT_EULA: Y
-  #     SA_PASSWORD: secret123!
-  #     MSSQL_PID: Developer
-  #   ports:
-  #     - "3433:1433"
+  mssql-no-ext:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always 
+    container_name: "mssql-noext"
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: secret123!
+      MSSQL_PID: Developer
+    ports:
+      - "3433:1433"
 
 
-  # nri-mssql:
-  #   container_name: nri_mssql
-  #   build:
-  #     context: ../
-  #     dockerfile: ./tests/Dockerfile
+  nri-mssql:
+    container_name: nri_mssql
+    build:
+      context: ../
+      dockerfile: ./tests/Dockerfile
 
 volumes:
   mssql-data:
