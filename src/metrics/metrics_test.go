@@ -89,8 +89,8 @@ func (b *mockConnectionBuilder) expectStandardQueries() *mockConnectionBuilder {
 	}
 	b.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth*`).
 		WillReturnRows(sqlmock.NewRows([]string{"db_name", "log_growth"}).AddRow(b.dbName, metricValue))
-	b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+SUM\(io_stall\).*`).
-		WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}).AddRow(b.dbName, metricValue))
+	b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(database_id\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`).
+    	WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}).AddRow(b.dbName, metricValue))
 	return b
 }
 
@@ -228,7 +228,7 @@ func setupMockForDatabaseMetrics(mock sqlmock.Sqlmock, logGrowthResp mockRespons
 		ioStallsRegex = `^SELECT\s+DB_NAME\(database_id\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`
 	} else {
 		logGrowthRegex = `^select\s+RTRIM\(t1\.instance_name\).*`
-		ioStallsRegex = `^select.*as\s+io_stalls.*FROM\s+sys\.dm_io_virtual_file_stats.*`
+		ioStallsRegex = `^select\s+DB_NAME\(database_id\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*FROM\s+sys\.dm_io_virtual_file_stats.*`
 	}
 
 	switch logGrowthResp {
