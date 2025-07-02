@@ -9,6 +9,7 @@ import (
 	// go-mssqldb is required for mssql driver but isn't used in code
 	"github.com/jmoiron/sqlx"
 	_ "github.com/microsoft/go-mssqldb"
+	"github.com/microsoft/go-mssqldb/azuread"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
 	"github.com/newrelic/nri-mssql/src/args"
 )
@@ -19,30 +20,58 @@ type SQLConnection struct {
 	Host       string
 }
 
+const (
+	// Authentication type constants
+	AuthTypeSQL                     = 0
+	AuthTypeAzureADServicePrincipal = 1
+)
+
 // NewConnection creates a new SQLConnection from args
 func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
-	db, err := sqlx.Connect("mssql", CreateConnectionURL(args, ""))
-	if err != nil {
-		return nil, err
+	if args.AuthType == AuthTypeAzureADServicePrincipal {
+		db, err := sqlx.Connect(azuread.DriverName, CreateEntraIdConnectionURL(args, ""))
+		if err != nil {
+			return nil, err
+		}
+		return &SQLConnection{
+			Connection: db,
+			Host:       args.Hostname,
+		}, nil
+	} else {
+		db, err := sqlx.Connect("mssql", CreateConnectionURL(args, ""))
+		if err != nil {
+			return nil, err
+		}
+		return &SQLConnection{
+			Connection: db,
+			Host:       args.Hostname,
+		}, nil
 	}
-	return &SQLConnection{
-		Connection: db,
-		Host:       args.Hostname,
-	}, nil
 }
 
 // package-level variable to hold the original function which is needed to mock this NewDatabaseConnection for unit testing.
 var CreateDatabaseConnection = NewDatabaseConnection
 
 func NewDatabaseConnection(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
-	db, err := sqlx.Connect("mssql", CreateConnectionURL(args, dbName))
-	if err != nil {
-		return nil, err
+	if args.AuthType == AuthTypeAzureADServicePrincipal {
+		db, err := sqlx.Connect(azuread.DriverName, CreateEntraIdConnectionURL(args, dbName))
+		if err != nil {
+			return nil, err
+		}
+		return &SQLConnection{
+			Connection: db,
+			Host:       args.Hostname,
+		}, nil
+	} else {
+		db, err := sqlx.Connect("mssql", CreateConnectionURL(args, dbName))
+		if err != nil {
+			return nil, err
+		}
+		return &SQLConnection{
+			Connection: db,
+			Host:       args.Hostname,
+		}, nil
 	}
-	return &SQLConnection{
-		Connection: db,
-		Host:       args.Hostname,
-	}, nil
 }
 
 // Close closes the SQL connection. If an error occurs
@@ -116,6 +145,34 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 	connectionURL.RawQuery = query.Encode()
 
 	connectionString = connectionURL.String()
+
+	return connectionString
+}
+
+// CreateEntraIdConnectionURL creates a connection string specifically for Azure AD Entra ID authentication.
+func CreateEntraIdConnectionURL(args *args.ArgumentList, dbName string) string {
+	connectionString := fmt.Sprintf(
+		"server=%s;port=%s;database=%s;user id=%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
+		args.Hostname,
+		args.Port,
+		dbName,
+		args.Username, // Expects: <client_id>@<tenant_id>
+		args.Password, // Expects: Client Secret
+		args.Timeout,
+		args.Timeout,
+	)
+
+	if args.EnableSSL {
+		connectionString += ";encrypt=true"
+		if args.TrustServerCertificate {
+			connectionString += ";TrustServerCertificate=true"
+		} else {
+			connectionString += ";TrustServerCertificate=false"
+			if args.CertificateLocation != "" {
+				connectionString += fmt.Sprintf(";certificate=%s", args.CertificateLocation)
+			}
+		}
+	}
 
 	return connectionString
 }

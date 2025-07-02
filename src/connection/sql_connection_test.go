@@ -149,3 +149,102 @@ func Test_createConnectionURL(t *testing.T) {
 		}
 	}
 }
+
+func Test_CreateEntraIdConnectionURL(t *testing.T) {
+	testCases := []struct {
+		name   string
+		arg    *args.ArgumentList
+		dbName string
+		want   string
+	}{
+		{
+			"Basic Service Principal No SSL",
+			&args.ArgumentList{
+				Username:  "client-id@tenant-id",
+				Password:  "client-secret",
+				Hostname:  "localhost",
+				Port:      "1433",
+				Timeout:   "30",
+				EnableSSL: false,
+			},
+			"",
+			"server=localhost;port=1433;database=;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+		},
+		{
+			"Service Principal with Database",
+			&args.ArgumentList{
+				Username:  "client-id@tenant-id",
+				Password:  "client-secret",
+				Hostname:  "sqlserver.database.windows.net",
+				Port:      "1433",
+				Timeout:   "30",
+				EnableSSL: false,
+			},
+			"test-database",
+			"server=sqlserver.database.windows.net;port=1433;database=test-database;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+		},
+		{
+			"Service Principal SSL Trust Certificate",
+			&args.ArgumentList{
+				Username:               "client-id@tenant-id",
+				Password:               "client-secret",
+				Hostname:               "sqlserver.database.windows.net",
+				Port:                   "1433",
+				Timeout:                "30",
+				EnableSSL:              true,
+				TrustServerCertificate: true,
+			},
+			"production-db",
+			"server=sqlserver.database.windows.net;port=1433;database=production-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
+		},
+		{
+			"Service Principal SSL with Certificate File",
+			&args.ArgumentList{
+				Username:               "client-id@tenant-id",
+				Password:               "client-secret",
+				Hostname:               "sqlserver.database.windows.net",
+				Port:                   "1433",
+				Timeout:                "30",
+				EnableSSL:              true,
+				TrustServerCertificate: false,
+				CertificateLocation:    "/path/to/cert.pem",
+			},
+			"secure-db",
+			"server=sqlserver.database.windows.net;port=1433;database=secure-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
+		},
+		{
+			"Service Principal SSL Don't Trust No Certificate",
+			&args.ArgumentList{
+				Username:               "client-id@tenant-id",
+				Password:               "client-secret",
+				Hostname:               "localhost",
+				Port:                   "1433",
+				Timeout:                "60",
+				EnableSSL:              true,
+				TrustServerCertificate: false,
+				CertificateLocation:    "",
+			},
+			"test-db",
+			"server=localhost;port=1433;database=test-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=60;connection timeout=60;encrypt=true;TrustServerCertificate=false",
+		},
+		{
+			"Service Principal Different Port",
+			&args.ArgumentList{
+				Username:  "app-registration@azure-tenant",
+				Password:  "super-secret-key",
+				Hostname:  "myserver.example.com",
+				Port:      "1444",
+				Timeout:   "45",
+				EnableSSL: false,
+			},
+			"analytics-db",
+			"server=myserver.example.com;port=1444;database=analytics-db;user id=app-registration@azure-tenant;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=45;connection timeout=45",
+		},
+	}
+
+	for _, tc := range testCases {
+		if out := CreateEntraIdConnectionURL(tc.arg, tc.dbName); out != tc.want {
+			t.Errorf("Test Case %s Failed: Expected '%s' got '%s'", tc.name, tc.want, out)
+		}
+	}
+}
