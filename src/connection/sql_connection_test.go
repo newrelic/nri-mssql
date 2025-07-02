@@ -150,7 +150,7 @@ func Test_createConnectionURL(t *testing.T) {
 	}
 }
 
-func Test_CreateEntraIdConnectionURL(t *testing.T) {
+func Test_CreateAzureADConnectionURL(t *testing.T) {
 	testCases := []struct {
 		name   string
 		arg    *args.ArgumentList
@@ -243,7 +243,7 @@ func Test_CreateEntraIdConnectionURL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		if out := CreateEntraIdConnectionURL(tc.arg, tc.dbName); out != tc.want {
+		if out := CreateAzureADConnectionURL(tc.arg, tc.dbName); out != tc.want {
 			t.Errorf("Test Case %s Failed: Expected '%s' got '%s'", tc.name, tc.want, out)
 		}
 	}

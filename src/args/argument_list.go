@@ -22,7 +22,7 @@ type ArgumentList struct {
 	Instance                             string `default:"" help:"The Microsoft SQL Server instance to connect to"`
 	Hostname                             string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
 	Port                                 string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
-	AuthType                             int    `default:"0" help:"Authentication type: 0=sql, 1=azuread-service-principal"`
+	AuthType                             int    `default:"0" help:"Authentication type: 0=sql, 1=azure-ad-service-principal"`
 	EnableSSL                            bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate               bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation                  string `default:"" help:"Certificate file to verify SSL encryption against"`

@@ -24,54 +24,58 @@ const (
 	// Authentication type constants
 	AuthTypeSQL                     = 0
 	AuthTypeAzureADServicePrincipal = 1
+	// AuthTypeAzureADUsernamePassword  = 2 // Not implemented yet, placeholder for future use
 )
 
-// NewConnection creates a new SQLConnection from args
-func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
-	if args.AuthType == AuthTypeAzureADServicePrincipal {
-		db, err := sqlx.Connect(azuread.DriverName, CreateEntraIdConnectionURL(args, ""))
-		if err != nil {
-			return nil, err
-		}
-		return &SQLConnection{
-			Connection: db,
-			Host:       args.Hostname,
-		}, nil
-	} else {
-		db, err := sqlx.Connect("mssql", CreateConnectionURL(args, ""))
-		if err != nil {
-			return nil, err
-		}
-		return &SQLConnection{
-			Connection: db,
-			Host:       args.Hostname,
-		}, nil
+type AuthConnector interface {
+	Connect(args *args.ArgumentList, dbName string) (*sqlx.DB, error)
+}
+
+type SQLAuthConnector struct{}
+
+func (s SQLAuthConnector) Connect(args *args.ArgumentList, dbName string) (*sqlx.DB, error) {
+	connectionURL := CreateConnectionURL(args, dbName)
+	return sqlx.Connect("mssql", connectionURL)
+}
+
+type AzureADAuthConnector struct{}
+
+func (a AzureADAuthConnector) Connect(args *args.ArgumentList, dbName string) (*sqlx.DB, error) {
+	connectionURL := CreateAzureADConnectionURL(args, dbName)
+	return sqlx.Connect(azuread.DriverName, connectionURL)
+}
+
+// returns the appropriate AuthConnector based on authentication type
+func getAuthConnector(authType int) AuthConnector {
+	switch authType {
+	case AuthTypeAzureADServicePrincipal:
+		return AzureADAuthConnector{}
+	default:
+		return SQLAuthConnector{}
 	}
+}
+
+func createConnectionWithAuth(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
+	connector := getAuthConnector(args.AuthType)
+	db, err := connector.Connect(args, dbName)
+	if err != nil {
+		return nil, err
+	}
+	return &SQLConnection{
+		Connection: db,
+		Host:       args.Hostname,
+	}, nil
+}
+
+func NewConnection(args *args.ArgumentList) (*SQLConnection, error) {
+	return createConnectionWithAuth(args, "")
 }
 
 // package-level variable to hold the original function which is needed to mock this NewDatabaseConnection for unit testing.
 var CreateDatabaseConnection = NewDatabaseConnection
 
 func NewDatabaseConnection(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
-	if args.AuthType == AuthTypeAzureADServicePrincipal {
-		db, err := sqlx.Connect(azuread.DriverName, CreateEntraIdConnectionURL(args, dbName))
-		if err != nil {
-			return nil, err
-		}
-		return &SQLConnection{
-			Connection: db,
-			Host:       args.Hostname,
-		}, nil
-	} else {
-		db, err := sqlx.Connect("mssql", CreateConnectionURL(args, dbName))
-		if err != nil {
-			return nil, err
-		}
-		return &SQLConnection{
-			Connection: db,
-			Host:       args.Hostname,
-		}, nil
-	}
+	return createConnectionWithAuth(args, dbName)
 }
 
 // Close closes the SQL connection. If an error occurs
@@ -149,8 +153,8 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 	return connectionString
 }
 
-// CreateEntraIdConnectionURL creates a connection string specifically for Azure AD Entra ID authentication.
-func CreateEntraIdConnectionURL(args *args.ArgumentList, dbName string) string {
+// CreateAzureADConnectionURL creates a connection string specifically for Azure AD authentication.
+func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 	connectionString := fmt.Sprintf(
 		"server=%s;port=%s;database=%s;user id=%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
 		args.Hostname,
@@ -161,6 +165,17 @@ func CreateEntraIdConnectionURL(args *args.ArgumentList, dbName string) string {
 		args.Timeout,
 		args.Timeout,
 	)
+
+	if args.ExtraConnectionURLArgs != "" {
+		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)
+		if err == nil {
+			for k, v := range extraArgsMap {
+				connectionString += fmt.Sprintf(";%s=%s", k, v[0])
+			}
+		} else {
+			log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
+		}
+	}
 
 	if args.EnableSSL {
 		connectionString += ";encrypt=true"
