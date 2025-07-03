@@ -160,34 +160,37 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 		{
 			"Basic Service Principal No SSL",
 			&args.ArgumentList{
-				Username:  "client-id@tenant-id",
-				Password:  "client-secret",
-				Hostname:  "localhost",
-				Port:      "1433",
-				Timeout:   "30",
-				EnableSSL: false,
+				ClientID:     "12345678-1234-1234-1234-123456789012",
+				TenantID:     "87654321-4321-4321-4321-210987654321",
+				ClientSecret: "client-secret",
+				Hostname:     "localhost",
+				Port:         "1433",
+				Timeout:      "30",
+				EnableSSL:    false,
 			},
 			"",
-			"server=localhost;port=1433;database=;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+			"server=localhost;port=1433;database=;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
 		},
 		{
 			"Service Principal with Database",
 			&args.ArgumentList{
-				Username:  "client-id@tenant-id",
-				Password:  "client-secret",
-				Hostname:  "sqlserver.database.windows.net",
-				Port:      "1433",
-				Timeout:   "30",
-				EnableSSL: false,
+				ClientID:     "abcdef12-3456-7890-abcd-ef1234567890",
+				TenantID:     "fedcba09-8765-4321-fedc-ba0987654321",
+				ClientSecret: "super-secret-key",
+				Hostname:     "sqlserver.database.windows.net",
+				Port:         "1433",
+				Timeout:      "30",
+				EnableSSL:    false,
 			},
 			"test-database",
-			"server=sqlserver.database.windows.net;port=1433;database=test-database;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+			"server=sqlserver.database.windows.net;port=1433;database=test-database;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
 		},
 		{
 			"Service Principal SSL Trust Certificate",
 			&args.ArgumentList{
-				Username:               "client-id@tenant-id",
-				Password:               "client-secret",
+				ClientID:               "12345678-1234-1234-1234-123456789012",
+				TenantID:               "87654321-4321-4321-4321-210987654321",
+				ClientSecret:           "client-secret",
 				Hostname:               "sqlserver.database.windows.net",
 				Port:                   "1433",
 				Timeout:                "30",
@@ -195,13 +198,14 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				TrustServerCertificate: true,
 			},
 			"production-db",
-			"server=sqlserver.database.windows.net;port=1433;database=production-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
+			"server=sqlserver.database.windows.net;port=1433;database=production-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
 		},
 		{
 			"Service Principal SSL with Certificate File",
 			&args.ArgumentList{
-				Username:               "client-id@tenant-id",
-				Password:               "client-secret",
+				ClientID:               "12345678-1234-1234-1234-123456789012",
+				TenantID:               "87654321-4321-4321-4321-210987654321",
+				ClientSecret:           "client-secret",
 				Hostname:               "sqlserver.database.windows.net",
 				Port:                   "1433",
 				Timeout:                "30",
@@ -210,13 +214,14 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				CertificateLocation:    "/path/to/cert.pem",
 			},
 			"secure-db",
-			"server=sqlserver.database.windows.net;port=1433;database=secure-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
+			"server=sqlserver.database.windows.net;port=1433;database=secure-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
 		},
 		{
 			"Service Principal SSL Don't Trust No Certificate",
 			&args.ArgumentList{
-				Username:               "client-id@tenant-id",
-				Password:               "client-secret",
+				ClientID:               "12345678-1234-1234-1234-123456789012",
+				TenantID:               "87654321-4321-4321-4321-210987654321",
+				ClientSecret:           "client-secret",
 				Hostname:               "localhost",
 				Port:                   "1433",
 				Timeout:                "60",
@@ -225,20 +230,21 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				CertificateLocation:    "",
 			},
 			"test-db",
-			"server=localhost;port=1433;database=test-db;user id=client-id@tenant-id;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=60;connection timeout=60;encrypt=true;TrustServerCertificate=false",
+			"server=localhost;port=1433;database=test-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=60;connection timeout=60;encrypt=true;TrustServerCertificate=false",
 		},
 		{
 			"Service Principal Different Port",
 			&args.ArgumentList{
-				Username:  "app-registration@azure-tenant",
-				Password:  "super-secret-key",
-				Hostname:  "myserver.example.com",
-				Port:      "1444",
-				Timeout:   "45",
-				EnableSSL: false,
+				ClientID:     "abcdef12-3456-7890-abcd-ef1234567890",
+				TenantID:     "fedcba09-8765-4321-fedc-ba0987654321",
+				ClientSecret: "super-secret-key",
+				Hostname:     "myserver.example.com",
+				Port:         "1444",
+				Timeout:      "45",
+				EnableSSL:    false,
 			},
 			"analytics-db",
-			"server=myserver.example.com;port=1444;database=analytics-db;user id=app-registration@azure-tenant;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=45;connection timeout=45",
+			"server=myserver.example.com;port=1444;database=analytics-db;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=45;connection timeout=45",
 		},
 	}
 
@@ -249,163 +255,128 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 	}
 }
 
-func Test_isAzureADServicePrincipal(t *testing.T) {
+func Test_determineAuthMethod(t *testing.T) {
 	testCases := []struct {
-		name     string
-		args     *args.ArgumentList
-		expected bool
+		name        string
+		args        *args.ArgumentList
+		expectError bool
+		expectType  string
 	}{
 		{
-			"Valid Azure AD Service Principal format",
+			"Valid Azure AD Service Principal - All fields provided",
 			&args.ArgumentList{
-				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321",
-				Password: "client-secret",
+				ClientID:     "12345678-1234-1234-1234-123456789012",
+				TenantID:     "87654321-4321-4321-4321-210987654321",
+				ClientSecret: "client-secret",
 			},
-			true,
+			false,
+			"AzureADAuthConnector",
 		},
 		{
-			"Valid Azure AD Service Principal with complex password",
+			"Azure AD incomplete - Only ClientID provided",
 			&args.ArgumentList{
-				Username: "abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321",
-				Password: "MyVerySecretClientSecret123!@#",
+				ClientID: "12345678-1234-1234-1234-123456789012",
 			},
 			true,
+			"",
 		},
 		{
-			"Regular SQL username and password",
+			"Azure AD incomplete - Only TenantID provided",
+			&args.ArgumentList{
+				TenantID: "87654321-4321-4321-4321-210987654321",
+			},
+			true,
+			"",
+		},
+		{
+			"Azure AD incomplete - Only ClientSecret provided",
+			&args.ArgumentList{
+				ClientSecret: "client-secret",
+			},
+			true,
+			"",
+		},
+		{
+			"Azure AD incomplete - ClientID and TenantID only",
+			&args.ArgumentList{
+				ClientID: "12345678-1234-1234-1234-123456789012",
+				TenantID: "87654321-4321-4321-4321-210987654321",
+			},
+			true,
+			"",
+		},
+		{
+			"Azure AD incomplete - ClientID and ClientSecret only",
+			&args.ArgumentList{
+				ClientID:     "12345678-1234-1234-1234-123456789012",
+				ClientSecret: "client-secret",
+			},
+			true,
+			"",
+		},
+		{
+			"Azure AD incomplete - TenantID and ClientSecret only",
+			&args.ArgumentList{
+				TenantID:     "87654321-4321-4321-4321-210987654321",
+				ClientSecret: "client-secret",
+			},
+			true,
+			"",
+		},
+		{
+			"SQL authentication with Username and Password",
 			&args.ArgumentList{
 				Username: "sqluser",
 				Password: "sqlpassword",
 			},
 			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Email-like username (not Azure AD)",
+			"SQL authentication with only Username",
 			&args.ArgumentList{
-				Username: "user@company.com",
-				Password: "password123",
+				Username: "sqluser",
 			},
 			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Username with @ but not UUID format",
+			"SQL authentication with only Password",
 			&args.ArgumentList{
-				Username: "myapp@domain",
-				Password: "secret",
+				Password: "sqlpassword",
 			},
 			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Malformed UUID - missing hyphens",
-			&args.ArgumentList{
-				Username: "123456781234123412341234567890ab@876543214321432143212109876543cd",
-				Password: "secret",
-			},
+			"No credentials provided - defaults to SQL",
+			&args.ArgumentList{},
 			false,
-		},
-		{
-			"UUID format but wrong length",
-			&args.ArgumentList{
-				Username: "1234-1234-1234-1234@5678-5678-5678-5678",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"Valid UUID format but hyphens in wrong positions",
-			&args.ArgumentList{
-				Username: "12345678-123-41234-1234-123456789012@87654321-432-14321-4321-210987654321",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"Empty username",
-			&args.ArgumentList{
-				Username: "",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"Empty password",
-			&args.ArgumentList{
-				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321",
-				Password: "",
-			},
-			false,
-		},
-		{
-			"Both username and password empty",
-			&args.ArgumentList{
-				Username: "",
-				Password: "",
-			},
-			false,
-		},
-		{
-			"Username too short",
-			&args.ArgumentList{
-				Username: "short@string",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"Multiple @ symbols",
-			&args.ArgumentList{
-				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321@210987654321",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"No @ symbol",
-			&args.ArgumentList{
-				Username: "12345678-1234-1234-1234-12345678901287654321-4321-4321-4321-210987654321",
-				Password: "secret",
-			},
-			false,
-		},
-		{
-			"UUID with uppercase letters",
-			&args.ArgumentList{
-				Username: "ABCDEF12-3456-7890-ABCD-EF1234567890@FEDCBA09-8765-4321-FEDC-BA0987654321",
-				Password: "secret",
-			},
-			true,
-		},
-		{
-			"Mixed case UUID",
-			&args.ArgumentList{
-				Username: "AbCdEf12-3456-7890-AbCd-Ef1234567890@FeDcBa09-8765-4321-FeDc-Ba0987654321",
-				Password: "secret",
-			},
-			true,
-		},
-		{
-			"Valid format with numbers only",
-			&args.ArgumentList{
-				Username: "12345678-1234-5678-9012-345678901234@98765432-1098-7654-3210-987654321098",
-				Password: "secret",
-			},
-			true,
-		},
-		{
-			"Valid format with letters only",
-			&args.ArgumentList{
-				Username: "abcdefgh-ijkl-mnop-qrst-uvwxyzabcdef@ghijklmn-opqr-stuv-wxyz-abcdefghijkl",
-				Password: "secret",
-			},
-			true,
+			"SQLAuthConnector",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := isAzureADServicePrincipal(tc.args)
-			if result != tc.expected {
-				t.Errorf("Test case '%s' failed: expected %v, got %v", tc.name, tc.expected, result)
+			connector, err := determineAuthMethod(tc.args)
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Test case '%s' failed: expected error but got none", tc.name)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Test case '%s' failed: unexpected error: %v", tc.name, err)
+				return
+			}
+
+			connectorType := fmt.Sprintf("%T", connector)
+			expectedType := fmt.Sprintf("connection.%s", tc.expectType)
+
+			if connectorType != expectedType {
+				t.Errorf("Test case '%s' failed: expected connector type %s, got %s", tc.name, expectedType, connectorType)
 			}
 		})
 	}

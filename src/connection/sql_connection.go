@@ -39,50 +39,27 @@ func (a AzureADAuthConnector) Connect(args *args.ArgumentList, dbName string) (*
 }
 
 func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
-	if isAzureADServicePrincipal(args) {
-		if args.Username == "" || args.Password == "" {
-			return nil, fmt.Errorf("Azure AD Service Principal authentication requires both username (<client_id>@<tenant_id>) and password (client secret)")
-		}
+	azureFieldsProvided := 0
+	if args.ClientID != "" {
+		azureFieldsProvided++
+	}
+	if args.TenantID != "" {
+		azureFieldsProvided++
+	}
+	if args.ClientSecret != "" {
+		azureFieldsProvided++
+	}
+
+	if azureFieldsProvided == 3 {
+		log.Debug("Detected Azure AD Service Principal authentication - using ClientID, TenantID, and ClientSecret")
 		return AzureADAuthConnector{}, nil
 	}
 
+	if azureFieldsProvided > 0 && azureFieldsProvided < 3 {
+		return nil, fmt.Errorf("incomplete Azure AD Service Principal credentials: all three fields (ClientID, TenantID, ClientSecret) must be provided together")
+	}
+
 	return SQLAuthConnector{}, nil
-}
-
-func isAzureADServicePrincipal(args *args.ArgumentList) bool {
-	// Azure AD Service Principal username format: <client_id>@<tenant_id>
-	// Both client_id and tenant_id are typically UUIDs (36 chars with hyphens)
-	// So we look for a pattern like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-
-	if args.Username == "" || args.Password == "" {
-		return false
-	}
-
-	if len(args.Username) >= 73 { // Minimum length for UUID@UUID format
-		atIndex := -1
-		for i, char := range args.Username {
-			if char == '@' {
-				atIndex = i
-				break
-			}
-		}
-
-		// If @ is found and both parts look like UUIDs (contain hyphens in expected positions)
-		if atIndex > 30 && atIndex < len(args.Username)-30 {
-			clientId := args.Username[:atIndex]
-			tenantId := args.Username[atIndex+1:]
-
-			// Simple check: both parts should be around 36 chars and contain hyphens
-			if len(clientId) == 36 && len(tenantId) == 36 &&
-				clientId[8] == '-' && clientId[13] == '-' && clientId[18] == '-' && clientId[23] == '-' &&
-				tenantId[8] == '-' && tenantId[13] == '-' && tenantId[18] == '-' && tenantId[23] == '-' {
-				log.Debug("Detected Azure AD Service Principal authentication format - username contains client_id@tenant_id pattern")
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 func createConnectionWithAuth(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
@@ -190,12 +167,13 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 // CreateAzureADConnectionURL creates a connection string specifically for Azure AD authentication.
 func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 	connectionString := fmt.Sprintf(
-		"server=%s;port=%s;database=%s;user id=%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
+		"server=%s;port=%s;database=%s;user id=%s@%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
 		args.Hostname,
 		args.Port,
 		dbName,
-		args.Username, // Expects: <client_id>@<tenant_id>
-		args.Password, // Expects: Client Secret
+		args.ClientID,     // Client ID
+		args.TenantID,     // Tenant ID
+		args.ClientSecret, // Client Secret
 		args.Timeout,
 		args.Timeout,
 	)
