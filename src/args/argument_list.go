@@ -17,12 +17,11 @@ const (
 // ArgumentList struct that holds all MSSQL arguments
 type ArgumentList struct {
 	sdkArgs.DefaultArgumentList
-	Username                             string `default:"" help:"The Microsoft SQL Server connection user name. For auth_type=1 (Azure AD Service Principal), use format: <client_id>@<tenant_id>"`
-	Password                             string `default:"" help:"The Microsoft SQL Server connection password. For auth_type=1 (Azure AD Service Principal), use client secret"`
+	Username                             string `default:"" help:"The Microsoft SQL Server connection user name. For Azure AD Service Principal, use format: <client_id>@<tenant_id>"`
+	Password                             string `default:"" help:"The Microsoft SQL Server connection password. For Azure AD Service Principal, use client secret"`
 	Instance                             string `default:"" help:"The Microsoft SQL Server instance to connect to"`
 	Hostname                             string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
 	Port                                 string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
-	AuthType                             int    `default:"0" help:"Authentication type: 0=sql, 1=azure-ad-service-principal"`
 	EnableSSL                            bool   `default:"false" help:"If true will use SSL encryption, false will not use encryption"`
 	TrustServerCertificate               bool   `default:"false" help:"If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate"`
 	CertificateLocation                  string `default:"" help:"Certificate file to verify SSL encryption against"`

@@ -248,3 +248,165 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 		}
 	}
 }
+
+func Test_isAzureADServicePrincipal(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     *args.ArgumentList
+		expected bool
+	}{
+		{
+			"Valid Azure AD Service Principal format",
+			&args.ArgumentList{
+				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321",
+				Password: "client-secret",
+			},
+			true,
+		},
+		{
+			"Valid Azure AD Service Principal with complex password",
+			&args.ArgumentList{
+				Username: "abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321",
+				Password: "MyVerySecretClientSecret123!@#",
+			},
+			true,
+		},
+		{
+			"Regular SQL username and password",
+			&args.ArgumentList{
+				Username: "sqluser",
+				Password: "sqlpassword",
+			},
+			false,
+		},
+		{
+			"Email-like username (not Azure AD)",
+			&args.ArgumentList{
+				Username: "user@company.com",
+				Password: "password123",
+			},
+			false,
+		},
+		{
+			"Username with @ but not UUID format",
+			&args.ArgumentList{
+				Username: "myapp@domain",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"Malformed UUID - missing hyphens",
+			&args.ArgumentList{
+				Username: "123456781234123412341234567890ab@876543214321432143212109876543cd",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"UUID format but wrong length",
+			&args.ArgumentList{
+				Username: "1234-1234-1234-1234@5678-5678-5678-5678",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"Valid UUID format but hyphens in wrong positions",
+			&args.ArgumentList{
+				Username: "12345678-123-41234-1234-123456789012@87654321-432-14321-4321-210987654321",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"Empty username",
+			&args.ArgumentList{
+				Username: "",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"Empty password",
+			&args.ArgumentList{
+				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321",
+				Password: "",
+			},
+			false,
+		},
+		{
+			"Both username and password empty",
+			&args.ArgumentList{
+				Username: "",
+				Password: "",
+			},
+			false,
+		},
+		{
+			"Username too short",
+			&args.ArgumentList{
+				Username: "short@string",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"Multiple @ symbols",
+			&args.ArgumentList{
+				Username: "12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321@210987654321",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"No @ symbol",
+			&args.ArgumentList{
+				Username: "12345678-1234-1234-1234-12345678901287654321-4321-4321-4321-210987654321",
+				Password: "secret",
+			},
+			false,
+		},
+		{
+			"UUID with uppercase letters",
+			&args.ArgumentList{
+				Username: "ABCDEF12-3456-7890-ABCD-EF1234567890@FEDCBA09-8765-4321-FEDC-BA0987654321",
+				Password: "secret",
+			},
+			true,
+		},
+		{
+			"Mixed case UUID",
+			&args.ArgumentList{
+				Username: "AbCdEf12-3456-7890-AbCd-Ef1234567890@FeDcBa09-8765-4321-FeDc-Ba0987654321",
+				Password: "secret",
+			},
+			true,
+		},
+		{
+			"Valid format with numbers only",
+			&args.ArgumentList{
+				Username: "12345678-1234-5678-9012-345678901234@98765432-1098-7654-3210-987654321098",
+				Password: "secret",
+			},
+			true,
+		},
+		{
+			"Valid format with letters only",
+			&args.ArgumentList{
+				Username: "abcdefgh-ijkl-mnop-qrst-uvwxyzabcdef@ghijklmn-opqr-stuv-wxyz-abcdefghijkl",
+				Password: "secret",
+			},
+			true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isAzureADServicePrincipal(tc.args)
+			if result != tc.expected {
+				t.Errorf("Test case '%s' failed: expected %v, got %v", tc.name, tc.expected, result)
+			}
+		})
+	}
+}
