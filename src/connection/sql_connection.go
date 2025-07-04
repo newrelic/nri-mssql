@@ -48,22 +48,6 @@ func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
 		log.Debug("Detected Azure AD Service Principal authentication - using ClientID, TenantID, and ClientSecret")
 		return AzureADAuthConnector{}, nil
 	default:
-		// Check for incomplete Azure AD credentials first
-		azureFieldsProvided := 0
-		if args.ClientID != "" {
-			azureFieldsProvided++
-		}
-		if args.TenantID != "" {
-			azureFieldsProvided++
-		}
-		if args.ClientSecret != "" {
-			azureFieldsProvided++
-		}
-
-		if azureFieldsProvided > 0 && azureFieldsProvided < 3 {
-			return nil, fmt.Errorf("incomplete Azure AD Service Principal credentials: all three fields (ClientID, TenantID, ClientSecret) must be provided together")
-		}
-
 		// Default to SQL authentication (supports Windows Auth, SQL Auth with credentials, etc.)
 		log.Debug("Using SQL Server authentication")
 		return SQLAuthConnector{}, nil

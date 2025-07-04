@@ -273,55 +273,55 @@ func Test_determineAuthMethod(t *testing.T) {
 			"AzureADAuthConnector",
 		},
 		{
-			"Azure AD incomplete - Only ClientID provided",
+			"Azure AD incomplete - Only ClientID provided - defaults to SQL",
 			&args.ArgumentList{
 				ClientID: "12345678-1234-1234-1234-123456789012",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Azure AD incomplete - Only TenantID provided",
+			"Azure AD incomplete - Only TenantID provided - defaults to SQL",
 			&args.ArgumentList{
 				TenantID: "87654321-4321-4321-4321-210987654321",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Azure AD incomplete - Only ClientSecret provided",
+			"Azure AD incomplete - Only ClientSecret provided - defaults to SQL",
 			&args.ArgumentList{
 				ClientSecret: "client-secret",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Azure AD incomplete - ClientID and TenantID only",
+			"Azure AD incomplete - ClientID and TenantID only - defaults to SQL",
 			&args.ArgumentList{
 				ClientID: "12345678-1234-1234-1234-123456789012",
 				TenantID: "87654321-4321-4321-4321-210987654321",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Azure AD incomplete - ClientID and ClientSecret only",
+			"Azure AD incomplete - ClientID and ClientSecret only - defaults to SQL",
 			&args.ArgumentList{
 				ClientID:     "12345678-1234-1234-1234-123456789012",
 				ClientSecret: "client-secret",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
-			"Azure AD incomplete - TenantID and ClientSecret only",
+			"Azure AD incomplete - TenantID and ClientSecret only - defaults to SQL",
 			&args.ArgumentList{
 				TenantID:     "87654321-4321-4321-4321-210987654321",
 				ClientSecret: "client-secret",
 			},
-			true,
-			"",
+			false,
+			"SQLAuthConnector",
 		},
 		{
 			"SQL authentication with Username and Password",
