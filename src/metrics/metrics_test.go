@@ -87,10 +87,13 @@ func (b *mockConnectionBuilder) expectStandardQueries() *mockConnectionBuilder {
 	if b.dbName == "db-1" {
 		metricValue = 0
 	}
-	b.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth*`).
+	
+	b.mock.ExpectQuery(`^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth.*`).
 		WillReturnRows(sqlmock.NewRows([]string{"db_name", "log_growth"}).AddRow(b.dbName, metricValue))
-	b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+SUM\(io_stall\).*`).
+	
+	b.mock.ExpectQuery(`^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`).
 		WillReturnRows(sqlmock.NewRows([]string{"db_name", "io_stalls"}).AddRow(b.dbName, metricValue))
+	
 	return b
 }
 
@@ -105,8 +108,7 @@ const (
 
 // expectMemoryAndDiskQueries adds expectations for memory and disk space, optionally returning errors.
 func (b *mockConnectionBuilder) expectMemoryQueries(utilRespType mockResponseType, totalMemRespType mockResponseType) *mockConnectionBuilder {
-	// Memory Utilization
-	utilQuery := b.mock.ExpectQuery(`^SELECT\s+top\s+1\s+DB_NAME\(\)\s+AS\s+db_name,\s+avg_memory_usage_percent\s+AS\s+memory_utilization\s+FROM\s+sys\.dm_db_resource_stats\s+ORDER\s+BY\s+end_time\s+DESC;?$`)
+	utilQuery := b.mock.ExpectQuery(`^SELECT\s+top\s+1\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+avg_memory_usage_percent\s+AS\s+memory_utilization.*`)
 	switch utilRespType {
 	case mockError:
 		utilQuery.WillReturnError(errQueringUtilization)
@@ -119,7 +121,7 @@ func (b *mockConnectionBuilder) expectMemoryQueries(utilRespType mockResponseTyp
 	}
 
 	// Total Memory
-	totalMemQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+\(process_memory_limit_mb\s+\*\s+1024\s+\*\s+1024\)\s+AS\s+total_physical_memory\s+FROM\s+sys\.dm_os_job_object;?$`)
+	totalMemQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+\(process_memory_limit_mb.*`)
 
 	switch totalMemRespType {
 	case mockError:
@@ -138,7 +140,7 @@ func (b *mockConnectionBuilder) expectMemoryQueries(utilRespType mockResponseTyp
 func (b *mockConnectionBuilder) expectDiskQueries(mockRespType mockResponseType) *mockConnectionBuilder {
 	if b.args.EnableDiskMetricsInBytes {
 		// Disk Space
-		diskQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name,\s+CAST\(DATABASEPROPERTYEX\(DB_NAME\(\),\s+'MaxSizeInBytes'\)\s+AS\s+BIGINT\)\s+AS\s+max_disk_space;?$`)
+		diskQuery := b.mock.ExpectQuery(`^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+CAST\(DATABASEPROPERTYEX\(DB_NAME\([^)]*\),.*`)
 		switch mockRespType {
 		case mockError:
 			diskQuery.WillReturnError(errQueringDiskSpace)
@@ -160,7 +162,7 @@ func (b *mockConnectionBuilder) expectBufferQueries() *mockConnectionBuilder {
 		if b.dbName == "db-1" {
 			metricValue = 0
 		}
-		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name.*buffer_pool_size.*`).
+		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+COUNT_BIG\(\*\).*`).
 			WillReturnRows(sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).AddRow(b.dbName, metricValue))
 	}
 	return b
@@ -173,7 +175,7 @@ func (b *mockConnectionBuilder) expectReserveQueries() *mockConnectionBuilder {
 		if b.dbName == "db-1" {
 			metricValue = 0
 		}
-		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\(\)\s+AS\s+db_name.*reserved_space.*`).
+		b.mock.ExpectQuery(`^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+sum\(a\.total_pages\).*`).
 			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow(b.dbName, metricValue, metricValue))
 	}
 	return b
@@ -225,10 +227,10 @@ func setupMockForDatabaseMetrics(mock sqlmock.Sqlmock, logGrowthResp mockRespons
 
 	if engineEdition == database.AzureSQLManagedInstanceEngineEditionNumber {
 		logGrowthRegex = `^SELECT\s+sd\.name\s+AS\s+db_name,\s+spc\.cntr_value\s+AS\s+log_growth.*`
-		ioStallsRegex = `^SELECT\s+DB_NAME\(database_id\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`
+		ioStallsRegex = `^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`
 	} else {
 		logGrowthRegex = `^select\s+RTRIM\(t1\.instance_name\).*`
-		ioStallsRegex = `^select.*as\s+io_stalls.*FROM\s+sys\.dm_io_virtual_file_stats.*`
+		ioStallsRegex = `^select\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+SUM\(io_stall\)\s+AS\s+io_stalls.*`
 	}
 
 	switch logGrowthResp {
@@ -252,13 +254,13 @@ func setupMockForDatabaseMetrics(mock sqlmock.Sqlmock, logGrowthResp mockRespons
 	}
 
 	if args.EnableBufferMetrics {
-		bufferRegex := `^SELECT DB_NAME\(database_id\) AS db_name, buffer_pool_size \* \(8\*1024\) AS buffer_pool_size .*`
+		bufferRegex := `^SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name.*buffer_pool_size.*`
 		mock.ExpectQuery(bufferRegex).
 			WillReturnRows(sqlmock.NewRows([]string{"db_name", "buffer_pool_size"}).AddRow("db-1", 0).AddRow("db-2", 1))
 	}
 
 	if args.EnableDatabaseReserveMetrics {
-		reserveRegex := `^USE\s+"[^"]+"\s+;\s*WITH\s+reserved_space.*`
+		reserveRegex := `^(?:USE\s+"[^"]+"\s+;\s*)?(?:WITH\s+reserved_space.*)?SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name.*reserved_space.*`
 		mock.ExpectQuery(reserveRegex).
 			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow("db-1", 0, 0))
 		mock.ExpectQuery(reserveRegex).

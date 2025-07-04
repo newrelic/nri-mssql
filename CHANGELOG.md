@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Fixed the query collecting IO stall in milliseconds
+
 ## v2.19.1 - 2025-07-01
 
 ### 🐞 Bug fixes

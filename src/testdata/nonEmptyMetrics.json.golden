@@ -1,25 +1,25 @@
 {
-  "data": [
-    {
-      "entity": {
-        "id_attributes": [],
-        "name": "test",
-        "type": "instance"
-      },
-      "events": [],
-      "inventory": {},
-      "metrics": [
+    "name": "test",
+    "protocol_version": "3",
+    "integration_version": "1.0.0",
+    "data": [
         {
-          "displayName": "test",
-          "entityName": "instance:test",
-          "event_type": "MssqlInstanceSample",
-          "host": "testhost",
-          "system.bufferPoolHitPercent": 95.5
+            "entity": {
+                "name": "test",
+                "type": "instance",
+                "id_attributes": []
+            },
+            "metrics": [
+                {
+                    "displayName": "test",
+                    "entityName": "instance:test",
+                    "event_type": "MssqlInstanceSample",
+                    "host": "testhost",
+                    "system.bufferPoolHitPercent": 95.5
+                }
+            ],
+            "inventory": {},
+            "events": []
         }
-      ]
-    }
-  ],
-  "integration_version": "1.0.0",
-  "name": "test",
-  "protocol_version": "3"
+    ]
 }
