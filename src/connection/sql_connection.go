@@ -38,28 +38,36 @@ func (a AzureADAuthConnector) Connect(args *args.ArgumentList, dbName string) (*
 	return sqlx.Connect(azuread.DriverName, connectionURL)
 }
 
-func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
-	azureFieldsProvided := 0
-	if args.ClientID != "" {
-		azureFieldsProvided++
-	}
-	if args.TenantID != "" {
-		azureFieldsProvided++
-	}
-	if args.ClientSecret != "" {
-		azureFieldsProvided++
-	}
+func isAzureADServicePrincipalAuth(args *args.ArgumentList) bool {
+	return args.ClientID != "" && args.TenantID != "" && args.ClientSecret != ""
+}
 
-	if azureFieldsProvided == 3 {
+func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
+	switch {
+	case isAzureADServicePrincipalAuth(args):
 		log.Debug("Detected Azure AD Service Principal authentication - using ClientID, TenantID, and ClientSecret")
 		return AzureADAuthConnector{}, nil
-	}
+	default:
+		// Check for incomplete Azure AD credentials first
+		azureFieldsProvided := 0
+		if args.ClientID != "" {
+			azureFieldsProvided++
+		}
+		if args.TenantID != "" {
+			azureFieldsProvided++
+		}
+		if args.ClientSecret != "" {
+			azureFieldsProvided++
+		}
 
-	if azureFieldsProvided > 0 && azureFieldsProvided < 3 {
-		return nil, fmt.Errorf("incomplete Azure AD Service Principal credentials: all three fields (ClientID, TenantID, ClientSecret) must be provided together")
-	}
+		if azureFieldsProvided > 0 && azureFieldsProvided < 3 {
+			return nil, fmt.Errorf("incomplete Azure AD Service Principal credentials: all three fields (ClientID, TenantID, ClientSecret) must be provided together")
+		}
 
-	return SQLAuthConnector{}, nil
+		// Default to SQL authentication (supports Windows Auth, SQL Auth with credentials, etc.)
+		log.Debug("Using SQL Server authentication")
+		return SQLAuthConnector{}, nil
+	}
 }
 
 func createConnectionWithAuth(args *args.ArgumentList, dbName string) (*SQLConnection, error) {
