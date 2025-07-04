@@ -108,7 +108,6 @@ const (
 
 // expectMemoryAndDiskQueries adds expectations for memory and disk space, optionally returning errors.
 func (b *mockConnectionBuilder) expectMemoryQueries(utilRespType mockResponseType, totalMemRespType mockResponseType) *mockConnectionBuilder {
-	// Memory Utilization - FIXED regex pattern
 	utilQuery := b.mock.ExpectQuery(`^SELECT\s+top\s+1\s+DB_NAME\([^)]*\)\s+AS\s+db_name,\s+avg_memory_usage_percent\s+AS\s+memory_utilization.*`)
 	switch utilRespType {
 	case mockError:
