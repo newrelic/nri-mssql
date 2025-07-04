@@ -50,6 +50,7 @@ integrations:
     # db_hostname: my-custom-hostname # useful to filter in dashboards, especially in multi-server environments.   
   inventory_source: config/mssql
 
+# Below config is example for Azure AD Service Principal Authentication
 - name: nri-mssql
   env:
     HOSTNAME: <Host name or IP address of the SQl Server>
