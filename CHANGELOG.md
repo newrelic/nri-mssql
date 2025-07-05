@@ -9,7 +9,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### 🚀 Enhancements
+### enhancements
 - Added Entra ID (Azure AD) authentication for Azure SQL
 
 ### bugfix
