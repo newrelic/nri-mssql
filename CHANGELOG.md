@@ -9,10 +9,12 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancements
+## v2.20.0 - 2025-07-09
+
+### 🚀 Enhancements
 - Added Entra ID (Azure AD) authentication for Azure SQL
 
-### bugfix
+### 🐞 Bug fixes
 - Fixed the query collecting IO stall in milliseconds
 
 ## v2.19.1 - 2025-07-01
