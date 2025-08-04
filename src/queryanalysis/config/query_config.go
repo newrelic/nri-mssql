@@ -19,7 +19,7 @@ var Queries = []models.QueryDetailsDto{
 						sys.dm_exec_query_stats qs
 					WHERE 
 						qs.execution_count > 0
-						AND qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE())
+						AND qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME())
 						AND qs.sql_handle IS NOT NULL
 				),
 				QueryStats AS (
@@ -191,7 +191,7 @@ var Queries = []models.QueryDetailsDto{
 						  0 
 					  END AS wait_event_count,
 					  qsq.query_hash AS query_id,
-					  GETUTCDATE() AS collection_timestamp,
+					  SYSDATETIME() AS collection_timestamp,
 					  ''' + @dbName + ''' AS database_name
 					FROM 
 					  sys.query_store_wait_stats ws
@@ -317,7 +317,7 @@ TopPlans AS (
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
 	WHERE qs.query_hash IN (SELECT QueryId FROM @QueryIdTable)
-    AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE()) AND GETUTCDATE() 
+	AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME()) AND SYSDATETIME()
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
 ),
