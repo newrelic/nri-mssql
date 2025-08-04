@@ -191,7 +191,7 @@ var Queries = []models.QueryDetailsDto{
 						  0 
 					  END AS wait_event_count,
 					  qsq.query_hash AS query_id,
-					  GETUTCDATE() AS collection_timestamp,
+					  SYSDATETIME() AS collection_timestamp,
 					  ''' + @dbName + ''' AS database_name
 					FROM 
 					  sys.query_store_wait_stats ws
