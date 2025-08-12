@@ -356,7 +356,7 @@ const TextTruncateLimit = 4094
 const (
 	// QueryResponseTimeThresholdDefault defines the default threshold in milliseconds
 	// for determining if a query is considered slow based on its response time.
-	QueryResponseTimeThresholdDefault = 500
+	QueryResponseTimeThresholdDefault = 1
 
 	// SlowQueryCountThresholdDefault sets the default maximum number of slow queries
 	// that is ingested in an analysis cycle/interval.
