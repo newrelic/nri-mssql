@@ -29,7 +29,7 @@ type ArgumentList struct {
 	ExtraConnectionURLArgs               string `default:"" help:"Appends additional parameters to connection url. Ex. 'applicationintent=readonly&foo=bar'"`
 	EnableDiskMetricsInBytes             bool   `default:"true" help:"Enable collection of instance.diskInBytes."`
 	EnableQueryMonitoring                bool   `default:"false" help:"Enable collection of detailed query performance metrics."`
-	QueryMonitoringResponseTimeThreshold int    `default:"500" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
+	QueryMonitoringResponseTimeThreshold int    `default:"1" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryMonitoringCountThreshold        int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	QueryMonitoringFetchInterval         int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
 }
@@ -63,3 +63,49 @@ func (al ArgumentList) Validate() error {
 
 	return nil
 }
+
+mssqlConfigQueryPerformanceMonitoring: |
+integrations:
+- name: nri-mssql
+env:
+HOSTNAME: ${{variables.mssqlHostName}}
+PORT: ${{variables.mssqlPortNumber}}
+USERNAME: ${{variables.mssqlUserName}}
+PASSWORD: ${{state.mssqlPassword.value}}
+# Enable collection of detailed query performance metrics.
+ENABLE_QUERY_MONITORING: ${{state.enableQueryPerformanceMonitoring.checked && state.deploymentType.value !== 'azure-sql-database'  ? true : false }}
+# Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow.
+# QUERY_RESPONSE_TIME_THRESHOLD: 500
+# QUERY_MONITORING_RESPONSE_TIME_THRESHOLD: 500
+# Maximum number of queries returned in query analysis results.
+# QUERY_COUNT_THRESHOLD: 20
+# QUERY_MONITORING_COUNT_THRESHOLD: 20
+# Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval.
+FETCH_INTERVAL: 15
+QUERY_MONITORING_FETCH_INTERVAL: 15
+interval: 15s
+labels:
+environment: production
+inventory_source: config/mssql
+mssqlDomainConfigQueryPerformanceMonitoring: |
+integrations:
+- name: nri-mssql
+env:
+HOSTNAME: ${{variables.mssqlHostName}}
+PORT: ${{variables.mssqlPortNumber}}
+USERNAME: ${{state.domainUserName.value}}
+PASSWORD: ${{state.domainPassword.value}}
+# Enable collection of detailed query performance metrics.
+ENABLE_QUERY_MONITORING: ${{state.enableQueryPerformanceMonitoring.checked  ? true : false }}
+ENABLE_QUERY_MONITORING: ${{state.enableQueryPerformanceMonitoring.checked && state.deploymentType.value !== 'azure-sql-database'  ? true : false }}
+# Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow.
+# QUERY_RESPONSE_TIME_THRESHOLD: 500
+# QUERY_RESPONSE_TIME_THRESHOLD: 500
+# QUERY_MONITORING_RESPONSE_TIME_THRESHOLD: 500
+# Maximum number of queries returned in query analysis results.
+# QUERY_COUNT_THRESHOLD: 20
+# QUERY_COUNT_THRESHOLD: 20
+# QUERY_MONITORING_COUNT_THRESHOLD: 20
+# Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval.
+FETCH_INTERVAL: 15
+QUERY_MONITORING_FETCH_INTERVAL: 15
