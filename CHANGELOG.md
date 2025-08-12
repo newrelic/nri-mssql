@@ -9,7 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### bugfix
+## v2.20.2 - 2025-08-12
+
+### 🐞 Bug fixes
 - Switched to using SYSDATETIME() for correct time comparisons where system date is not set to UTC
 
 ## v2.20.0 - 2025-07-09
