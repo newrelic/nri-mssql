@@ -9,8 +9,14 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancements
+### 🚀 Enhancements
 - Reduced QueryMonitoringResponseTimeThreshold from 500ms to 1ms to improve visibility of Individual query performance data immediately
+
+## v2.20.3 - 2025-08-26
+
+### ⛓️ Dependencies
+- Updated golang patch version to v1.24.6
+- Updated github.com/microsoft/go-mssqldb to v1.9.3 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.9.3)
 
 ## v2.20.2 - 2025-08-12
 
