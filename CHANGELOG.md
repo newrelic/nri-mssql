@@ -9,7 +9,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### 🚀 Enhancements
+### 🚀 enhancements
 - Reduced QueryMonitoringResponseTimeThreshold from 500ms to 1ms to improve visibility of Individual query performance data immediately
 
 ## v2.20.2 - 2025-08-12
