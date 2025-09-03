@@ -29,7 +29,8 @@ var instanceDefinitions = []*QueryDefinition{
 		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Batch Requests/sec') t10,
 		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Page life expectancy' AND object_name LIKE '%Manager%') t11,
 		(SELECT Sum(cntr_value) AS cntr_value FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Transactions/sec') t12,
-		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t13`,
+		(SELECT * FROM sys.dm_os_performance_counters WITH (nolock) WHERE counter_name = 'Forced Parameterizations/sec') t13
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			SQLCompilations            *int64   `db:"sql_compilations" metric_name:"stats.sqlCompilationsPerSecond" source_type:"rate"`
 			SQLRecompilations          *int64   `db:"sql_recompilations" metric_name:"stats.sqlRecompilationsPerSecond" source_type:"rate"`
@@ -48,10 +49,11 @@ var instanceDefinitions = []*QueryDefinition{
 	},
 	{
 		query: `SELECT (a.cntr_value * 1.0 / b.cntr_value) * 100.0 AS buffer_pool_hit_percent
-		FROM sys.dm_os_performance_counters 
-		a JOIN (SELECT cntr_value, OBJECT_NAME FROM sys.dm_os_performance_counters WHERE counter_name = 'Buffer cache hit ratio base') 
+		FROM sys.dm_os_performance_counters a WITH (NOLOCK)
+		JOIN (SELECT cntr_value, OBJECT_NAME FROM sys.dm_os_performance_counters WITH (NOLOCK) WHERE counter_name = 'Buffer cache hit ratio base') 
 		b ON  a.OBJECT_NAME = b.OBJECT_NAME 
-		WHERE a.counter_name = 'Buffer cache hit ratio'`,
+		WHERE a.counter_name = 'Buffer cache hit ratio'
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			BufferPoolHitPercent *float64 `db:"buffer_pool_hit_percent" metric_name:"system.bufferPoolHitPercent" source_type:"gauge"`
 		}{},
@@ -59,7 +61,7 @@ var instanceDefinitions = []*QueryDefinition{
 	{
 		query: `SELECT
 		Sum(wait_time_ms) AS wait_time
-		FROM sys.dm_os_wait_stats
+		FROM sys.dm_os_wait_stats WITH (NOLOCK)
 		WHERE [wait_type] NOT IN (
 		N'CLR_SEMAPHORE',    N'LAZYWRITER_SLEEP',
 		N'RESOURCE_QUEUE',   N'SQLTRACE_BUFFER_FLUSH',
@@ -73,7 +75,8 @@ var instanceDefinitions = []*QueryDefinition{
 		N'TRACEWRITE',       N'XE_DISPATCHER_WAIT',
 		N'BROKER_TO_FLUSH',  N'BROKER_EVENTHANDLER',
 		N'FT_IFTSHC_MUTEX',  N'SQLTRACE_INCREMENTAL_FLUSH_SLEEP',
-		N'DIRTY_PAGE_POLL',  N'SP_SERVER_DIAGNOSTICS_SLEEP')`,
+		N'DIRTY_PAGE_POLL',  N'SP_SERVER_DIAGNOSTICS_SLEEP')
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			WaitTime *int64 `db:"wait_time" metric_name:"system.waitTimeInMillisecondsPerSecond" source_type:"rate"`
 		}{},
@@ -92,11 +95,12 @@ var instanceDefinitions = []*QueryDefinition{
 			SELECT CASE WHEN req.status IS NOT NULL THEN
 				CASE WHEN req.blocking_session_id <> 0 THEN 'blocked' ELSE req.status END
 			  ELSE sess.status END status, req.blocking_session_id
-			FROM sys.dm_exec_sessions sess
-			LEFT JOIN sys.dm_exec_requests req
+			FROM sys.dm_exec_sessions sess WITH (NOLOCK)
+			LEFT JOIN sys.dm_exec_requests req WITH (NOLOCK)
 			ON sess.session_id = req.session_id
 			WHERE sess.session_id > 50 ) statuses
-		  GROUP BY status) sessions`,
+		  GROUP BY status) sessions
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			Preconnect *int64 `db:"preconnect" metric_name:"instance.preconnectProcessesCount" source_type:"gauge"`
 			Background *int64 `db:"background" metric_name:"instance.backgroundProcessesCount" source_type:"gauge"`
@@ -110,14 +114,16 @@ var instanceDefinitions = []*QueryDefinition{
 	},
 	{
 		query: `SELECT Sum(runnable_tasks_count) AS runnable_tasks_count
-		FROM sys.dm_os_schedulers
-		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'`,
+		FROM sys.dm_os_schedulers WITH (NOLOCK)
+		WHERE   scheduler_id < 255 AND [status] = 'VISIBLE ONLINE'
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			RunnableTasksCount *int64 `db:"runnable_tasks_count" metric_name:"instance.runnableTasks" source_type:"gauge"`
 		}{},
 	},
 	{
-		query: `SELECT Count(dbid) AS instance_active_connections FROM sys.sysprocesses WITH (nolock) WHERE dbid > 0`,
+		query: `SELECT Count(dbid) AS instance_active_connections FROM sys.sysprocesses WITH (nolock) WHERE dbid > 0
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			InstanceActiveConnections *int64 `db:"instance_active_connections" metric_name:"activeConnections" source_type:"gauge"`
 		}{},
@@ -130,9 +136,10 @@ var instanceMemoryDefinitions = []*QueryDefinition{
 		Max(sys_mem.total_physical_memory_kb * 1024.0) AS total_physical_memory,
 		Max(sys_mem.available_physical_memory_kb * 1024.0) AS available_physical_memory,
 		(Max(proc_mem.physical_memory_in_use_kb) / (Max(sys_mem.total_physical_memory_kb) * 1.0)) * 100 AS memory_utilization
-		FROM sys.dm_os_process_memory proc_mem,
-		  sys.dm_os_sys_memory sys_mem,
-		  sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'`,
+		FROM sys.dm_os_process_memory proc_mem WITH (NOLOCK),
+		  sys.dm_os_sys_memory sys_mem WITH (NOLOCK),
+		  sys.dm_os_performance_counters perf_count WITH (NOLOCK) WHERE object_name = 'SQLServer:Memory Manager'
+		OPTION (MAXDOP 1)`,
 		dataModels: &[]struct {
 			TotalPhysicalMemory     *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
 			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`

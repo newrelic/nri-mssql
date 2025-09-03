@@ -84,11 +84,7 @@ var Queries = []models.QueryDetailsDto{
 						AND qt.text NOT LIKE '%%schema_name()%%'
 						AND qt.text IS NOT NULL
 						AND LTRIM(RTRIM(qt.text)) <> ''
-						AND EXISTS (
-							SELECT 1
-							FROM sys.databases d
-							WHERE d.database_id = CONVERT(INT, pa.value) AND d.is_query_store_on = 1
-						)
+						-- ✅ Removed Query Store dependency for broader compatibility
 				)
 				SELECT
 					TOP (@TopN) qs.query_id,
@@ -126,92 +122,81 @@ var Queries = []models.QueryDetailsDto{
 		EventName: "MSSQLWaitTimeAnalysis",
 		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
-				DECLARE @sql NVARCHAR(MAX) = '';
-				DECLARE @dbName NVARCHAR(128);
-				DECLARE @resultTable TABLE(
-				  query_id VARBINARY(255),
-				  database_name NVARCHAR(128),
-				  query_text NVARCHAR(MAX),
-				  wait_category NVARCHAR(128),
-				  total_wait_time_ms FLOAT,
-				  avg_wait_time_ms FLOAT,
-				  wait_event_count INT,
-				  last_execution_time DATETIME,
-				  collection_timestamp DATETIME
-				);
 				
-				IF CURSOR_STATUS('global', 'db_cursor') > -1
-				BEGIN
-				  CLOSE db_cursor;
-				  DEALLOCATE db_cursor;
-				END
-				
-				DECLARE db_cursor CURSOR FOR
-				SELECT name FROM sys.databases
-				WHERE state_desc = 'ONLINE'
-				AND is_query_store_on = 1
-				AND database_id > 4;
-				
-				OPEN db_cursor;
-				FETCH NEXT FROM db_cursor INTO @dbName;
-				
-				WHILE @@FETCH_STATUS = 0
-				BEGIN
-				  SET @sql = N'USE ' + QUOTENAME(@dbName) + ';
-				  WITH LatestInterval AS (
+				-- Get current waiting requests and recent wait statistics
+				WITH ActiveRequests AS (
 					SELECT 
-					  qsqt.query_sql_text, 
-					  MAX(ws.runtime_stats_interval_id) AS max_runtime_stats_interval_id
+						req.session_id,
+						req.request_id,
+						req.wait_type,
+						req.wait_time,
+						req.total_elapsed_time,
+						req.database_id,
+						COALESCE(
+							LEFT(qt.text, @TextTruncateLimit),
+							'Query text not available'
+						) AS query_text,
+						req.sql_handle,
+						req.start_time
 					FROM 
-					  sys.query_store_wait_stats ws
-					INNER JOIN 
-					  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
-					INNER JOIN 
-					  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
-					INNER JOIN 
-					  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
+						sys.dm_exec_requests req WITH (NOLOCK)
+					OUTER APPLY 
+						sys.dm_exec_sql_text(req.sql_handle) qt
 					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%sys.%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-					GROUP BY 
-					  qsqt.query_sql_text 
-				  ),
-				  WaitStates AS (
+						req.database_id > 4  -- Exclude system databases
+						AND req.session_id > 50  -- Exclude system sessions
+						AND (
+							req.wait_time > 100  -- Currently waiting > 100ms
+							OR req.total_elapsed_time > 1000  -- Long running queries > 1s
+						)
+						AND COALESCE(qt.text, '') NOT LIKE '%sp_reset_connection%'
+						AND COALESCE(qt.text, '') NOT LIKE '%sys.%'
+						AND COALESCE(qt.text, '') NOT LIKE '%INFORMATION_SCHEMA%'
+						AND COALESCE(qt.text, '') <> ''
+				),
+				-- Also get wait stats from historical data
+				WaitStats AS (
 					SELECT 
-					  ws.runtime_stats_interval_id,
-					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_text, -- Truncate query text for the output
-					  qsq.last_execution_time,
-					  ws.wait_category_desc AS wait_category,
-					  ws.total_query_wait_time_ms AS total_wait_time_ms,
-					  ws.avg_query_wait_time_ms AS avg_wait_time_ms,
-					  CASE 
-						WHEN ws.avg_query_wait_time_ms > 0 THEN 
-						  ws.total_query_wait_time_ms / ws.avg_query_wait_time_ms
-						ELSE 
-						  0 
-					  END AS wait_event_count,
-					  qsq.query_hash AS query_id,
-					  SYSDATETIME() AS collection_timestamp,
-					  ''' + @dbName + ''' AS database_name
+						ws.wait_type,
+						ws.waiting_tasks_count,
+						ws.wait_time_ms,
+						ws.signal_wait_time_ms,
+						(ws.wait_time_ms - ws.signal_wait_time_ms) AS resource_wait_time_ms
 					FROM 
-					  sys.query_store_wait_stats ws
-					INNER JOIN 
-					  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
-					INNER JOIN 
-					  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
-					INNER JOIN 
-					  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
-					INNER JOIN 
-					  LatestInterval li ON qsqt.query_sql_text = li.query_sql_text 
-							  AND ws.runtime_stats_interval_id = li.max_runtime_stats_interval_id
+						sys.dm_os_wait_stats ws WITH (NOLOCK)
 					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-				  )
-				  SELECT
+						ws.wait_time_ms > 0
+						AND ws.wait_type NOT IN (
+							'CLR_SEMAPHORE', 'LAZYWRITER_SLEEP', 'RESOURCE_QUEUE', 
+							'SLEEP_TASK', 'SLEEP_SYSTEMTASK', 'SQLTRACE_BUFFER_FLUSH',
+							'WAITFOR', 'LOGMGR_QUEUE', 'CHECKPOINT_QUEUE', 'REQUEST_FOR_DEADLOCK_SEARCH',
+							'XE_TIMER_EVENT', 'BROKER_TO_FLUSH', 'BROKER_TASK_STOP', 'CLR_MANUAL_EVENT',
+							'CLR_AUTO_EVENT', 'DISPATCHER_QUEUE_SEMAPHORE', 'FT_IFTS_SCHEDULER_IDLE_WAIT',
+							'XE_DISPATCHER_WAIT', 'XE_DISPATCHER_JOIN', 'SQLTRACE_INCREMENTAL_FLUSH_SLEEP'
+						)
+				),
+				CombinedResults AS (
+					-- Current active waiting requests
+					SELECT 
+						CONVERT(VARBINARY(255), ar.sql_handle) AS query_id,
+						DB_NAME(ar.database_id) AS database_name,
+						ar.query_text,
+						ar.wait_type AS wait_category,
+						CAST(ar.wait_time AS FLOAT) AS total_wait_time_ms,
+						CAST(ar.wait_time AS FLOAT) AS avg_wait_time_ms,
+						1 AS wait_event_count,
+						COALESCE(ar.start_time, SYSDATETIME()) AS last_execution_time,
+						SYSDATETIME() AS collection_timestamp
+					FROM 
+						ActiveRequests ar
+					WHERE 
+						ar.query_text IS NOT NULL
+						AND LEN(LTRIM(RTRIM(ar.query_text))) > 10
+						AND DB_NAME(ar.database_id) IS NOT NULL  -- Ensure valid database name
+				)
+				SELECT TOP (@TopN)
 					query_id,
-					database_name, 
+					database_name,
 					query_text,
 					wait_category,
 					total_wait_time_ms,
@@ -219,70 +204,87 @@ var Queries = []models.QueryDetailsDto{
 					wait_event_count,
 					last_execution_time,
 					collection_timestamp
-				  FROM
-					WaitStates;';
-				  
-				  INSERT INTO @resultTable
-					EXEC sp_executesql @sql;
-				
-				  FETCH NEXT FROM db_cursor INTO @dbName;
-				END
-				CLOSE db_cursor;
-				DEALLOCATE db_cursor;
-				SELECT TOP (@TopN) * FROM @resultTable 
-				ORDER BY total_wait_time_ms DESC;`,
+				FROM 
+					CombinedResults
+				WHERE
+					database_name IS NOT NULL  -- Exclude any NULL database names
+				ORDER BY 
+					total_wait_time_ms DESC
+				OPTION (MAXDOP 1);`,
 		Type: "waitAnalysis",
 	},
 	{
 		EventName: "MSSQLBlockingSessionQueries",
 		Query: `DECLARE @Limit INT = %d; -- Define the limit for the number of rows returned
 				DECLARE @TextTruncateLimit INT = %d; -- Define the truncate limit for the query text
-				WITH blocking_info AS (
+				
+				-- Direct blocking detection - simplified and more reliable approach
+				WITH DirectBlocking AS (
 					SELECT
 						req.blocking_session_id AS blocking_spid,
 						req.session_id AS blocked_spid,
 						req.wait_type AS wait_type,
 						req.wait_time / 1000.0 AS wait_time_in_seconds,
 						req.start_time AS start_time,
-						sess.status AS status,
+						sess.status AS blocked_status,
 						req.command AS command_type,
 						req.database_id AS database_id,
 						req.sql_handle AS blocked_sql_handle,
 						blocking_req.sql_handle AS blocking_sql_handle,
-						blocking_req.start_time AS blocking_start_time
+						blocking_req.start_time AS blocking_start_time,
+						blocking_sess.status AS blocking_status,
+						req.total_elapsed_time / 1000.0 AS total_elapsed_time_seconds,
+						req.cpu_time / 1000.0 AS cpu_time_seconds,
+						req.logical_reads,
+						req.writes
 					FROM
-						sys.dm_exec_requests AS req
-					LEFT JOIN sys.dm_exec_requests AS blocking_req ON blocking_req.session_id = req.blocking_session_id
-					LEFT JOIN sys.dm_exec_sessions AS sess ON sess.session_id = req.session_id
+						sys.dm_exec_requests AS req WITH (NOLOCK)
+					LEFT JOIN sys.dm_exec_requests AS blocking_req WITH (NOLOCK) 
+						ON blocking_req.session_id = req.blocking_session_id
+					LEFT JOIN sys.dm_exec_sessions AS sess WITH (NOLOCK) 
+						ON sess.session_id = req.session_id
+					LEFT JOIN sys.dm_exec_sessions AS blocking_sess WITH (NOLOCK) 
+						ON blocking_sess.session_id = req.blocking_session_id
 					WHERE
-						req.blocking_session_id != 0
+						req.blocking_session_id > 0  -- Changed from != 0 to > 0 for clarity
+						AND req.session_id != req.blocking_session_id
+						AND req.database_id > 4
+						AND req.wait_time > 100  -- Only significant waits > 100ms
 				)
 				SELECT TOP (@Limit)
-					blocking_info.blocking_spid,
-					blocking_sessions.status AS blocking_status,
-					blocking_info.blocked_spid,
-					blocked_sessions.status AS blocked_status,
-					blocking_info.wait_type,
-					blocking_info.wait_time_in_seconds,
-					blocking_info.command_type,
-					blocking_info.start_time AS blocked_query_start_time,
-					DB_NAME(blocking_info.database_id) AS database_name,
+					db.blocking_spid,
+					db.blocking_status,
+					db.blocked_spid,
+					db.blocked_status,
+					db.wait_type,
+					db.wait_time_in_seconds,
+					db.command_type,
+					db.start_time AS blocked_query_start_time,
+					DB_NAME(db.database_id) AS database_name,
 					CASE
-						WHEN blocking_sql.text IS NULL THEN LEFT(input_buffer.event_info, @TextTruncateLimit)
-						ELSE LEFT(blocking_sql.text, @TextTruncateLimit)
+						WHEN blocking_sql.text IS NOT NULL THEN 
+							LEFT(blocking_sql.text, @TextTruncateLimit)
+						WHEN input_buffer.event_info IS NOT NULL THEN 
+							LEFT(input_buffer.event_info, @TextTruncateLimit)
+						ELSE 'No blocking query text available'
 					END AS blocking_query_text,
-					LEFT(blocked_sql.text, @TextTruncateLimit) AS blocked_query_text -- Truncate blocked query text
+					LEFT(COALESCE(blocked_sql.text, 'No blocked query text available'), @TextTruncateLimit) AS blocked_query_text,
+					db.total_elapsed_time_seconds,
+					db.cpu_time_seconds,
+					db.logical_reads,
+					db.writes,
+					SYSDATETIME() AS collection_timestamp
 				FROM
-					blocking_info
-				JOIN sys.dm_exec_sessions AS blocking_sessions ON blocking_sessions.session_id = blocking_info.blocking_spid
-				JOIN sys.dm_exec_sessions AS blocked_sessions ON blocked_sessions.session_id = blocking_info.blocked_spid
-				OUTER APPLY sys.dm_exec_sql_text(blocking_info.blocking_sql_handle) AS blocking_sql
-				OUTER APPLY sys.dm_exec_sql_text(blocking_info.blocked_sql_handle) AS blocked_sql
-				OUTER APPLY sys.dm_exec_input_buffer(blocking_info.blocking_spid, NULL) AS input_buffer
-				JOIN sys.databases AS db ON db.database_id = blocking_info.database_id
-				WHERE db.is_query_store_on = 1
+					DirectBlocking db
+				OUTER APPLY sys.dm_exec_sql_text(db.blocking_sql_handle) AS blocking_sql
+				OUTER APPLY sys.dm_exec_sql_text(db.blocked_sql_handle) AS blocked_sql
+				OUTER APPLY sys.dm_exec_input_buffer(db.blocking_spid, NULL) AS input_buffer
+				WHERE
+					DB_NAME(db.database_id) IS NOT NULL  -- Ensure valid database name
 				ORDER BY
-    				blocking_info.start_time;`,
+					db.wait_time_in_seconds DESC,  -- Longest waits first
+					db.start_time ASC  -- Oldest requests first
+				OPTION (MAXDOP 1);`,
 		Type: "blockingSessions",
 	},
 }
