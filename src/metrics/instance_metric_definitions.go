@@ -132,7 +132,7 @@ var instanceMemoryDefinitions = []*QueryDefinition{
 		(Max(proc_mem.physical_memory_in_use_kb) / (Max(sys_mem.total_physical_memory_kb) * 1.0)) * 100 AS memory_utilization
 		FROM sys.dm_os_process_memory proc_mem,
 		  sys.dm_os_sys_memory sys_mem,
-		  sys.dm_os_performance_counters perf_count WHERE object_name = 'SQLServer:Memory Manager'`,
+		  sys.dm_os_performance_counters perf_count WHERE object_name LIKE '%:Memory Manager%'`,
 		dataModels: &[]struct {
 			TotalPhysicalMemory     *float64 `db:"total_physical_memory" metric_name:"memoryTotal" source_type:"gauge"`
 			AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
