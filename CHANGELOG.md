@@ -9,7 +9,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### bug fixes
+### bugfix
 - Fixed memory definition query to use pattern matching for Memory Manager object name to improve compatibility across different SQL Server configurations
 
 ## v2.21.0 - 2025-09-09
