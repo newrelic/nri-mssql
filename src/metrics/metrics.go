@@ -19,7 +19,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/common"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/database"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type customQuery struct {
