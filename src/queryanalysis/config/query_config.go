@@ -87,7 +87,7 @@ var Queries = []models.QueryDetailsDto{
 						AND EXISTS (
 							SELECT 1
 							FROM sys.databases d
-							WHERE d.database_id = CONVERT(INT, pa.value) AND d.is_query_store_on = 1
+							WHERE d.database_id = CONVERT(INT, pa.value)
 						)
 				)
 				SELECT
@@ -149,7 +149,6 @@ var Queries = []models.QueryDetailsDto{
 				DECLARE db_cursor CURSOR FOR
 				SELECT name FROM sys.databases
 				WHERE state_desc = 'ONLINE'
-				AND is_query_store_on = 1
 				AND database_id > 4;
 				
 				OPEN db_cursor;
@@ -280,7 +279,6 @@ var Queries = []models.QueryDetailsDto{
 				OUTER APPLY sys.dm_exec_sql_text(blocking_info.blocked_sql_handle) AS blocked_sql
 				OUTER APPLY sys.dm_exec_input_buffer(blocking_info.blocking_spid, NULL) AS input_buffer
 				JOIN sys.databases AS db ON db.database_id = blocking_info.database_id
-				WHERE db.is_query_store_on = 1
 				ORDER BY
     				blocking_info.start_time;`,
 		Type: "blockingSessions",
