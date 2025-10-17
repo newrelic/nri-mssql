@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancements
+- Removed the query store on/off check in prevalidations and queries in qpm
+
 ## v2.21.1 - 2025-09-18
 
 ### 🐞 Bug fixes
