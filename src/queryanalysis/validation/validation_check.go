@@ -13,6 +13,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 	log.Debug("Starting pre-requisite validation")
 	isSupported, err := checkSQLServerVersion(sqlConnection)
 	if err != nil {
+		log.Error("Error while checking SQL Server: %s", err.Error())
 		return false
 	}
 	if !isSupported {
@@ -21,7 +22,7 @@ func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
 	}
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
 	if err != nil {
-		log.Error("Error getting database details:", err)
+		log.Error("Error getting database details: %s", err.Error())
 		return false
 	}
 

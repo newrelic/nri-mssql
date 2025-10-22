@@ -6,6 +6,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/queryexecution"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
@@ -25,7 +26,6 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	// Validate preconditions
 	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection)
 	if !isPreconditionPassed {
-		log.Error("Error validating preconditions")
 		return
 	}
 
@@ -34,19 +34,19 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	queries := config.Queries
 	queryDetails, err := utils.LoadQueries(queries, arguments)
 	if err != nil {
-		log.Error("Error loading query configuration: %v", err)
+		log.Error("Error loading query configuration: %s", err.Error())
 		return
 	}
 
 	for _, queryDetailsDto := range queryDetails {
-		queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+		queryResults, err := queryexecution.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 		if err != nil {
-			log.Error("Failed to execute query: %s", err)
+			log.Error("Failed to execute query %s : %s", queryDetailsDto.Type, err.Error())
 			continue
 		}
 		err = utils.IngestQueryMetricsInBatches(queryResults, queryDetailsDto, integration, sqlConnection)
 		if err != nil {
-			log.Error("Failed to ingest metrics: %s", err)
+			log.Error("Failed to ingest metrics: %s", err.Error())
 			continue
 		}
 	}
