@@ -52,8 +52,9 @@ func formatSlowQueries(query string, args args.ArgumentList) string {
 }
 
 // formatWaitAnalysis formats the wait analysis query.
+// Updated for the simplified query with fixed TOP value (no parameters needed)
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	return query
 }
 
 // formatBlockingSessions formats the blocking sessions query.
@@ -106,7 +107,12 @@ func BindQueryResults(arguments args.ArgumentList,
 	results := make([]interface{}, 0)
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
+	log.Debug("BindQueryResults - Processing query type: %s, EventName: %s", queryDetailsDto.Type, queryDetailsDto.EventName)
+
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
+		log.Debug("BindQueryResults - Processing row %d for query type: %s", rowCount, queryDetailsDto.Type)
 		switch queryDetailsDto.Type {
 		case "slowQueries":
 			var model models.TopNSlowQueryDetails
@@ -127,13 +133,25 @@ func BindQueryResults(arguments args.ArgumentList,
 		case "waitAnalysis":
 			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
+				log.Debug("Could not scan waitAnalysis row: ", err)
 				continue
 			}
+
+			// Log the raw data before anonymization
+			log.Debug("WaitAnalysis - Raw row data: SessionID=%v, DatabaseName=%v, WaitCategory=%v, TotalWaitTimeMs=%v, RequestStartTime=%v",
+				model.SessionID, model.DatabaseName, model.WaitCategory, model.TotalWaitTimeMs, model.RequestStartTime)
+
 			if model.QueryText != nil {
+				originalQueryText := *model.QueryText
 				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+				log.Debug("WaitAnalysis - Query text anonymized: Original length=%d, Anonymized length=%d",
+					len(originalQueryText), len(*model.QueryText))
+			} else {
+				log.Debug("WaitAnalysis - Query text is nil")
 			}
+
 			results = append(results, model)
+			log.Debug("WaitAnalysis - Successfully added row to results. Total results count: %d", len(results))
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -151,6 +169,10 @@ func BindQueryResults(arguments args.ArgumentList,
 			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
+
+	log.Debug("BindQueryResults - Completed processing %d rows for query type: %s. Total results: %d, Total queryIDs: %d",
+		rowCount, queryDetailsDto.Type, len(results), len(queryIDs))
+
 	return results, queryIDs, nil
 }
 
@@ -254,18 +276,24 @@ func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
+	log.Debug("IngestQueryMetrics - Starting ingestion for EventName: %s with %d results", queryDetailsDto.EventName, len(results))
+
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
 		log.Error("%w: %v", ErrCreatingInstanceEntity, err)
 	}
 
-	for _, result := range results {
+	for i, result := range results {
+		log.Debug("IngestQueryMetrics - Processing result %d of %d for EventName: %s", i+1, len(results), queryDetailsDto.EventName)
+
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		resultMap, err := convertResultToMap(result)
 		if err != nil {
 			log.Error("failed to convert result: %v", err)
 			continue
 		}
+
+		log.Debug("IngestQueryMetrics - Converted result to map with %d fields: %v", len(resultMap), resultMap)
 
 		// Create a new metric set with the query name
 		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.EventName)
@@ -275,19 +303,28 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 			strValue := fmt.Sprintf("%v", value) // Convert the value to a string representation
 			metricType := metrics.DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
+				log.Debug("IngestQueryMetrics - Setting GAUGE metric: %s = %s", key, strValue)
 				handleGaugeMetric(key, strValue, metricSet)
 			} else {
+				log.Debug("IngestQueryMetrics - Setting ATTRIBUTE metric: %s = %s", key, strValue)
 				if err := metricSet.SetMetric(key, strValue, metric.ATTRIBUTE); err != nil {
 					// Handle the error. This could be logging, returning the error, etc.
 					log.Error("failed to set metric: %v", err)
 				}
 			}
 		}
+
+		log.Debug("IngestQueryMetrics - Completed processing result %d, metric set created with EventName: %s", i+1, queryDetailsDto.EventName)
 	}
+
+	log.Debug("IngestQueryMetrics - Publishing %d metric sets to New Relic for EventName: %s", len(results), queryDetailsDto.EventName)
 	err = integration.Publish()
 	if err != nil {
+		log.Error("IngestQueryMetrics - Failed to publish metrics: %v", err)
 		return err
 	}
+
+	log.Debug("IngestQueryMetrics - Successfully published metrics for EventName: %s", queryDetailsDto.EventName)
 	return nil
 }
 

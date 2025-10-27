@@ -195,18 +195,15 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 	query := "SELECT * FROM wait_analysis WHERE condition"
 	mock.ExpectQuery("SELECT \\* FROM wait_analysis WHERE condition").
 		WillReturnRows(sqlmock.NewRows([]string{
-			"query_id", "database_name", "query_text", "wait_category",
-			"total_wait_time_ms", "avg_wait_time_ms", "wait_event_count",
-			"last_execution_time", "collection_timestamp",
+			"session_id", "database_name", "query_text", "wait_category",
+			"total_wait_time_ms", "request_start_time", "collection_timestamp",
 		}).
 			AddRow(
-				[]byte{0x01, 0x02},
+				int64(52),
 				"example_db",
 				"SELECT * FROM waits",
-				"CPU",
+				"PAGEIOLATCH_SH",
 				100.5,
-				50.25,
-				10,
 				time.Now(),
 				time.Now(),
 			))
@@ -234,14 +231,19 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 		t.Fatalf("expected type models.WaitTimeAnalysis, got %T", results[0])
 	}
 
-	expectedQueryID := models.HexString("0x0102")
-	if waitTimeAnalysis.QueryID == nil || *waitTimeAnalysis.QueryID != expectedQueryID {
-		t.Errorf("expected QueryID %v, got %v", expectedQueryID, waitTimeAnalysis.QueryID)
+	expectedSessionID := int64(52)
+	if waitTimeAnalysis.SessionID == nil || *waitTimeAnalysis.SessionID != expectedSessionID {
+		t.Errorf("expected SessionID %v, got %v", expectedSessionID, waitTimeAnalysis.SessionID)
 	}
 
 	expectedDatabaseName := "example_db"
 	if waitTimeAnalysis.DatabaseName == nil || *waitTimeAnalysis.DatabaseName != expectedDatabaseName {
 		t.Errorf("expected DatabaseName %s, got %v", expectedDatabaseName, waitTimeAnalysis.DatabaseName)
+	}
+
+	expectedWaitCategory := "PAGEIOLATCH_SH"
+	if waitTimeAnalysis.WaitCategory == nil || *waitTimeAnalysis.WaitCategory != expectedWaitCategory {
+		t.Errorf("expected WaitCategory %s, got %v", expectedWaitCategory, waitTimeAnalysis.WaitCategory)
 	}
 
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -381,8 +383,8 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	}
 
 	// Modify the query string in preparation for comparison
-	expectedQuery := fmt.Sprintf(
-		configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	// Updated for the simplified query with fixed TOP value (no parameters needed)
+	expectedQuery := configQueries[waitQueriesIndex].Query
 
 	// Invoke the function under test
 	queries, err := LoadQueries(config.Queries, args)
@@ -493,7 +495,7 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			Query:     config.Queries[1].Query,
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
