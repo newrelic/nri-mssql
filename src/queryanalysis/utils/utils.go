@@ -229,7 +229,8 @@ func BindQueryResults(arguments args.ArgumentList,
 		// Convert filtered queries back to []interface{}
 		results = make([]interface{}, len(finalQueries))
 		for i, query := range finalQueries {
-			results[i] = query
+			// Convert EnrichedSlowQueryDetails to NewRelicSlowQueryDetails to exclude total fields
+			results[i] = query.ToNewRelicFormat()
 		}
 	}
 

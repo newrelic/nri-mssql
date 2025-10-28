@@ -173,9 +173,9 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	enrichedQuery, ok := results[0].(EnrichedSlowQueryDetails)
+	enrichedQuery, ok := results[0].(models.NewRelicSlowQueryDetails)
 	if !ok {
-		t.Fatalf("expected type EnrichedSlowQueryDetails, got %T", results[0])
+		t.Fatalf("expected type models.NewRelicSlowQueryDetails, got %T", results[0])
 	}
 
 	expectedQueryID := models.HexString("0x0102")
