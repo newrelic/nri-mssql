@@ -173,14 +173,14 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	slowQuery, ok := results[0].(models.TopNSlowQueryDetails)
+	enrichedQuery, ok := results[0].(EnrichedSlowQueryDetails)
 	if !ok {
-		t.Fatalf("expected type models.TopNSlowQueryDetails, got %T", results[0])
+		t.Fatalf("expected type EnrichedSlowQueryDetails, got %T", results[0])
 	}
 
 	expectedQueryID := models.HexString("0x0102")
-	if slowQuery.QueryID == nil || *slowQuery.QueryID != expectedQueryID {
-		t.Errorf("expected QueryID %v, got %v", expectedQueryID, slowQuery.QueryID)
+	if enrichedQuery.QueryID == nil || *enrichedQuery.QueryID != expectedQueryID {
+		t.Errorf("expected QueryID %v, got %v", expectedQueryID, enrichedQuery.QueryID)
 	}
 
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -349,8 +349,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 	}
 
 	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
-		arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
-		arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+		arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
 	}
@@ -463,17 +462,17 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     "SELECT * FROM slow_queries WHERE condition",
+			Query:     "SELECT * FROM slow_queries WHERE condition%d%d",
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     "SELECT * FROM wait_analysis WHERE condition",
+			Query:     "SELECT * FROM wait_analysis WHERE condition%d%d",
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
 			Type:      "blockingSessions",
-			Query:     "SELECT * FROM blocking_sessions WHERE condition",
+			Query:     "SELECT * FROM blocking_sessions WHERE condition%d%d",
 		},
 	}
 
@@ -488,7 +487,7 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",

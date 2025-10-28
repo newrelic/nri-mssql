@@ -7,119 +7,124 @@ import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 var Queries = []models.QueryDetailsDto{
 	{
 		EventName: "MSSQLTopSlowQueries",
-		Query: `DECLARE @IntervalSeconds INT = %d; 		-- Define the interval in seconds
-				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
-				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
-				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
-				
-				WITH RecentQueryIds AS (
-					SELECT  
-						qs.query_hash as query_id
-					FROM 
-						sys.dm_exec_query_stats qs
-					WHERE 
-						qs.execution_count > 0
-						AND qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME())
-						AND qs.sql_handle IS NOT NULL
-				),
-				QueryStats AS (
-					SELECT
-						qs.plan_handle,
-						qs.sql_handle,
-						LEFT(SUBSTRING(
-							qt.text,
-							(qs.statement_start_offset / 2) + 1,
-							(
-								CASE
-									qs.statement_end_offset
-									WHEN -1 THEN DATALENGTH(qt.text)
-									ELSE qs.statement_end_offset
-								END - qs.statement_start_offset
-							) / 2 + 1
-						), @TextTruncateLimit) AS query_text, 
-						qs.query_hash AS query_id,
-						qs.last_execution_time,
-						qs.execution_count,
-						(qs.total_worker_time / qs.execution_count) / 1000.0 AS avg_cpu_time_ms,
-						(qs.total_elapsed_time / qs.execution_count) / 1000.0 AS avg_elapsed_time_ms,
-						(qs.total_logical_reads / qs.execution_count) AS avg_disk_reads,
-						(qs.total_logical_writes / qs.execution_count) AS avg_disk_writes,
-						CASE
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'SELECT' THEN 'SELECT'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'INSERT' THEN 'INSERT'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'UPDATE' THEN 'UPDATE'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'DELETE' THEN 'DELETE'
-							ELSE 'OTHER'
-						END AS statement_type,
-						CONVERT(INT, pa.value) AS database_id,
-						qt.objectid
-					FROM
-						sys.dm_exec_query_stats qs
-						CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt
-						JOIN sys.dm_exec_cached_plans cp ON qs.plan_handle = cp.plan_handle
-						CROSS APPLY sys.dm_exec_plan_attributes(cp.plan_handle) AS pa
-					WHERE
-						qs.query_hash IN (SELECT DISTINCT(query_id) FROM RecentQueryIds)
-						AND qs.execution_count > 0
-						AND pa.attribute = 'dbid'
-						AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb')
-						AND qt.text NOT LIKE '%%sys.%%'
-						AND qt.text NOT LIKE '%%INFORMATION_SCHEMA%%'
-						AND qt.text NOT LIKE '%%schema_name()%%'
-						AND qt.text IS NOT NULL
-						AND LTRIM(RTRIM(qt.text)) <> ''
-						AND EXISTS (
-							SELECT 1
-							FROM sys.databases d
-							WHERE d.database_id = CONVERT(INT, pa.value)
-						)
-				)
-				SELECT
-					TOP (@TopN) qs.query_id,
-					MIN(qs.query_text) AS query_text,
-					DB_NAME(MIN(qs.database_id)) AS database_name,
-					COALESCE(
-						OBJECT_SCHEMA_NAME(MIN(qs.objectid), MIN(qs.database_id)),
-						'N/A'
-					) AS schema_name,
-					FORMAT(
-						MAX(qs.last_execution_time) AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS last_execution_timestamp,
-					SUM(qs.execution_count) AS execution_count,
-					AVG(qs.avg_cpu_time_ms) AS avg_cpu_time_ms,
-					AVG(qs.avg_elapsed_time_ms) AS avg_elapsed_time_ms,
-					AVG(qs.avg_disk_reads) AS avg_disk_reads,
-					AVG(qs.avg_disk_writes) AS avg_disk_writes,
-					 MAX(qs.statement_type) AS statement_type,
-					FORMAT(
-						SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS collection_timestamp
-				FROM
-					QueryStats qs
-				GROUP BY
-					qs.query_id
-				HAVING
-					AVG(qs.avg_elapsed_time_ms) > @ElapsedTimeThreshold
-				ORDER BY
-					avg_elapsed_time_ms DESC;`,
+		Query: `DECLARE @IntervalSeconds INT = %d;      -- Define the interval in seconds
+DECLARE @TextTruncateLimit INT = %d;  -- Truncate limit for query_text
+DECLARE @Limit INT = 10000; -- Number of top aggregated groups to select
+
+---------------------------------------------------------------------------------------------------------------------
+
+WITH AggregatedStats AS (
+    -- This CTE performs the GROUP BY and SUM aggregation.
+    SELECT
+        qs.query_hash AS query_id,
+        qs.query_plan_hash,
+        
+        -- CAPTURE REPRESENTATIVE PLAN INFO AND OFFSETS (MAX picks one plan/offset set to represent the group)
+        MAX(CONCAT(
+            CONVERT(VARCHAR(64), CONVERT(binary(64), qs.plan_handle), 1),
+            CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_start_offset), 1),
+            CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_end_offset), 1)
+        )) AS plan_handle_and_offsets,
+        
+        -- Use MAX for representative non-numeric columns
+        MAX(qs.last_execution_time) AS last_execution_time,
+        MAX(CONVERT(INT, pa.value)) AS database_id,
+        
+        -- *** ADDED: MIN(qt.objectid) is needed for the schema_name lookup ***
+        MIN(qt.objectid) AS objectid,
+        
+        -- SUM for all numerical metrics
+        SUM(qs.execution_count) AS execution_count,
+        SUM(qs.total_worker_time) AS total_worker_time,
+        SUM(qs.total_elapsed_time) AS total_elapsed_time,
+        SUM(qs.total_logical_reads) AS total_logical_reads,
+        SUM(qs.total_logical_writes) AS total_logical_writes,
+        
+        -- Representative Statement Type (MAX attempts to pick one type from the group)
+        MAX(CASE
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'SELECT' THEN 'SELECT'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'INSERT' THEN 'INSERT'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'UPDATE' THEN 'UPDATE'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'DELETE' THEN 'DELETE'
+            ELSE 'OTHER'
+        END) AS statement_type
+
+    FROM
+        sys.dm_exec_query_stats qs
+        CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt
+        CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) AS pa
+    WHERE
+        -- KEY FILTER: Only plans that ran in the last @IntervalSeconds (e.g., 15)
+        qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE())
+        AND qs.execution_count > 0
+        AND pa.attribute = 'dbid'
+        AND qt.text IS NOT NULL
+        AND LTRIM(RTRIM(qt.text)) <> ''
+        AND EXISTS (
+            SELECT 1
+            FROM sys.databases d
+            WHERE d.database_id = CONVERT(INT, pa.value) 
+        )
+    -- *** GROUP BY THE HASHES ***
+    GROUP BY
+        qs.query_hash,
+        qs.query_plan_hash
+)
+-- Select the final top @Limit aggregated query groups, performing text extraction.
+SELECT TOP (@Limit) 
+    s.query_id,
+    s.query_plan_hash,
+
+    -- DECODE plan_handle and offsets from the concatenated string
+    T.plan_handle,
+    
+    -- EXTRACT the statement text using the decoded offsets and plan handle text
+    LEFT(SUBSTRING(
+        qt_final.text, 
+        (T.statement_start_offset / 2) + 1,
+        (
+            (CASE T.statement_end_offset 
+             WHEN -1 THEN DATALENGTH(qt_final.text)
+             ELSE T.statement_end_offset
+             END - T.statement_start_offset) / 2
+        ) + 1
+    ), @TextTruncateLimit) AS query_text,
+    
+    DB_NAME(s.database_id) AS database_name,
+
+    -- *** ADDED: Schema Name lookup using objectid and database_id ***
+    COALESCE(OBJECT_SCHEMA_NAME(s.objectid, s.database_id), 'N/A') AS schema_name,
+
+    FORMAT(
+        s.last_execution_time AT TIME ZONE 'UTC',
+        'yyyy-MM-ddTHH:mm:ssZ'
+    ) AS last_execution_timestamp,
+    s.execution_count,
+    s.total_worker_time,
+    s.total_elapsed_time,
+    s.total_logical_reads,
+    s.total_logical_writes,
+    s.statement_type,
+
+    FORMAT(
+        SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
+        'yyyy-MM-ddTHH:mm:ssZ'
+    ) AS collection_timestamp
+FROM
+    AggregatedStats s
+-- Decode the representative plan info captured in the CTE
+CROSS APPLY (
+    SELECT
+        CONVERT(VARBINARY(64), CONVERT(BINARY(64), SUBSTRING(s.plan_handle_and_offsets, 1, 64), 1)) AS plan_handle,
+        CONVERT(INT, CONVERT(VARBINARY(10), SUBSTRING(s.plan_handle_and_offsets, 65, 10), 1)) AS statement_start_offset,
+        CONVERT(INT, CONVERT(VARBINARY(10), SUBSTRING(s.plan_handle_and_offsets, 75, 10), 1)) AS statement_end_offset
+) T
+-- Join to get the full query batch text for extraction
+CROSS APPLY sys.dm_exec_sql_text(T.plan_handle) qt_final
+
+
+ORDER BY
+    s.last_execution_time DESC`,
 		Type: "slowQueries",
 	},
 	{
