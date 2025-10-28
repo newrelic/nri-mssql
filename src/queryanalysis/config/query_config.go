@@ -10,7 +10,7 @@ var Queries = []models.QueryDetailsDto{
 		Query: `
 DECLARE @IntervalSeconds INT = %d;        -- Define the interval in seconds
 DECLARE @TextTruncateLimit INT = %d;      -- Truncate limit for query_text  
-DECLARE @Limit INT = %d;                  -- Maximum number of aggregated groups to select
+DECLARE @Limit INT = 5000;               -- Maximum number of aggregated groups to select (hardcoded)
 
 WITH AggregatedStats AS (
     SELECT
@@ -221,7 +221,7 @@ OPTION (RECOMPILE, MAXDOP 1)`,
 				-- ORDER BY total_wait_time_ms DESC;
 
 				-- Optimized query for current waiting sessions with proper filtering and sorting
-				SELECT TOP (%d)
+				SELECT TOP 1000
 					r.session_id,
 					DB_NAME(r.database_id) AS database_name,
 					LEFT(st.text, 4096) AS query_text, -- 4096-character limit applied here

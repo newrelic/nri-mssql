@@ -50,12 +50,12 @@ var queryFormatters = map[string]queryFormatter{
 
 // formatSlowQueries formats the slow queries query.
 func formatSlowQueries(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit, args.SlowQueryRecordLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 }
 
 // formatWaitAnalysis formats the wait analysis query.
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.WaitAnalysisRecordLimit)
+	return query
 }
 
 // formatBlockingSessions formats the blocking sessions query.

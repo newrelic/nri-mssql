@@ -351,7 +351,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 	}
 
 	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
-		arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit, arguments.SlowQueryRecordLimit)
+		arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
 	}
@@ -382,8 +382,8 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	}
 
 	// Modify the query string in preparation for comparison
-	// Updated to use the new WaitAnalysisRecordLimit parameter
-	expectedQuery := fmt.Sprintf(configQueries[waitQueriesIndex].Query, args.WaitAnalysisRecordLimit)
+	// Wait analysis query uses no parameters (hardcoded TOP value)
+	expectedQuery := configQueries[waitQueriesIndex].Query
 
 	// Invoke the function under test
 	queries, err := LoadQueries(config.Queries, args)
@@ -464,12 +464,12 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     "SELECT * FROM slow_queries WHERE condition%d%d%d",
+			Query:     "SELECT * FROM slow_queries WHERE condition%d%d",
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     "SELECT * FROM wait_analysis WHERE condition%d",
+			Query:     "SELECT * FROM wait_analysis WHERE condition",
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
@@ -483,20 +483,18 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		QueryMonitoringFetchInterval:         15,
 		QueryMonitoringCountThreshold:        25,
 		QueryMonitoringResponseTimeThreshold: 35,
-		SlowQueryRecordLimit:                 10000,
-		WaitAnalysisRecordLimit:              1000,
 	}
 	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit, sampleArgs.SlowQueryRecordLimit),
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.WaitAnalysisRecordLimit),
+			Query:     config.Queries[1].Query,
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
