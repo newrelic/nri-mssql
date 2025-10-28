@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/metrics"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
 	"github.com/newrelic/infra-integrations-sdk/v3/data/metric"
 	"github.com/newrelic/infra-integrations-sdk/v3/integration"
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
@@ -28,11 +30,13 @@ var (
 	// literalAnonymizer is a regular expression pattern used to match and identify
 	// certain types of literal values in a string. Specifically, it matches:
 	// 1. Single-quoted character sequences, such as 'example'.
-	// 2. Numeric sequences (integer numbers), such as 123 or 456.
+	// 2. Numeric sequences (integers and decimals), such as 123, 456.78, or .99.
 	// 3. Double-quoted strings, such as "example".
 	// This regex can be useful for identifying and potentially anonymizing literal values
 	// in a given text, like extracting or concealing specific data within strings.
-	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d*\.?\d+|".*?"`)
+	// dmvCommentRemover removes DMV comments like /* DMV_POP_1761636289952111000_85288 */ from the beginning of queries
+	dmvCommentRemover = regexp.MustCompile(`^\s*/\*\s*DMV_[^*]*\*/\s*`)
 )
 
 // queryFormatter defines a function type for formatting a query string.
@@ -80,13 +84,11 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	log.Debug("Executing query: %s", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
-	log.Debug("Query executed: %s", queryDetailsDto.Query)
 	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
 
@@ -107,12 +109,40 @@ func BindQueryResults(arguments args.ArgumentList,
 	results := make([]interface{}, 0)
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
-	log.Debug("BindQueryResults - Processing query type: %s, EventName: %s", queryDetailsDto.Type, queryDetailsDto.EventName)
+	// Special handling for waitAnalysis to collect all results first, then sort and filter
+	if queryDetailsDto.Type == "waitAnalysis" {
+		waitResults := make([]models.WaitTimeAnalysis, 0)
 
-	rowCount := 0
+		for rows.Next() {
+			var model models.WaitTimeAnalysis
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan waitAnalysis row: ", err)
+				continue
+			}
+
+			waitResults = append(waitResults, model)
+		}
+
+		// Sort and filter to get top N by wait time (using QueryMonitoringCountThreshold)
+		topWaitResults := sortAndFilterWaitAnalysis(waitResults, arguments.QueryMonitoringCountThreshold)
+
+		// Now process query text for only the top N results: remove DMV comments first, then anonymize
+		for i := range topWaitResults {
+			if topWaitResults[i].QueryText != nil {
+				// Step 1: Remove DMV comments
+				cleanedQuery := RemoveDMVComments(*topWaitResults[i].QueryText)
+				// Step 2: Anonymize literals
+				*topWaitResults[i].QueryText = AnonymizeQueryText(cleanedQuery)
+			}
+
+			results = append(results, topWaitResults[i])
+		}
+
+		return results, queryIDs, nil
+	}
+
+	// Original logic for other query types
 	for rows.Next() {
-		rowCount++
-		log.Debug("BindQueryResults - Processing row %d for query type: %s", rowCount, queryDetailsDto.Type)
 		switch queryDetailsDto.Type {
 		case "slowQueries":
 			var model models.TopNSlowQueryDetails
@@ -121,6 +151,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			if model.QueryText != nil {
+				// Only anonymize literals for slow queries
 				*model.QueryText = AnonymizeQueryText(*model.QueryText)
 			}
 			results = append(results, model)
@@ -129,29 +160,6 @@ func BindQueryResults(arguments args.ArgumentList,
 			if model.QueryID != nil {
 				queryIDs = append(queryIDs, *model.QueryID)
 			}
-
-		case "waitAnalysis":
-			var model models.WaitTimeAnalysis
-			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan waitAnalysis row: ", err)
-				continue
-			}
-
-			// Log the raw data before anonymization
-			log.Debug("WaitAnalysis - Raw row data: SessionID=%v, DatabaseName=%v, WaitCategory=%v, TotalWaitTimeMs=%v, RequestStartTime=%v",
-				model.SessionID, model.DatabaseName, model.WaitCategory, model.TotalWaitTimeMs, model.RequestStartTime)
-
-			if model.QueryText != nil {
-				originalQueryText := *model.QueryText
-				*model.QueryText = AnonymizeQueryText(*model.QueryText)
-				log.Debug("WaitAnalysis - Query text anonymized: Original length=%d, Anonymized length=%d",
-					len(originalQueryText), len(*model.QueryText))
-			} else {
-				log.Debug("WaitAnalysis - Query text is nil")
-			}
-
-			results = append(results, model)
-			log.Debug("WaitAnalysis - Successfully added row to results. Total results count: %d", len(results))
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -159,9 +167,11 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			if model.BlockingQueryText != nil {
+				// For blocking sessions, just anonymize (no DMV comments expected)
 				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
 			}
 			if model.BlockedQueryText != nil {
+				// For blocking sessions, just anonymize (no DMV comments expected)
 				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
 			}
 			results = append(results, model)
@@ -169,9 +179,6 @@ func BindQueryResults(arguments args.ArgumentList,
 			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
-
-	log.Debug("BindQueryResults - Completed processing %d rows for query type: %s. Total results: %d, Total queryIDs: %d",
-		rowCount, queryDetailsDto.Type, len(results), len(queryIDs))
 
 	return results, queryIDs, nil
 }
@@ -212,6 +219,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 			log.Error("Could not scan execution plan row: %s", err)
 			return
 		}
+		// Only anonymize literals for execution plans
 		*model.SQLText = AnonymizeQueryText(*model.SQLText)
 		results = append(results, model)
 	}
@@ -276,16 +284,12 @@ func handleGaugeMetric(key, strValue string, metricSet *metric.Set) {
 
 // IngestQueryMetrics processes and ingests query metrics into the New Relic entity
 func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) error {
-	log.Debug("IngestQueryMetrics - Starting ingestion for EventName: %s with %d results", queryDetailsDto.EventName, len(results))
-
 	instanceEntity, err := instance.CreateInstanceEntity(integration, sqlConnection)
 	if err != nil {
 		log.Error("%w: %v", ErrCreatingInstanceEntity, err)
 	}
 
-	for i, result := range results {
-		log.Debug("IngestQueryMetrics - Processing result %d of %d for EventName: %s", i+1, len(results), queryDetailsDto.EventName)
-
+	for _, result := range results {
 		// Convert the result into a map[string]interface{} for dynamic key-value access
 		resultMap, err := convertResultToMap(result)
 		if err != nil {
@@ -293,44 +297,78 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 			continue
 		}
 
-		log.Debug("IngestQueryMetrics - Converted result to map with %d fields: %v", len(resultMap), resultMap)
-
-		// Create a new metric set with the query name
-		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.EventName)
+		// Create a new metric set with the query name and required attributes
+		metricSet := instanceEntity.NewMetricSet(queryDetailsDto.EventName,
+			attribute.Attribute{Key: "displayName", Value: instanceEntity.Metadata.Name},
+			attribute.Attribute{Key: "entityName", Value: instanceEntity.Metadata.Namespace + ":" + instanceEntity.Metadata.Name},
+			attribute.Attribute{Key: "host", Value: sqlConnection.Host},
+			attribute.Attribute{Key: "reportingEndpoint", Value: sqlConnection.Host},
+		)
 
 		// Iterate over the map and add each key-value pair as a metric
 		for key, value := range resultMap {
 			strValue := fmt.Sprintf("%v", value) // Convert the value to a string representation
 			metricType := metrics.DetectMetricType(strValue)
 			if metricType == metric.GAUGE {
-				log.Debug("IngestQueryMetrics - Setting GAUGE metric: %s = %s", key, strValue)
 				handleGaugeMetric(key, strValue, metricSet)
 			} else {
-				log.Debug("IngestQueryMetrics - Setting ATTRIBUTE metric: %s = %s", key, strValue)
 				if err := metricSet.SetMetric(key, strValue, metric.ATTRIBUTE); err != nil {
 					// Handle the error. This could be logging, returning the error, etc.
 					log.Error("failed to set metric: %v", err)
 				}
 			}
 		}
-
-		log.Debug("IngestQueryMetrics - Completed processing result %d, metric set created with EventName: %s", i+1, queryDetailsDto.EventName)
 	}
 
-	log.Debug("IngestQueryMetrics - Publishing %d metric sets to New Relic for EventName: %s", len(results), queryDetailsDto.EventName)
 	err = integration.Publish()
 	if err != nil {
 		log.Error("IngestQueryMetrics - Failed to publish metrics: %v", err)
 		return err
 	}
 
-	log.Debug("IngestQueryMetrics - Successfully published metrics for EventName: %s", queryDetailsDto.EventName)
 	return nil
 }
 
 func AnonymizeQueryText(query string) string {
+	// Anonymize literals only - this is a generic function
 	anonymizedQuery := literalAnonymizer.ReplaceAllString(query, "?")
 	return anonymizedQuery
+}
+
+// RemoveDMVComments removes DMV comments like /* DMV_POP_1761636289952111000_85288 */ from the beginning of query text
+func RemoveDMVComments(query string) string {
+	return dmvCommentRemover.ReplaceAllString(query, "")
+}
+
+// sortAndFilterWaitAnalysis sorts wait analysis results by TotalWaitTimeMs descending and takes top N records
+func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysis, maxResults int) []models.WaitTimeAnalysis {
+	// Handle case where maxResults is 0 or negative - return all results
+	if maxResults <= 0 {
+		maxResults = len(waitResults)
+	}
+
+	// Sort by TotalWaitTimeMs descending
+	sort.Slice(waitResults, func(i, j int) bool {
+		if waitResults[i].TotalWaitTimeMs == nil && waitResults[j].TotalWaitTimeMs == nil {
+			return false
+		}
+		if waitResults[i].TotalWaitTimeMs == nil {
+			return false
+		}
+		if waitResults[j].TotalWaitTimeMs == nil {
+			return true
+		}
+		return *waitResults[i].TotalWaitTimeMs > *waitResults[j].TotalWaitTimeMs
+	})
+
+	// Take top N or all if less than N
+	if len(waitResults) < maxResults {
+		maxResults = len(waitResults)
+	}
+
+	topResults := waitResults[:maxResults]
+
+	return topResults
 }
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults

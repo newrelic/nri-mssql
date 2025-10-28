@@ -11,13 +11,13 @@ var Queries = []models.QueryDetailsDto{
 				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
 				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
 				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
-				
+
 				WITH RecentQueryIds AS (
-					SELECT  
+					SELECT
 						qs.query_hash as query_id
-					FROM 
+					FROM
 						sys.dm_exec_query_stats qs
-					WHERE 
+					WHERE
 						qs.execution_count > 0
 						AND qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME())
 						AND qs.sql_handle IS NOT NULL
@@ -36,7 +36,7 @@ var Queries = []models.QueryDetailsDto{
 									ELSE qs.statement_end_offset
 								END - qs.statement_start_offset
 							) / 2 + 1
-						), @TextTruncateLimit) AS query_text, 
+						), @TextTruncateLimit) AS query_text,
 						qs.query_hash AS query_id,
 						qs.last_execution_time,
 						qs.execution_count,
@@ -121,7 +121,7 @@ var Queries = []models.QueryDetailsDto{
 				ORDER BY
 					avg_elapsed_time_ms DESC;`,
 		Type: "slowQueries",
-	},
+	}, 
 	{
 		EventName: "MSSQLWaitTimeAnalysis",
 		Query: `-- Original complex query with Query Store and cursors (commented out for performance reasons)
@@ -232,13 +232,13 @@ var Queries = []models.QueryDetailsDto{
 				-- SELECT TOP (@TopN) * FROM @resultTable 
 				-- ORDER BY total_wait_time_ms DESC;
 
-				-- New simplified query for current waiting sessions
+				-- Optimized query for current waiting sessions with proper filtering and sorting
 				SELECT TOP 1000
 					r.session_id,
 					DB_NAME(r.database_id) AS database_name,
-					st.text AS query_text, 
-					r.wait_type as wait_category,                   
-					r.wait_time AS total_wait_time_ms, 
+					LEFT(st.text, 4096) AS query_text, -- 4096-character limit applied here
+					r.wait_type as wait_category,
+					r.wait_time AS total_wait_time_ms,
 					r.start_time AS request_start_time,
 					SYSDATETIME() AS collection_timestamp
 				FROM
@@ -247,7 +247,9 @@ var Queries = []models.QueryDetailsDto{
 					sys.dm_exec_sql_text(r.sql_handle) AS st
 				WHERE
 					r.session_id > 50          -- Ignore system sessions
-					AND r.wait_type IS NOT NULL;
+					AND r.wait_time > 0        -- Ignore if wait time is 0
+					AND r.database_id > 4      -- Ignore system databases (master, model, msdb, tempdb)
+					AND r.wait_type IS NOT NULL -- Only show sessions currently waiting
 				`,
 		Type: "waitAnalysis",
 	},

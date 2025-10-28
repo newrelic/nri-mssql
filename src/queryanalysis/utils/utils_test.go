@@ -652,3 +652,118 @@ func TestAnonymizeQueryText(t *testing.T) {
 	query = AnonymizeQueryText(query)
 	assert.Equal(t, expected, query)
 }
+
+func TestRemoveDMVComments_WithDMVComment(t *testing.T) {
+	query := "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL ORDER BY ModifiedDate"
+	expected := "SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL ORDER BY ModifiedDate"
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment should be removed from the beginning of the query")
+}
+
+func TestRemoveDMVComments_WithWhitespace(t *testing.T) {
+	query := "   /* DMV_POP_1761636289952111000_85288 */   SELECT * FROM table"
+	expected := "SELECT * FROM table"
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment with surrounding whitespace should be removed")
+}
+
+func TestRemoveDMVComments_NoDMVComment(t *testing.T) {
+	query := "SELECT * FROM users WHERE id = 1"
+	expected := query // No change expected
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "Query without DMV comment should remain unchanged")
+}
+
+func TestRemoveDMVComments_DMVInMiddle(t *testing.T) {
+	query := "SELECT * FROM /* DMV_POP_1761636289952111000_85288 */ table"
+	expected := query // No change expected since DMV comment is not at the beginning
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment in the middle should not be removed")
+}
+
+func TestAnonymizeQueryText_WithDMVComment(t *testing.T) {
+	query := "/* DMV_POP_1761636289952111000_85288 */ SELECT * FROM users WHERE id = 1 AND name = 'John'"
+	expected := "/* DMV_POP_?_? */ SELECT * FROM users WHERE id = ? AND name = ?"
+
+	result := AnonymizeQueryText(query)
+	assert.Equal(t, expected, result, "AnonymizeQueryText should only anonymize literals, not remove DMV comments")
+}
+
+func TestRemoveDMVComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Remove DMV comment from beginning",
+			input:    "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory",
+			expected: "SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory",
+		},
+		{
+			name:     "Remove DMV comment with extra spaces",
+			input:    "  /* DMV_SOMETHING_123456789 */  SELECT * FROM table",
+			expected: "SELECT * FROM table",
+		},
+		{
+			name:     "No DMV comment to remove",
+			input:    "SELECT * FROM users WHERE id = 1",
+			expected: "SELECT * FROM users WHERE id = 1",
+		},
+		{
+			name:     "DMV comment not at beginning should remain",
+			input:    "SELECT * FROM table /* DMV_POP_123 */ WHERE id = 1",
+			expected: "SELECT * FROM table /* DMV_POP_123 */ WHERE id = 1",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RemoveDMVComments(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAnonymizeQueryTextWithDMVComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "DMV comment removal and anonymization (two-step process)",
+			input:    "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL",
+			expected: "SELECT DISTINCT TOP ? ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL",
+		},
+		{
+			name:     "DMV comment with literals to anonymize (two-step process)",
+			input:    "/* DMV_TEST_123 */ SELECT * FROM users WHERE id = 100 AND name = 'John'",
+			expected: "SELECT * FROM users WHERE id = ? AND name = ?",
+		},
+		{
+			name:     "No DMV comment, only anonymization",
+			input:    "SELECT price FROM products WHERE price > 99.99 AND category = 'electronics'",
+			expected: "SELECT price FROM products WHERE price > ? AND category = ?",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Step 1: Remove DMV comments
+			cleanedQuery := RemoveDMVComments(tt.input)
+			// Step 2: Anonymize literals
+			result := AnonymizeQueryText(cleanedQuery)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

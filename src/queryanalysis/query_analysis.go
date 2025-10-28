@@ -31,8 +31,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 
 	utils.ValidateAndSetDefaults(&arguments)
 
-	queries := config.Queries
-	queryDetails, err := utils.LoadQueries(queries, arguments)
+	queryDetails, err := utils.LoadQueries(config.Queries, arguments)
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
