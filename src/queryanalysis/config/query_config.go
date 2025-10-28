@@ -9,7 +9,7 @@ var Queries = []models.QueryDetailsDto{
 		EventName: "MSSQLTopSlowQueries",
 		Query: `DECLARE @IntervalSeconds INT = %d;      -- Define the interval in seconds
 DECLARE @TextTruncateLimit INT = %d;  -- Truncate limit for query_text
-DECLARE @Limit INT = 10000; -- Number of top aggregated groups to select
+DECLARE @Limit INT = %d; -- Number of top aggregated groups to select
 
 ---------------------------------------------------------------------------------------------------------------------
 
@@ -234,7 +234,7 @@ ORDER BY
 				-- ORDER BY total_wait_time_ms DESC;
 
 				-- Optimized query for current waiting sessions with proper filtering and sorting
-				SELECT TOP 1000
+				SELECT TOP (%d)
 					r.session_id,
 					DB_NAME(r.database_id) AS database_name,
 					LEFT(st.text, 4096) AS query_text, -- 4096-character limit applied here
