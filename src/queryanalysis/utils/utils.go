@@ -117,13 +117,10 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			// Skip anonymization here - will be done after filtering for better performance
-			// Skip enrichment here too - will be done after filtering for better performance
+			// But we MUST calculate averages now because filtering depends on them!
 			
-			// Store raw model first, we'll enrich only the filtered ones
-			enrichedModel := EnrichedSlowQueryDetails{
-				TopNSlowQueryDetails: model,
-				// Averages will be calculated later after filtering
-			}
+			// Calculate averages immediately - required for filtering logic
+			enrichedModel := EnrichSlowQueryWithAverages(model)
 			enrichedSlowQueries = append(enrichedSlowQueries, enrichedModel)
 
 			// Collect query IDs for fetching executionPlans
@@ -170,36 +167,36 @@ func BindQueryResults(arguments args.ArgumentList,
 		if expandedThreshold > 100 {
 			expandedThreshold = 100 // Cap at 100 to avoid excessive processing
 		}
-		
+
 		expandedArgs := arguments
 		expandedArgs.QueryMonitoringCountThreshold = expandedThreshold
-		
+
 		// Get top candidates based on performance thresholds
 		candidateQueries, filterMetrics := FilterSlowQueriesWithMetrics(enrichedSlowQueries, expandedArgs)
-		
+
 		// Log initial filtering metrics
 		LogFilterMetrics(filterMetrics)
-		
+
 		// STEP 2: Intelligently filter system databases with fallback logic
 		// This ensures we get user database queries even if top results are system queries
 		targetCount := arguments.QueryMonitoringCountThreshold
 		if targetCount == 0 {
 			targetCount = len(candidateQueries) // Return all candidates when no limit specified
 		}
-		
+
 		finalQueries := FilterSystemDatabasesWithFallback(
-			candidateQueries, 
-			targetCount, // Target count (e.g., 20)
+			candidateQueries,
+			targetCount,       // Target count (e.g., 20)
 			expandedThreshold, // Max queries to search through (e.g., 100)
 		)
-		
+
 		// STEP 3: Anonymize only the final filtered queries (much more efficient!)
 		for i := range finalQueries {
 			if finalQueries[i].QueryText != nil {
 				*finalQueries[i].QueryText = AnonymizeQueryText(*finalQueries[i].QueryText)
 			}
 		}
-		
+
 		// Convert filtered queries back to []interface{}
 		results = make([]interface{}, len(finalQueries))
 		for i, query := range finalQueries {
@@ -317,7 +314,7 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 
 	for _, result := range results {
 		var dataToSend interface{}
-		
+
 		// For slow queries, convert to NewRelic format (exclude totals)
 		if queryDetailsDto.Type == "slowQueries" {
 			if enrichedQuery, ok := result.(EnrichedSlowQueryDetails); ok {
@@ -365,40 +362,40 @@ func IsSystemDatabase(databaseName *string) bool {
 	if databaseName == nil {
 		return true // Treat nil database name as system database to filter it out
 	}
-	
+
 	systemDatabases := map[string]bool{
 		"master": true,
 		"model":  true,
 		"msdb":   true,
 		"tempdb": true,
 	}
-	
+
 	// Case-insensitive comparison
 	dbName := strings.ToLower(strings.TrimSpace(*databaseName))
 	return systemDatabases[dbName]
 }
 
 // FilterSystemDatabasesWithFallback intelligently filters system databases with fallback logic
-// If the initial top N queries are mostly system databases, it will expand the search 
+// If the initial top N queries are mostly system databases, it will expand the search
 // to find user database queries from a larger pool (up to maxLookup queries)
 func FilterSystemDatabasesWithFallback(enrichedQueries []EnrichedSlowQueryDetails, targetCount int, maxLookup int) []EnrichedSlowQueryDetails {
 	if len(enrichedQueries) == 0 {
 		return enrichedQueries
 	}
-	
+
 	// Ensure maxLookup doesn't exceed available queries
 	if maxLookup > len(enrichedQueries) {
 		maxLookup = len(enrichedQueries)
 	}
-	
+
 	filteredQueries := make([]EnrichedSlowQueryDetails, 0, targetCount)
 	systemQueriesCount := 0
 	systemDatabasesFound := make(map[string]int)
-	
+
 	// Iterate through queries up to maxLookup limit
 	for i := 0; i < maxLookup && len(filteredQueries) < targetCount; i++ {
 		query := enrichedQueries[i]
-		
+
 		if !IsSystemDatabase(query.DatabaseName) {
 			// Found a user database query - add it to results
 			filteredQueries = append(filteredQueries, query)
@@ -411,25 +408,25 @@ func FilterSystemDatabasesWithFallback(enrichedQueries []EnrichedSlowQueryDetail
 			}
 		}
 	}
-	
+
 	// Detailed logging
 	log.Debug("Smart system database filter with fallback:")
 	log.Debug("  - Searched through top %d queries", min(maxLookup, len(enrichedQueries)))
 	log.Debug("  - Found %d user database queries", len(filteredQueries))
 	log.Debug("  - Skipped %d system database queries", systemQueriesCount)
-	
+
 	if systemQueriesCount > 0 {
 		for dbName, count := range systemDatabasesFound {
 			log.Debug("  - %s: %d queries skipped", dbName, count)
 		}
 	}
-	
+
 	if len(filteredQueries) == 0 {
 		log.Warn("No user database queries found in top %d results - all queries are from system databases", maxLookup)
 	} else if len(filteredQueries) < targetCount {
 		log.Debug("Found %d user queries (wanted %d) after searching %d queries", len(filteredQueries), targetCount, maxLookup)
 	}
-	
+
 	return filteredQueries
 }
 
@@ -439,11 +436,11 @@ func FilterSystemDatabases(enrichedQueries []EnrichedSlowQueryDetails) []Enriche
 	if len(enrichedQueries) == 0 {
 		return enrichedQueries
 	}
-	
+
 	filteredQueries := make([]EnrichedSlowQueryDetails, 0, len(enrichedQueries))
 	systemQueriesCount := 0
 	systemDatabasesFound := make(map[string]int)
-	
+
 	for _, query := range enrichedQueries {
 		if !IsSystemDatabase(query.DatabaseName) {
 			filteredQueries = append(filteredQueries, query)
@@ -455,7 +452,7 @@ func FilterSystemDatabases(enrichedQueries []EnrichedSlowQueryDetails) []Enriche
 			}
 		}
 	}
-	
+
 	if systemQueriesCount > 0 {
 		log.Debug("System database filter (applied to top %d queries):", len(enrichedQueries))
 		log.Debug("  - Filtered out %d queries from system databases", systemQueriesCount)
@@ -466,7 +463,7 @@ func FilterSystemDatabases(enrichedQueries []EnrichedSlowQueryDetails) []Enriche
 	} else {
 		log.Debug("No system database queries found in top %d results", len(enrichedQueries))
 	}
-	
+
 	return filteredQueries
 }
 
@@ -524,8 +521,6 @@ func CalculateAvgDiskWrites(totalLogicalWrites *int64, executionCount *int64) fl
 	return float64(*totalLogicalWrites) / float64(*executionCount)
 }
 
-
-
 // EnrichedSlowQueryDetails extends TopNSlowQueryDetails with calculated averages (for internal processing)
 type EnrichedSlowQueryDetails struct {
 	models.TopNSlowQueryDetails
@@ -567,7 +562,7 @@ func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlow
 // EnrichQueriesWithAverages calculates averages for multiple queries efficiently
 func EnrichQueriesWithAverages(queries []EnrichedSlowQueryDetails) {
 	log.Debug("Calculating averages for %d filtered queries", len(queries))
-	
+
 	for i := range queries {
 		queries[i].AvgCPUTimeMS = CalculateAvgCPUTimeMS(queries[i].TotalWorkerTime, queries[i].ExecutionCount)
 		queries[i].AvgElapsedTimeMS = CalculateAvgElapsedTimeMS(queries[i].TotalElapsedTime, queries[i].ExecutionCount)

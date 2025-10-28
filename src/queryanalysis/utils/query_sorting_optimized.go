@@ -39,7 +39,7 @@ func FilterSlowQueriesByThresholdHeap(enrichedQueries []EnrichedSlowQueryDetails
 
 	thresholdMs := float64(args.QueryMonitoringResponseTimeThreshold)
 	countLimit := args.QueryMonitoringCountThreshold
-	
+
 	if countLimit <= 0 {
 		countLimit = len(enrichedQueries)
 	}
@@ -49,11 +49,11 @@ func FilterSlowQueriesByThresholdHeap(enrichedQueries []EnrichedSlowQueryDetails
 	heap.Init(h)
 
 	filteredCount := 0
-	
+
 	for _, query := range enrichedQueries {
 		if query.AvgElapsedTimeMS >= thresholdMs {
 			filteredCount++
-			
+
 			if h.Len() < countLimit {
 				// Heap not full, just add the query
 				heap.Push(h, query)
@@ -65,7 +65,7 @@ func FilterSlowQueriesByThresholdHeap(enrichedQueries []EnrichedSlowQueryDetails
 		}
 	}
 
-	log.Debug("Filtered %d queries out of %d based on response time threshold %.2f ms", 
+	log.Debug("Filtered %d queries out of %d based on response time threshold %.2f ms",
 		filteredCount, len(enrichedQueries), thresholdMs)
 
 	// Convert heap to slice and sort in descending order
@@ -90,14 +90,14 @@ func FilterSlowQueriesByThresholdPartialSort(enrichedQueries []EnrichedSlowQuery
 	// Step 1: Filter by threshold
 	thresholdMs := float64(args.QueryMonitoringResponseTimeThreshold)
 	filteredQueries := make([]EnrichedSlowQueryDetails, 0, len(enrichedQueries))
-	
+
 	for _, query := range enrichedQueries {
 		if query.AvgElapsedTimeMS >= thresholdMs {
 			filteredQueries = append(filteredQueries, query)
 		}
 	}
 
-	log.Debug("Filtered %d queries out of %d based on response time threshold %.2f ms", 
+	log.Debug("Filtered %d queries out of %d based on response time threshold %.2f ms",
 		len(filteredQueries), len(enrichedQueries), thresholdMs)
 
 	if len(filteredQueries) == 0 {
@@ -140,7 +140,7 @@ func FilterSlowQueriesByThresholdQuickSelect(enrichedQueries []EnrichedSlowQuery
 	// Step 1: Filter by threshold
 	thresholdMs := float64(args.QueryMonitoringResponseTimeThreshold)
 	filteredQueries := make([]EnrichedSlowQueryDetails, 0, len(enrichedQueries))
-	
+
 	for _, query := range enrichedQueries {
 		if query.AvgElapsedTimeMS >= thresholdMs {
 			filteredQueries = append(filteredQueries, query)
