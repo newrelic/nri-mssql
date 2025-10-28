@@ -9,37 +9,30 @@ var Queries = []models.QueryDetailsDto{
 		EventName: "MSSQLTopSlowQueries",
 		Query: `DECLARE @IntervalSeconds INT = %d;      -- Define the interval in seconds
 DECLARE @TextTruncateLimit INT = %d;  -- Truncate limit for query_text
-DECLARE @Limit INT = %d; -- Number of top aggregated groups to select
-
+DECLARE @Limit INT = %d; -- Reduced from 10000 to 1000 for better performance
 ---------------------------------------------------------------------------------------------------------------------
-
 WITH AggregatedStats AS (
     -- This CTE performs the GROUP BY and SUM aggregation.
     SELECT
         qs.query_hash AS query_id,
         qs.query_plan_hash,
-        
         -- CAPTURE REPRESENTATIVE PLAN INFO AND OFFSETS (MAX picks one plan/offset set to represent the group)
         MAX(CONCAT(
             CONVERT(VARCHAR(64), CONVERT(binary(64), qs.plan_handle), 1),
             CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_start_offset), 1),
             CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_end_offset), 1)
         )) AS plan_handle_and_offsets,
-        
         -- Use MAX for representative non-numeric columns
         MAX(qs.last_execution_time) AS last_execution_time,
         MAX(CONVERT(INT, pa.value)) AS database_id,
-        
         -- *** ADDED: MIN(qt.objectid) is needed for the schema_name lookup ***
         MIN(qt.objectid) AS objectid,
-        
         -- SUM for all numerical metrics
         SUM(qs.execution_count) AS execution_count,
         SUM(qs.total_worker_time) AS total_worker_time,
         SUM(qs.total_elapsed_time) AS total_elapsed_time,
         SUM(qs.total_logical_reads) AS total_logical_reads,
         SUM(qs.total_logical_writes) AS total_logical_writes,
-        
         -- Representative Statement Type (MAX attempts to pick one type from the group)
         MAX(CASE
             WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'SELECT' THEN 'SELECT'
@@ -48,9 +41,8 @@ WITH AggregatedStats AS (
             WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'DELETE' THEN 'DELETE'
             ELSE 'OTHER'
         END) AS statement_type
-
     FROM
-        sys.dm_exec_query_stats qs
+        sys.dm_exec_query_stats qs WITH (NOLOCK)
         CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt
         CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) AS pa
     WHERE
@@ -62,8 +54,8 @@ WITH AggregatedStats AS (
         AND LTRIM(RTRIM(qt.text)) <> ''
         AND EXISTS (
             SELECT 1
-            FROM sys.databases d
-            WHERE d.database_id = CONVERT(INT, pa.value) 
+            FROM sys.databases d WITH (NOLOCK)
+            WHERE d.database_id = CONVERT(INT, pa.value)
         )
     -- *** GROUP BY THE HASHES ***
     GROUP BY
@@ -71,26 +63,22 @@ WITH AggregatedStats AS (
         qs.query_plan_hash
 )
 -- Select the final top @Limit aggregated query groups, performing text extraction.
-SELECT TOP (@Limit) 
+SELECT TOP (@Limit)
     s.query_id,
-    
     -- EXTRACT the statement text using the decoded offsets and plan handle text
     LEFT(SUBSTRING(
-        qt_final.text, 
+        qt_final.text,
         (T.statement_start_offset / 2) + 1,
         (
-            (CASE T.statement_end_offset 
+            (CASE T.statement_end_offset
              WHEN -1 THEN DATALENGTH(qt_final.text)
              ELSE T.statement_end_offset
              END - T.statement_start_offset) / 2
         ) + 1
     ), @TextTruncateLimit) AS query_text,
-    
     DB_NAME(s.database_id) AS database_name,
-
     -- *** ADDED: Schema Name lookup using objectid and database_id ***
     COALESCE(OBJECT_SCHEMA_NAME(s.objectid, s.database_id), 'N/A') AS schema_name,
-
     FORMAT(
         s.last_execution_time AT TIME ZONE 'UTC',
         'yyyy-MM-ddTHH:mm:ssZ'
@@ -101,7 +89,6 @@ SELECT TOP (@Limit)
     s.total_logical_reads,
     s.total_logical_writes,
     s.statement_type,
-
     FORMAT(
         SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
         'yyyy-MM-ddTHH:mm:ssZ'
@@ -117,10 +104,8 @@ CROSS APPLY (
 ) T
 -- Join to get the full query batch text for extraction
 CROSS APPLY sys.dm_exec_sql_text(T.plan_handle) qt_final
-
-
-ORDER BY
-    s.last_execution_time DESC`,
+ORDER BY s.last_execution_time DESC
+OPTION (RECOMPILE, MAXDOP 1)`,
 		Type: "slowQueries",
 	},
 	{
