@@ -7,229 +7,238 @@ import "github.com/newrelic/nri-mssql/src/queryanalysis/models"
 var Queries = []models.QueryDetailsDto{
 	{
 		EventName: "MSSQLTopSlowQueries",
-		Query: `DECLARE @IntervalSeconds INT = %d; 		-- Define the interval in seconds
-				DECLARE @TopN INT = %d; 				-- Number of top queries to retrieve
-				DECLARE @ElapsedTimeThreshold INT = %d; -- Elapsed time threshold in milliseconds
-				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
-				
-				WITH RecentQueryIds AS (
-					SELECT  
-						qs.query_hash as query_id
-					FROM 
-						sys.dm_exec_query_stats qs
-					WHERE 
-						qs.execution_count > 0
-						AND qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME())
-						AND qs.sql_handle IS NOT NULL
-				),
-				QueryStats AS (
-					SELECT
-						qs.plan_handle,
-						qs.sql_handle,
-						LEFT(SUBSTRING(
-							qt.text,
-							(qs.statement_start_offset / 2) + 1,
-							(
-								CASE
-									qs.statement_end_offset
-									WHEN -1 THEN DATALENGTH(qt.text)
-									ELSE qs.statement_end_offset
-								END - qs.statement_start_offset
-							) / 2 + 1
-						), @TextTruncateLimit) AS query_text, 
-						qs.query_hash AS query_id,
-						qs.last_execution_time,
-						qs.execution_count,
-						(qs.total_worker_time / qs.execution_count) / 1000.0 AS avg_cpu_time_ms,
-						(qs.total_elapsed_time / qs.execution_count) / 1000.0 AS avg_elapsed_time_ms,
-						(qs.total_logical_reads / qs.execution_count) AS avg_disk_reads,
-						(qs.total_logical_writes / qs.execution_count) AS avg_disk_writes,
-						CASE
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'SELECT' THEN 'SELECT'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'INSERT' THEN 'INSERT'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'UPDATE' THEN 'UPDATE'
-							WHEN UPPER(
-								LTRIM(
-									SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6)
-								)
-							) LIKE 'DELETE' THEN 'DELETE'
-							ELSE 'OTHER'
-						END AS statement_type,
-						CONVERT(INT, pa.value) AS database_id,
-						qt.objectid
-					FROM
-						sys.dm_exec_query_stats qs
-						CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt
-						JOIN sys.dm_exec_cached_plans cp ON qs.plan_handle = cp.plan_handle
-						CROSS APPLY sys.dm_exec_plan_attributes(cp.plan_handle) AS pa
-					WHERE
-						qs.query_hash IN (SELECT DISTINCT(query_id) FROM RecentQueryIds)
-						AND qs.execution_count > 0
-						AND pa.attribute = 'dbid'
-						AND DB_NAME(CONVERT(INT, pa.value)) NOT IN ('master', 'model', 'msdb', 'tempdb')
-						AND qt.text NOT LIKE '%%sys.%%'
-						AND qt.text NOT LIKE '%%INFORMATION_SCHEMA%%'
-						AND qt.text NOT LIKE '%%schema_name()%%'
-						AND qt.text IS NOT NULL
-						AND LTRIM(RTRIM(qt.text)) <> ''
-						AND EXISTS (
-							SELECT 1
-							FROM sys.databases d
-							WHERE d.database_id = CONVERT(INT, pa.value)
-						)
-				)
-				SELECT
-					TOP (@TopN) qs.query_id,
-					MIN(qs.query_text) AS query_text,
-					DB_NAME(MIN(qs.database_id)) AS database_name,
-					COALESCE(
-						OBJECT_SCHEMA_NAME(MIN(qs.objectid), MIN(qs.database_id)),
-						'N/A'
-					) AS schema_name,
-					FORMAT(
-						MAX(qs.last_execution_time) AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS last_execution_timestamp,
-					SUM(qs.execution_count) AS execution_count,
-					AVG(qs.avg_cpu_time_ms) AS avg_cpu_time_ms,
-					AVG(qs.avg_elapsed_time_ms) AS avg_elapsed_time_ms,
-					AVG(qs.avg_disk_reads) AS avg_disk_reads,
-					AVG(qs.avg_disk_writes) AS avg_disk_writes,
-					 MAX(qs.statement_type) AS statement_type,
-					FORMAT(
-						SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
-						'yyyy-MM-ddTHH:mm:ssZ'
-					) AS collection_timestamp
-				FROM
-					QueryStats qs
-				GROUP BY
-					qs.query_id
-				HAVING
-					AVG(qs.avg_elapsed_time_ms) > @ElapsedTimeThreshold
-				ORDER BY
-					avg_elapsed_time_ms DESC;`,
+		Query: `
+DECLARE @IntervalSeconds INT = %d;        -- Define the interval in seconds
+DECLARE @TextTruncateLimit INT = %d;      -- Truncate limit for query_text  
+DECLARE @Limit INT = 5000;               -- Maximum number of aggregated groups to select (hardcoded)
+
+WITH AggregatedStats AS (
+    SELECT
+        qs.query_hash AS query_id,
+        qs.query_plan_hash,
+        MAX(CONCAT(
+            CONVERT(VARCHAR(64), CONVERT(binary(64), qs.plan_handle), 1),
+            CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_start_offset), 1),
+            CONVERT(VARCHAR(10), CONVERT(varbinary(4), qs.statement_end_offset), 1)
+        )) AS plan_handle_and_offsets,
+        
+        MAX(qs.last_execution_time) AS last_execution_time,
+        MAX(CONVERT(INT, pa.value)) AS database_id,
+        MIN(qt.objectid) AS objectid,                -- For schema name lookup
+        
+        
+        SUM(qs.execution_count) AS execution_count,
+        SUM(qs.total_worker_time) AS total_worker_time,
+        SUM(qs.total_elapsed_time) AS total_elapsed_time,
+        SUM(qs.total_logical_reads) AS total_logical_reads,
+        SUM(qs.total_logical_writes) AS total_logical_writes,
+        
+        MAX(CASE
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'SELECT' THEN 'SELECT'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'INSERT' THEN 'INSERT'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'UPDATE' THEN 'UPDATE'
+            WHEN UPPER(LTRIM(SUBSTRING(qt.text, (qs.statement_start_offset / 2) + 1, 6))) LIKE 'DELETE' THEN 'DELETE'
+            ELSE 'OTHER'
+        END) AS statement_type
+
+    FROM sys.dm_exec_query_stats qs WITH (NOLOCK)
+        CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS qt
+        CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) AS pa
+    WHERE
+        qs.last_execution_time >= DATEADD(SECOND, -@IntervalSeconds, GETUTCDATE())
+        AND qs.execution_count > 0
+        AND pa.attribute = 'dbid'
+        AND qt.text IS NOT NULL
+        AND LTRIM(RTRIM(qt.text)) <> ''
+        AND EXISTS (
+            SELECT 1
+            FROM sys.databases d WITH (NOLOCK)
+            WHERE d.database_id = CONVERT(INT, pa.value)
+        )
+    GROUP BY
+        qs.query_hash,
+        qs.query_plan_hash
+)
+
+SELECT TOP (@Limit)
+    s.query_id,
+    
+    -- Extract the actual statement text using decoded offsets
+    LEFT(SUBSTRING(
+        qt_final.text, 
+        (T.statement_start_offset / 2) + 1,
+        (
+            (CASE T.statement_end_offset 
+             WHEN -1 THEN DATALENGTH(qt_final.text)
+             ELSE T.statement_end_offset
+             END - T.statement_start_offset) / 2
+        ) + 1
+    ), @TextTruncateLimit) AS query_text,
+
+    DB_NAME(s.database_id) AS database_name,
+    COALESCE(OBJECT_SCHEMA_NAME(s.objectid, s.database_id), 'N/A') AS schema_name,
+    
+    FORMAT(
+        s.last_execution_time AT TIME ZONE 'UTC',
+        'yyyy-MM-ddTHH:mm:ssZ'
+    ) AS last_execution_timestamp,
+    
+    s.execution_count,
+    s.total_worker_time,
+    s.total_elapsed_time,
+    s.total_logical_reads,
+    s.total_logical_writes,
+    s.statement_type,
+    
+    FORMAT(
+        SYSDATETIMEOFFSET() AT TIME ZONE 'UTC',
+        'yyyy-MM-ddTHH:mm:ssZ'
+    ) AS collection_timestamp
+
+FROM AggregatedStats s
+
+    CROSS APPLY (
+        SELECT
+            CONVERT(VARBINARY(64), CONVERT(BINARY(64), SUBSTRING(s.plan_handle_and_offsets, 1, 64), 1)) AS plan_handle,
+            CONVERT(INT, CONVERT(VARBINARY(10), SUBSTRING(s.plan_handle_and_offsets, 65, 10), 1)) AS statement_start_offset,
+            CONVERT(INT, CONVERT(VARBINARY(10), SUBSTRING(s.plan_handle_and_offsets, 75, 10), 1)) AS statement_end_offset
+    ) T
+
+    CROSS APPLY sys.dm_exec_sql_text(T.plan_handle) qt_final
+
+ORDER BY s.last_execution_time DESC
+OPTION (RECOMPILE, MAXDOP 1)`,
 		Type: "slowQueries",
 	},
 	{
 		EventName: "MSSQLWaitTimeAnalysis",
-		Query: `DECLARE @TopN INT = %d; 				-- Number of results to retrieve
-				DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
-				DECLARE @sql NVARCHAR(MAX) = '';
-				DECLARE @dbName NVARCHAR(128);
-				DECLARE @resultTable TABLE(
-				  query_id VARBINARY(255),
-				  database_name NVARCHAR(128),
-				  query_text NVARCHAR(MAX),
-				  wait_category NVARCHAR(128),
-				  total_wait_time_ms FLOAT,
-				  avg_wait_time_ms FLOAT,
-				  wait_event_count INT,
-				  last_execution_time DATETIME,
-				  collection_timestamp DATETIME
-				);
-				
-				IF CURSOR_STATUS('global', 'db_cursor') > -1
-				BEGIN
-				  CLOSE db_cursor;
-				  DEALLOCATE db_cursor;
-				END
-				
-				DECLARE db_cursor CURSOR FOR
-				SELECT name FROM sys.databases
-				WHERE state_desc = 'ONLINE'
-				AND database_id > 4;
-				
-				OPEN db_cursor;
-				FETCH NEXT FROM db_cursor INTO @dbName;
-				
-				WHILE @@FETCH_STATUS = 0
-				BEGIN
-				  SET @sql = N'USE ' + QUOTENAME(@dbName) + ';
-				  WITH LatestInterval AS (
-					SELECT 
-					  qsqt.query_sql_text, 
-					  MAX(ws.runtime_stats_interval_id) AS max_runtime_stats_interval_id
-					FROM 
-					  sys.query_store_wait_stats ws
-					INNER JOIN 
-					  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
-					INNER JOIN 
-					  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
-					INNER JOIN 
-					  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
-					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%sys.%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-					GROUP BY 
-					  qsqt.query_sql_text 
-				  ),
-				  WaitStates AS (
-					SELECT 
-					  ws.runtime_stats_interval_id,
-					  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_text, -- Truncate query text for the output
-					  qsq.last_execution_time,
-					  ws.wait_category_desc AS wait_category,
-					  ws.total_query_wait_time_ms AS total_wait_time_ms,
-					  ws.avg_query_wait_time_ms AS avg_wait_time_ms,
-					  CASE 
-						WHEN ws.avg_query_wait_time_ms > 0 THEN 
-						  ws.total_query_wait_time_ms / ws.avg_query_wait_time_ms
-						ELSE 
-						  0 
-					  END AS wait_event_count,
-					  qsq.query_hash AS query_id,
-					  SYSDATETIME() AS collection_timestamp,
-					  ''' + @dbName + ''' AS database_name
-					FROM 
-					  sys.query_store_wait_stats ws
-					INNER JOIN 
-					  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
-					INNER JOIN 
-					  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
-					INNER JOIN 
-					  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
-					INNER JOIN 
-					  LatestInterval li ON qsqt.query_sql_text = li.query_sql_text 
-							  AND ws.runtime_stats_interval_id = li.max_runtime_stats_interval_id
-					WHERE 
-					  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
-					  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
-				  )
-				  SELECT
-					query_id,
-					database_name, 
-					query_text,
-					wait_category,
-					total_wait_time_ms,
-					avg_wait_time_ms,
-					wait_event_count,
-					last_execution_time,
-					collection_timestamp
-				  FROM
-					WaitStates;';
-				  
-				  INSERT INTO @resultTable
-					EXEC sp_executesql @sql;
-				
-				  FETCH NEXT FROM db_cursor INTO @dbName;
-				END
-				CLOSE db_cursor;
-				DEALLOCATE db_cursor;
-				SELECT TOP (@TopN) * FROM @resultTable 
-				ORDER BY total_wait_time_ms DESC;`,
+		Query: `-- Original complex query with Query Store and cursors (commented out for performance reasons)
+				-- DECLARE @TopN INT = %d; 				-- Number of results to retrieve
+				-- DECLARE @TextTruncateLimit INT = %d; 	-- Truncate limit for query_text
+				-- DECLARE @sql NVARCHAR(MAX) = '';
+				-- DECLARE @dbName NVARCHAR(128);
+				-- DECLARE @resultTable TABLE(
+				--   query_id VARBINARY(255),
+				--   database_name NVARCHAR(128),
+				--   query_text NVARCHAR(MAX),
+				--   wait_category NVARCHAR(128),
+				--   total_wait_time_ms FLOAT,
+				--   avg_wait_time_ms FLOAT,
+				--   wait_event_count INT,
+				--   last_execution_time DATETIME,
+				--   collection_timestamp DATETIME
+				-- );
+				-- 
+				-- IF CURSOR_STATUS('global', 'db_cursor') > -1
+				-- BEGIN
+				--   CLOSE db_cursor;
+				--   DEALLOCATE db_cursor;
+				-- END
+				-- 
+				-- DECLARE db_cursor CURSOR FOR
+				-- SELECT name FROM sys.databases
+				-- WHERE state_desc = 'ONLINE'
+				-- AND database_id > 4;
+				-- 
+				-- OPEN db_cursor;
+				-- FETCH NEXT FROM db_cursor INTO @dbName;
+				-- 
+				-- WHILE @@FETCH_STATUS = 0
+				-- BEGIN
+				--   SET @sql = N'USE ' + QUOTENAME(@dbName) + ';
+				--   WITH LatestInterval AS (
+				-- 	SELECT 
+				-- 	  qsqt.query_sql_text, 
+				-- 	  MAX(ws.runtime_stats_interval_id) AS max_runtime_stats_interval_id
+				-- 	FROM 
+				-- 	  sys.query_store_wait_stats ws
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
+				-- 	WHERE 
+				-- 	  qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+				-- 	  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+				-- 	GROUP BY 
+				-- 	  qsqt.query_sql_text 
+				--   ),
+				--   WaitStates AS (
+				-- 	SELECT 
+				-- 	  ws.runtime_stats_interval_id,
+				-- 	  LEFT(qsqt.query_sql_text, ' + CAST(@TextTruncateLimit AS NVARCHAR(4)) + ') AS query_text, -- Truncate query text for the output
+				-- 	  qsq.last_execution_time,
+				-- 	  ws.wait_category_desc AS wait_category,
+				-- 	  ws.total_query_wait_time_ms AS total_wait_time_ms,
+				-- 	  ws.avg_query_wait_time_ms AS avg_wait_time_ms,
+				-- 	  CASE 
+				-- 		WHEN ws.avg_query_wait_time_ms > 0 THEN 
+				-- 		  ws.total_query_wait_time_ms / ws.avg_query_wait_time_ms
+				-- 		ELSE 
+				-- 		  0 
+				-- 	  END AS wait_event_count,
+				-- 	  qsq.query_hash AS query_id,
+				-- 	  SYSDATETIME() AS collection_timestamp,
+				-- 	  ''' + @dbName + ''' AS database_name
+				-- 	FROM 
+				-- 	  sys.query_store_wait_stats ws
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_plan qsp ON ws.plan_id = qsp.plan_id
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_query AS qsq ON qsp.query_id = qsq.query_id
+				-- 	INNER JOIN 
+				-- 	  sys.query_store_query_text AS qsqt ON qsqt.query_text_id = qsq.query_text_id
+				-- 	INNER JOIN 
+				-- 	  LatestInterval li ON qsqt.query_sql_text = li.query_sql_text 
+				-- 			  AND ws.runtime_stats_interval_id = li.max_runtime_stats_interval_id
+				-- 	WHERE 
+				-- 	  qsqt.query_sql_text NOT LIKE ''%%WITH%%''
+				-- 	  AND qsqt.query_sql_text NOT LIKE ''%%sys.%%''
+				-- 	  AND qsqt.query_sql_text NOT LIKE ''%%INFORMATION_SCHEMA%%''
+				--   )
+				--   SELECT
+				-- 	query_id,
+				-- 	database_name, 
+				-- 	query_text,
+				-- 	wait_category,
+				-- 	total_wait_time_ms,
+				-- 	avg_wait_time_ms,
+				-- 	wait_event_count,
+				-- 	last_execution_time,
+				-- 	collection_timestamp
+				--   FROM
+				-- 	WaitStates;';
+				--   
+				--   INSERT INTO @resultTable
+				-- 	EXEC sp_executesql @sql;
+				-- 
+				--   FETCH NEXT FROM db_cursor INTO @dbName;
+				-- END
+				-- CLOSE db_cursor;
+				-- DEALLOCATE db_cursor;
+				-- SELECT TOP (@TopN) * FROM @resultTable 
+				-- ORDER BY total_wait_time_ms DESC;
+
+				-- Optimized query for current waiting sessions with proper filtering and sorting
+				SELECT TOP 1000
+					r.session_id,
+					DB_NAME(r.database_id) AS database_name,
+					LEFT(st.text, 4096) AS query_text, -- 4096-character limit applied here
+					r.wait_type as wait_category,
+					r.wait_time AS total_wait_time_ms,
+					r.start_time AS request_start_time,
+					SYSDATETIME() AS collection_timestamp
+				FROM
+					sys.dm_exec_requests AS r
+				CROSS APPLY
+					sys.dm_exec_sql_text(r.sql_handle) AS st
+				WHERE
+					r.session_id > 50          -- Ignore system sessions
+					AND r.wait_time > 0        -- Ignore if wait time is 0
+					AND r.database_id > 4      -- Ignore system databases (master, model, msdb, tempdb)
+					AND r.wait_type IS NOT NULL -- Only show sessions currently waiting
+				`,
 		Type: "waitAnalysis",
 	},
 	{

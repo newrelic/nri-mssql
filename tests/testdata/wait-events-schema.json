@@ -54,26 +54,20 @@
                 "type": "object",
                 "required": [
                   "CollectionTimestamp",
-                  "avg_wait_time_ms",
                   "database_name",
                   "event_type",
-                  "last_execution_time",
-                  "query_id",
+                  "request_start_time",
+                  "session_id",
                   "query_text",
                   "reportingEndpoint",
                   "total_wait_time_ms",
-                  "wait_category",
-                  "wait_event_count"
+                  "wait_category"
                 ],
                 "properties": {
                   "CollectionTimestamp": {
                     "type": "string",
                     "format": "date-time",
                     "description": "Timestamp when the metrics were collected"
-                  },
-                  "avg_wait_time_ms": {
-                    "type": "number",
-                    "description": "Average wait time in milliseconds"
                   },
                   "database_name": {
                     "type": "string",
@@ -83,14 +77,14 @@
                     "type": "string",
                     "description": "Type of the event"
                   },
-                  "last_execution_time": {
+                  "request_start_time": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "Timestamp of the last execution"
+                    "description": "Timestamp when the request started"
                   },
-                  "query_id": {
-                    "type": "string",
-                    "description": "Unique identifier for the query"
+                  "session_id": {
+                    "type": "number",
+                    "description": "Database session identifier"
                   },
                   "query_text": {
                     "type": "string",
@@ -107,10 +101,6 @@
                   "wait_category": {
                     "type": "string",
                     "description": "Category of the wait event"
-                  },
-                  "wait_event_count": {
-                    "type": "number",
-                    "description": "Number of wait events"
                   }
                 }
               }

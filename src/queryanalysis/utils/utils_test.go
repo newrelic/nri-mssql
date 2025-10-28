@@ -173,14 +173,14 @@ func TestExecuteQuery_SlowQueriesSuccess(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	slowQuery, ok := results[0].(models.TopNSlowQueryDetails)
+	enrichedQuery, ok := results[0].(models.NewRelicSlowQueryDetails)
 	if !ok {
-		t.Fatalf("expected type models.TopNSlowQueryDetails, got %T", results[0])
+		t.Fatalf("expected type models.NewRelicSlowQueryDetails, got %T", results[0])
 	}
 
 	expectedQueryID := models.HexString("0x0102")
-	if slowQuery.QueryID == nil || *slowQuery.QueryID != expectedQueryID {
-		t.Errorf("expected QueryID %v, got %v", expectedQueryID, slowQuery.QueryID)
+	if enrichedQuery.QueryID == nil || *enrichedQuery.QueryID != expectedQueryID {
+		t.Errorf("expected QueryID %v, got %v", expectedQueryID, enrichedQuery.QueryID)
 	}
 
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -195,18 +195,15 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 	query := "SELECT * FROM wait_analysis WHERE condition"
 	mock.ExpectQuery("SELECT \\* FROM wait_analysis WHERE condition").
 		WillReturnRows(sqlmock.NewRows([]string{
-			"query_id", "database_name", "query_text", "wait_category",
-			"total_wait_time_ms", "avg_wait_time_ms", "wait_event_count",
-			"last_execution_time", "collection_timestamp",
+			"session_id", "database_name", "query_text", "wait_category",
+			"total_wait_time_ms", "request_start_time", "collection_timestamp",
 		}).
 			AddRow(
-				[]byte{0x01, 0x02},
+				int64(52),
 				"example_db",
 				"SELECT * FROM waits",
-				"CPU",
+				"PAGEIOLATCH_SH",
 				100.5,
-				50.25,
-				10,
 				time.Now(),
 				time.Now(),
 			))
@@ -234,14 +231,19 @@ func TestExecuteQuery_WaitTimeAnalysis(t *testing.T) {
 		t.Fatalf("expected type models.WaitTimeAnalysis, got %T", results[0])
 	}
 
-	expectedQueryID := models.HexString("0x0102")
-	if waitTimeAnalysis.QueryID == nil || *waitTimeAnalysis.QueryID != expectedQueryID {
-		t.Errorf("expected QueryID %v, got %v", expectedQueryID, waitTimeAnalysis.QueryID)
+	expectedSessionID := int64(52)
+	if waitTimeAnalysis.SessionID == nil || *waitTimeAnalysis.SessionID != expectedSessionID {
+		t.Errorf("expected SessionID %v, got %v", expectedSessionID, waitTimeAnalysis.SessionID)
 	}
 
 	expectedDatabaseName := "example_db"
 	if waitTimeAnalysis.DatabaseName == nil || *waitTimeAnalysis.DatabaseName != expectedDatabaseName {
 		t.Errorf("expected DatabaseName %s, got %v", expectedDatabaseName, waitTimeAnalysis.DatabaseName)
+	}
+
+	expectedWaitCategory := "PAGEIOLATCH_SH"
+	if waitTimeAnalysis.WaitCategory == nil || *waitTimeAnalysis.WaitCategory != expectedWaitCategory {
+		t.Errorf("expected WaitCategory %s, got %v", expectedWaitCategory, waitTimeAnalysis.WaitCategory)
 	}
 
 	if err = mock.ExpectationsWereMet(); err != nil {
@@ -349,8 +351,7 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 	}
 
 	configQueries[slowQueriesIndex].Query = fmt.Sprintf(configQueries[slowQueriesIndex].Query,
-		arguments.QueryMonitoringFetchInterval, arguments.QueryMonitoringCountThreshold,
-		arguments.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+		arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != configQueries[slowQueriesIndex].Query {
 		t.Errorf("expected: %s, got: %s", configQueries[slowQueriesIndex].Query, queries[slowQueriesIndex].Query)
 	}
@@ -381,8 +382,8 @@ func TestLoadQueries_WaitAnalysis(t *testing.T) {
 	}
 
 	// Modify the query string in preparation for comparison
-	expectedQuery := fmt.Sprintf(
-		configQueries[waitQueriesIndex].Query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	// Wait analysis query uses no parameters (hardcoded TOP value)
+	expectedQuery := configQueries[waitQueriesIndex].Query
 
 	// Invoke the function under test
 	queries, err := LoadQueries(config.Queries, args)
@@ -463,7 +464,7 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     "SELECT * FROM slow_queries WHERE condition",
+			Query:     "SELECT * FROM slow_queries WHERE condition%d%d",
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
@@ -473,7 +474,7 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLBlockingSessionQueries",
 			Type:      "blockingSessions",
-			Query:     "SELECT * FROM blocking_sessions WHERE condition",
+			Query:     "SELECT * FROM blocking_sessions WHERE condition%d%d",
 		},
 	}
 
@@ -488,12 +489,12 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold, sampleArgs.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit),
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
 			Type:      "waitAnalysis",
-			Query:     fmt.Sprintf(config.Queries[1].Query, sampleArgs.QueryMonitoringCountThreshold, config.TextTruncateLimit),
+			Query:     config.Queries[1].Query,
 		},
 		{
 			EventName: "MSSQLBlockingSessionQueries",
@@ -649,4 +650,119 @@ func TestAnonymizeQueryText(t *testing.T) {
 	expected = "SELECT * FROM employees WHERE id = ? OR name <> ?   OR name != ?   OR age < ? OR age <= ?   OR salary > ?OR salary >= ?  OR department LIKE ? OR department ILIKE ?OR join_date BETWEEN ? AND ? OR department IN (?, ?, ?) OR department IS NOT NULL OR department IS NULL;"
 	query = AnonymizeQueryText(query)
 	assert.Equal(t, expected, query)
+}
+
+func TestRemoveDMVComments_WithDMVComment(t *testing.T) {
+	query := "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL ORDER BY ModifiedDate"
+	expected := "SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL ORDER BY ModifiedDate"
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment should be removed from the beginning of the query")
+}
+
+func TestRemoveDMVComments_WithWhitespace(t *testing.T) {
+	query := "   /* DMV_POP_1761636289952111000_85288 */   SELECT * FROM table"
+	expected := "SELECT * FROM table"
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment with surrounding whitespace should be removed")
+}
+
+func TestRemoveDMVComments_NoDMVComment(t *testing.T) {
+	query := "SELECT * FROM users WHERE id = 1"
+	expected := query // No change expected
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "Query without DMV comment should remain unchanged")
+}
+
+func TestRemoveDMVComments_DMVInMiddle(t *testing.T) {
+	query := "SELECT * FROM /* DMV_POP_1761636289952111000_85288 */ table"
+	expected := query // No change expected since DMV comment is not at the beginning
+
+	result := RemoveDMVComments(query)
+	assert.Equal(t, expected, result, "DMV comment in the middle should not be removed")
+}
+
+func TestAnonymizeQueryText_WithDMVComment(t *testing.T) {
+	query := "/* DMV_POP_1761636289952111000_85288 */ SELECT * FROM users WHERE id = 1 AND name = 'John'"
+	expected := "/* DMV_POP_?_? */ SELECT * FROM users WHERE id = ? AND name = ?"
+
+	result := AnonymizeQueryText(query)
+	assert.Equal(t, expected, result, "AnonymizeQueryText should only anonymize literals, not remove DMV comments")
+}
+
+func TestRemoveDMVComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Remove DMV comment from beginning",
+			input:    "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory",
+			expected: "SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory",
+		},
+		{
+			name:     "Remove DMV comment with extra spaces",
+			input:    "  /* DMV_SOMETHING_123456789 */  SELECT * FROM table",
+			expected: "SELECT * FROM table",
+		},
+		{
+			name:     "No DMV comment to remove",
+			input:    "SELECT * FROM users WHERE id = 1",
+			expected: "SELECT * FROM users WHERE id = 1",
+		},
+		{
+			name:     "DMV comment not at beginning should remain",
+			input:    "SELECT * FROM table /* DMV_POP_123 */ WHERE id = 1",
+			expected: "SELECT * FROM table /* DMV_POP_123 */ WHERE id = 1",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RemoveDMVComments(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAnonymizeQueryTextWithDMVComments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "DMV comment removal and anonymization (two-step process)",
+			input:    "/* DMV_POP_1761636289952111000_85288 */ SELECT DISTINCT TOP 62 ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL",
+			expected: "SELECT DISTINCT TOP ? ModifiedDate FROM Production.ProductCategory WHERE ProductCategoryID IS NOT NULL",
+		},
+		{
+			name:     "DMV comment with literals to anonymize (two-step process)",
+			input:    "/* DMV_TEST_123 */ SELECT * FROM users WHERE id = 100 AND name = 'John'",
+			expected: "SELECT * FROM users WHERE id = ? AND name = ?",
+		},
+		{
+			name:     "No DMV comment, only anonymization",
+			input:    "SELECT price FROM products WHERE price > 99.99 AND category = 'electronics'",
+			expected: "SELECT price FROM products WHERE price > ? AND category = ?",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Step 1: Remove DMV comments
+			cleanedQuery := RemoveDMVComments(tt.input)
+			// Step 2: Anonymize literals
+			result := AnonymizeQueryText(cleanedQuery)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
