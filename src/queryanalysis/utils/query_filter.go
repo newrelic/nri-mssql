@@ -68,30 +68,16 @@ type FilterMetrics struct {
 }
 
 // FilterSlowQueriesWithMetrics does the same filtering but also returns detailed metrics
-func FilterSlowQueriesWithMetrics(enrichedQueries []EnrichedSlowQueryDetails, args args.ArgumentList) ([]EnrichedSlowQueryDetails, FilterMetrics) {
-	metrics := FilterMetrics{
-		TotalQueriesFromDB: len(enrichedQueries),
-		ThresholdUsed:      float64(args.QueryMonitoringResponseTimeThreshold),
-		CountLimitUsed:     args.QueryMonitoringCountThreshold,
-	}
+func FilterSlowQueriesWithMetrics(enrichedQueries []EnrichedSlowQueryDetails, args args.ArgumentList) []EnrichedSlowQueryDetails {
 
 	if len(enrichedQueries) == 0 {
-		return enrichedQueries, metrics
+		return enrichedQueries
 	}
 
 	// Filter and get results using the optimized heap approach for better performance
 	filteredQueries := FilterSlowQueriesByThresholdHeap(enrichedQueries, args)
 
-	metrics.QueriesAfterFilter = len(filteredQueries)
-	metrics.QueriesAfterLimit = len(filteredQueries)
-
-	// Calculate slowest and fastest query times from the final result set
-	if len(filteredQueries) > 0 {
-		metrics.SlowestQueryTime = filteredQueries[0].AvgElapsedTimeMS                      // Already sorted, first is slowest
-		metrics.FastestQueryTime = filteredQueries[len(filteredQueries)-1].AvgElapsedTimeMS // Last is fastest
-	}
-
-	return filteredQueries, metrics
+	return filteredQueries
 }
 
 // LogFilterMetrics logs the filtering metrics for debugging

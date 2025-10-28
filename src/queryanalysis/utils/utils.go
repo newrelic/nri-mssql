@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -28,11 +29,13 @@ var (
 	// literalAnonymizer is a regular expression pattern used to match and identify
 	// certain types of literal values in a string. Specifically, it matches:
 	// 1. Single-quoted character sequences, such as 'example'.
-	// 2. Numeric sequences (integer numbers), such as 123 or 456.
+	// 2. Numeric sequences (integers and decimals), such as 123, 456.78, or .99.
 	// 3. Double-quoted strings, such as "example".
 	// This regex can be useful for identifying and potentially anonymizing literal values
 	// in a given text, like extracting or concealing specific data within strings.
-	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
+	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+\.?\d*|".*?"`)
+	// dmvCommentRemover removes DMV comments like /* DMV_POP_1761636289952111000_85288 */ from the beginning of queries
+	dmvCommentRemover = regexp.MustCompile(`^\s*/\*\s*DMV_[^*]*\*/\s*`)
 )
 
 // queryFormatter defines a function type for formatting a query string.
@@ -51,8 +54,9 @@ func formatSlowQueries(query string, args args.ArgumentList) string {
 }
 
 // formatWaitAnalysis formats the wait analysis query.
+// Updated for the simplified query with fixed TOP value (no parameters needed)
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+	return query
 }
 
 // formatBlockingSessions formats the blocking sessions query.
@@ -78,13 +82,11 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 }
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
-	log.Debug("Executing query: %s", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
-	log.Debug("Query executed: %s", queryDetailsDto.Query)
 	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
 
@@ -108,36 +110,42 @@ func BindQueryResults(arguments args.ArgumentList,
 	// For slowQueries, collect all enriched queries first, then filter
 	var enrichedSlowQueries []EnrichedSlowQueryDetails
 
-	for rows.Next() {
-		switch queryDetailsDto.Type {
-		case "slowQueries":
-			var model models.TopNSlowQueryDetails
-			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
-				continue
-			}
-			// Skip anonymization here - will be done after filtering for better performance
-			// But we MUST calculate averages now because filtering depends on them!
-			
-			// Calculate averages immediately - required for filtering logic
-			enrichedModel := EnrichSlowQueryWithAverages(model)
-			enrichedSlowQueries = append(enrichedSlowQueries, enrichedModel)
+	if queryDetailsDto.Type == "waitAnalysis" {
+		waitResults := make([]models.WaitTimeAnalysis, 0)
+		log.Info("Processing waitAnalysis rows")
 
-			// Collect query IDs for fetching executionPlans
-			if model.QueryID != nil {
-				queryIDs = append(queryIDs, *model.QueryID)
-			}
-
-		case "waitAnalysis":
+		for rows.Next() {
 			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
-				log.Debug("Could not scan row: ", err)
+				log.Debug("Could not scan waitAnalysis row: ", err)
 				continue
 			}
-			if model.QueryText != nil {
-				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+
+			waitResults = append(waitResults, model)
+		}
+
+		// Sort and filter to get top N by wait time (using QueryMonitoringCountThreshold)
+		topWaitResults := sortAndFilterWaitAnalysis(waitResults, arguments.QueryMonitoringCountThreshold)
+		log.Info("waitAnalysis: Found %d total wait results, filtered to top %d by wait time", len(waitResults), len(topWaitResults))
+
+		// Now process query text for only the top N results: remove DMV comments first, then anonymize
+		for i := range topWaitResults {
+			if topWaitResults[i].QueryText != nil {
+				// Step 1: Remove DMV comments
+				cleanedQuery := RemoveDMVComments(*topWaitResults[i].QueryText)
+				// Step 2: Anonymize literals
+				*topWaitResults[i].QueryText = AnonymizeQueryText(cleanedQuery)
 			}
-			results = append(results, model)
+
+			results = append(results, topWaitResults[i])
+		}
+
+		return results, queryIDs, nil
+	}
+
+	// Original logic for other query types
+	for rows.Next() {
+		switch queryDetailsDto.Type {
 		case "blockingSessions":
 			var model models.BlockingSessionQueryDetails
 			if err := rows.StructScan(&model); err != nil {
@@ -151,12 +159,25 @@ func BindQueryResults(arguments args.ArgumentList,
 				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
 			}
 			results = append(results, model)
+		case "slowQueries":
+			var model models.TopNSlowQueryDetails
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			// Skip anonymization here - will be done after filtering for better performance
+			// But we MUST calculate averages now because filtering depends on them!
+
+			// Calculate averages immediately - required for filtering logic
+			enrichedModel := EnrichSlowQueryWithAverages(model)
+			enrichedSlowQueries = append(enrichedSlowQueries, enrichedModel)
+
 		default:
 			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
 
-	// Apply filtering logic for slowQueries
+	// Apply filtering logic for slowQueries after all rows are processed
 	if queryDetailsDto.Type == "slowQueries" && len(enrichedSlowQueries) > 0 {
 		// STEP 1: Get a larger pool of potential queries first (for system DB fallback)
 		// We'll get more than needed so we can filter out system DBs and still have enough
@@ -172,10 +193,10 @@ func BindQueryResults(arguments args.ArgumentList,
 		expandedArgs.QueryMonitoringCountThreshold = expandedThreshold
 
 		// Get top candidates based on performance thresholds
-		candidateQueries, filterMetrics := FilterSlowQueriesWithMetrics(enrichedSlowQueries, expandedArgs)
+		candidateQueries := FilterSlowQueriesWithMetrics(enrichedSlowQueries, expandedArgs)
 
 		// Log initial filtering metrics
-		LogFilterMetrics(filterMetrics)
+		// LogFilterMetrics(filterMetrics)
 
 		// STEP 2: Intelligently filter system databases with fallback logic
 		// This ensures we get user database queries even if top results are system queries
@@ -190,7 +211,15 @@ func BindQueryResults(arguments args.ArgumentList,
 			expandedThreshold, // Max queries to search through (e.g., 100)
 		)
 
-		// STEP 3: Anonymize only the final filtered queries (much more efficient!)
+		// STEP 3: Collect query IDs from final filtered queries (not all queries!)
+		queryIDs = make([]models.HexString, 0, len(finalQueries))
+		for _, query := range finalQueries {
+			if query.QueryID != nil {
+				queryIDs = append(queryIDs, *query.QueryID)
+			}
+		}
+
+		// STEP 4: Anonymize only the final filtered queries (much more efficient!)
 		for i := range finalQueries {
 			if finalQueries[i].QueryText != nil {
 				*finalQueries[i].QueryText = AnonymizeQueryText(*finalQueries[i].QueryText)
@@ -225,7 +254,7 @@ func ProcessExecutionPlans(arguments args.ArgumentList, integration *integration
 
 func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *integration.Integration, sqlConnection *connection.SQLConnection, queryIDString string) {
 	executionPlanQuery := fmt.Sprintf(config.ExecutionPlanQueryTemplate, min(config.IndividualQueryCountMax, arguments.QueryMonitoringCountThreshold),
-		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval, config.TextTruncateLimit)
+		arguments.QueryMonitoringResponseTimeThreshold, queryIDString, arguments.QueryMonitoringFetchInterval*2, config.TextTruncateLimit)
 
 	var model models.ExecutionPlanResult
 
@@ -313,21 +342,8 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	}
 
 	for _, result := range results {
-		var dataToSend interface{}
-
-		// For slow queries, convert to NewRelic format (exclude totals)
-		if queryDetailsDto.Type == "slowQueries" {
-			if enrichedQuery, ok := result.(EnrichedSlowQueryDetails); ok {
-				dataToSend = enrichedQuery.ToNewRelicFormat()
-			} else {
-				dataToSend = result
-			}
-		} else {
-			dataToSend = result
-		}
-
 		// Convert the result into a map[string]interface{} for dynamic key-value access
-		resultMap, err := convertResultToMap(dataToSend)
+		resultMap, err := convertResultToMap(result)
 		if err != nil {
 			log.Error("failed to convert result: %v", err)
 			continue
@@ -468,8 +484,45 @@ func FilterSystemDatabases(enrichedQueries []EnrichedSlowQueryDetails) []Enriche
 }
 
 func AnonymizeQueryText(query string) string {
+	// Anonymize literals only - this is a generic function
 	anonymizedQuery := literalAnonymizer.ReplaceAllString(query, "?")
 	return anonymizedQuery
+}
+
+// RemoveDMVComments removes DMV comments like /* DMV_POP_1761636289952111000_85288 */ from the beginning of query text
+func RemoveDMVComments(query string) string {
+	return dmvCommentRemover.ReplaceAllString(query, "")
+}
+
+// sortAndFilterWaitAnalysis sorts wait analysis results by TotalWaitTimeMs descending and takes top N records
+func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysis, maxResults int) []models.WaitTimeAnalysis {
+	// Handle case where maxResults is 0 or negative - return all results
+	if maxResults <= 0 {
+		maxResults = len(waitResults)
+	}
+
+	// Sort by TotalWaitTimeMs descending
+	sort.Slice(waitResults, func(i, j int) bool {
+		if waitResults[i].TotalWaitTimeMs == nil && waitResults[j].TotalWaitTimeMs == nil {
+			return false
+		}
+		if waitResults[i].TotalWaitTimeMs == nil {
+			return false
+		}
+		if waitResults[j].TotalWaitTimeMs == nil {
+			return true
+		}
+		return *waitResults[i].TotalWaitTimeMs > *waitResults[j].TotalWaitTimeMs
+	})
+
+	// Take top N or all if less than N
+	if len(waitResults) < maxResults {
+		maxResults = len(waitResults)
+	}
+
+	topResults := waitResults[:maxResults]
+
+	return topResults
 }
 
 // ValidateAndSetDefaults checks if fields are invalid and sets defaults
@@ -550,12 +603,24 @@ func (e EnrichedSlowQueryDetails) ToNewRelicFormat() models.NewRelicSlowQueryDet
 
 // EnrichSlowQueryWithAverages creates an enriched model with calculated average metrics
 func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlowQueryDetails {
+	// Calculate averages first
+	avgCPUTimeMS := CalculateAvgCPUTimeMS(model.TotalWorkerTime, model.ExecutionCount)
+	avgElapsedTimeMS := CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount)
+	avgDiskReads := CalculateAvgDiskReads(model.TotalLogicalReads, model.ExecutionCount)
+	avgDiskWrites := CalculateAvgDiskWrites(model.TotalLogicalWrites, model.ExecutionCount)
+
+	// Remove total fields before creating enriched model
+	model.TotalWorkerTime = nil
+	model.TotalElapsedTime = nil
+	model.TotalLogicalReads = nil
+	model.TotalLogicalWrites = nil
+
 	return EnrichedSlowQueryDetails{
 		TopNSlowQueryDetails: model,
-		AvgCPUTimeMS:         CalculateAvgCPUTimeMS(model.TotalWorkerTime, model.ExecutionCount),
-		AvgElapsedTimeMS:     CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount),
-		AvgDiskReads:         CalculateAvgDiskReads(model.TotalLogicalReads, model.ExecutionCount),
-		AvgDiskWrites:        CalculateAvgDiskWrites(model.TotalLogicalWrites, model.ExecutionCount),
+		AvgCPUTimeMS:         avgCPUTimeMS,
+		AvgElapsedTimeMS:     avgElapsedTimeMS,
+		AvgDiskReads:         avgDiskReads,
+		AvgDiskWrites:        avgDiskWrites,
 	}
 }
 
