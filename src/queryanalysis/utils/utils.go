@@ -152,10 +152,16 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			if model.BlockingQueryText != nil {
-				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
+				// Step 1: Remove DMV comments
+				cleanedQuery := RemoveDMVComments(*model.BlockingQueryText)
+				// Step 2: Anonymize literals
+				*model.BlockingQueryText = AnonymizeQueryText(cleanedQuery)
 			}
 			if model.BlockedQueryText != nil {
-				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
+				// Step 1: Remove DMV comments
+				cleanedQuery := RemoveDMVComments(*model.BlockedQueryText)
+				// Step 2: Anonymize literals
+				*model.BlockedQueryText = AnonymizeQueryText(cleanedQuery)
 			}
 			results = append(results, model)
 		case "slowQueries":
@@ -221,7 +227,10 @@ func BindQueryResults(arguments args.ArgumentList,
 		// STEP 4: Anonymize only the final filtered queries (much more efficient!)
 		for i := range finalQueries {
 			if finalQueries[i].QueryText != nil {
-				*finalQueries[i].QueryText = AnonymizeQueryText(*finalQueries[i].QueryText)
+				// Step 1: Remove DMV comments
+				cleanedQuery := RemoveDMVComments(*finalQueries[i].QueryText)
+				// Step 2: Anonymize literals
+				*finalQueries[i].QueryText = AnonymizeQueryText(cleanedQuery)
 			}
 		}
 
@@ -272,7 +281,10 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 			log.Error("Could not scan execution plan row: %s", err)
 			return
 		}
-		*model.SQLText = AnonymizeQueryText(*model.SQLText)
+		// Step 1: Remove DMV comments
+		cleanedQuery := RemoveDMVComments(*model.SQLText)
+		// Step 2: Anonymize literals
+		*model.SQLText = AnonymizeQueryText(cleanedQuery)
 		results = append(results, model)
 	}
 
