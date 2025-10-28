@@ -116,9 +116,7 @@ func BindQueryResults(arguments args.ArgumentList,
 				log.Debug("Could not scan row: ", err)
 				continue
 			}
-			if model.QueryText != nil {
-				*model.QueryText = AnonymizeQueryText(*model.QueryText)
-			}
+			// Skip anonymization here - will be done after filtering for better performance
 			
 			// Create an enriched model with calculated averages
 			enrichedModel := EnrichSlowQueryWithAverages(model)
@@ -164,6 +162,13 @@ func BindQueryResults(arguments args.ArgumentList,
 		
 		// Log filtering metrics for debugging
 		LogFilterMetrics(filterMetrics)
+		
+		// NOW anonymize only the filtered queries (much more efficient!)
+		for i := range filteredQueries {
+			if filteredQueries[i].QueryText != nil {
+				*filteredQueries[i].QueryText = AnonymizeQueryText(*filteredQueries[i].QueryText)
+			}
+		}
 		
 		// Convert filtered queries back to []interface{}
 		results = make([]interface{}, len(filteredQueries))
@@ -379,26 +384,7 @@ func CalculateAvgDiskWrites(totalLogicalWrites *int64, executionCount *int64) fl
 	return float64(*totalLogicalWrites) / float64(*executionCount)
 }
 
-// NewRelicSlowQueryDetails contains only the fields we want to send to New Relic
-type NewRelicSlowQueryDetails struct {
-	// Metadata attributes
-	QueryID                *models.HexString `metric_name:"query_id" source_type:"attribute"`
-	QueryPlanHash          *models.HexString `metric_name:"query_plan_hash" source_type:"attribute"`
-	PlanHandle             *models.HexString `metric_name:"plan_handle" source_type:"attribute"`
-	QueryText              *string           `metric_name:"query_text" source_type:"attribute"`
-	DatabaseName           *string           `metric_name:"database_name" source_type:"attribute"`
-	SchemaName             *string           `metric_name:"schema_name" source_type:"attribute"`
-	LastExecutionTimestamp *string           `metric_name:"last_execution_timestamp" source_type:"attribute"`
-	StatementType          *string           `metric_name:"statement_type" source_type:"attribute"`
-	CollectionTimestamp    *string           `metric_name:"collection_timestamp" source_type:"attribute"`
-	
-	// Only execution count (for context) and calculated averages
-	ExecutionCount   *int64  `metric_name:"execution_count" source_type:"gauge"`
-	AvgCPUTimeMS     float64 `metric_name:"avg_cpu_time_ms" source_type:"gauge"`
-	AvgElapsedTimeMS float64 `metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
-	AvgDiskReads     float64 `metric_name:"avg_disk_reads" source_type:"gauge"`
-	AvgDiskWrites    float64 `metric_name:"avg_disk_writes" source_type:"gauge"`
-}
+
 
 // EnrichedSlowQueryDetails extends TopNSlowQueryDetails with calculated averages (for internal processing)
 type EnrichedSlowQueryDetails struct {
@@ -410,22 +396,20 @@ type EnrichedSlowQueryDetails struct {
 }
 
 // ToNewRelicFormat converts EnrichedSlowQueryDetails to NewRelicSlowQueryDetails (excludes totals)
-func (e EnrichedSlowQueryDetails) ToNewRelicFormat() NewRelicSlowQueryDetails {
-	return NewRelicSlowQueryDetails{
+func (e EnrichedSlowQueryDetails) ToNewRelicFormat() models.NewRelicSlowQueryDetails {
+	return models.NewRelicSlowQueryDetails{
 		QueryID:                e.QueryID,
-		QueryPlanHash:          e.QueryPlanHash,
-		PlanHandle:             e.PlanHandle,
 		QueryText:              e.QueryText,
 		DatabaseName:           e.DatabaseName,
 		SchemaName:             e.SchemaName,
 		LastExecutionTimestamp: e.LastExecutionTimestamp,
+		ExecutionCount:         e.ExecutionCount,
+		AvgCPUTimeMS:           &e.AvgCPUTimeMS,
+		AvgElapsedTimeMS:       &e.AvgElapsedTimeMS,
+		AvgDiskReads:           &e.AvgDiskReads,
+		AvgDiskWrites:          &e.AvgDiskWrites,
 		StatementType:          e.StatementType,
 		CollectionTimestamp:    e.CollectionTimestamp,
-		ExecutionCount:         e.ExecutionCount,
-		AvgCPUTimeMS:           e.AvgCPUTimeMS,
-		AvgElapsedTimeMS:       e.AvgElapsedTimeMS,
-		AvgDiskReads:           e.AvgDiskReads,
-		AvgDiskWrites:          e.AvgDiskWrites,
 	}
 }
 
