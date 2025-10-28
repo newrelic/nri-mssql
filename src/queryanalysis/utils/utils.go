@@ -34,7 +34,7 @@ var (
 	// 3. Double-quoted strings, such as "example".
 	// This regex can be useful for identifying and potentially anonymizing literal values
 	// in a given text, like extracting or concealing specific data within strings.
-	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d*\.?\d+|".*?"`)
+	literalAnonymizer = regexp.MustCompile(`'[^']*'|\d+|".*?"`)
 	// dmvCommentRemover removes DMV comments like /* DMV_POP_1761636289952111000_85288 */ from the beginning of queries
 	dmvCommentRemover = regexp.MustCompile(`^\s*/\*\s*DMV_[^*]*\*/\s*`)
 )
@@ -151,7 +151,6 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			if model.QueryText != nil {
-				// Only anonymize literals for slow queries
 				*model.QueryText = AnonymizeQueryText(*model.QueryText)
 			}
 			results = append(results, model)
@@ -167,11 +166,9 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			if model.BlockingQueryText != nil {
-				// For blocking sessions, just anonymize (no DMV comments expected)
 				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
 			}
 			if model.BlockedQueryText != nil {
-				// For blocking sessions, just anonymize (no DMV comments expected)
 				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
 			}
 			results = append(results, model)
@@ -219,7 +216,6 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 			log.Error("Could not scan execution plan row: %s", err)
 			return
 		}
-		// Only anonymize literals for execution plans
 		*model.SQLText = AnonymizeQueryText(*model.SQLText)
 		results = append(results, model)
 	}
