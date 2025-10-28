@@ -117,9 +117,13 @@ func BindQueryResults(arguments args.ArgumentList,
 				continue
 			}
 			// Skip anonymization here - will be done after filtering for better performance
+			// Skip enrichment here too - will be done after filtering for better performance
 			
-			// Create an enriched model with calculated averages
-			enrichedModel := EnrichSlowQueryWithAverages(model)
+			// Store raw model first, we'll enrich only the filtered ones
+			enrichedModel := EnrichedSlowQueryDetails{
+				TopNSlowQueryDetails: model,
+				// Averages will be calculated later after filtering
+			}
 			enrichedSlowQueries = append(enrichedSlowQueries, enrichedModel)
 
 			// Collect query IDs for fetching executionPlans
@@ -157,22 +161,48 @@ func BindQueryResults(arguments args.ArgumentList,
 
 	// Apply filtering logic for slowQueries
 	if queryDetailsDto.Type == "slowQueries" && len(enrichedSlowQueries) > 0 {
-		// Filter and limit the slow queries based on thresholds
-		filteredQueries, filterMetrics := FilterSlowQueriesWithMetrics(enrichedSlowQueries, arguments)
+		// STEP 1: Get a larger pool of potential queries first (for system DB fallback)
+		// We'll get more than needed so we can filter out system DBs and still have enough
+		expandedThreshold := arguments.QueryMonitoringCountThreshold * 5 // Get 5x more for fallback
+		if expandedThreshold == 0 {
+			expandedThreshold = 50 // Default fallback when count threshold is 0
+		}
+		if expandedThreshold > 100 {
+			expandedThreshold = 100 // Cap at 100 to avoid excessive processing
+		}
 		
-		// Log filtering metrics for debugging
+		expandedArgs := arguments
+		expandedArgs.QueryMonitoringCountThreshold = expandedThreshold
+		
+		// Get top candidates based on performance thresholds
+		candidateQueries, filterMetrics := FilterSlowQueriesWithMetrics(enrichedSlowQueries, expandedArgs)
+		
+		// Log initial filtering metrics
 		LogFilterMetrics(filterMetrics)
 		
-		// NOW anonymize only the filtered queries (much more efficient!)
-		for i := range filteredQueries {
-			if filteredQueries[i].QueryText != nil {
-				*filteredQueries[i].QueryText = AnonymizeQueryText(*filteredQueries[i].QueryText)
+		// STEP 2: Intelligently filter system databases with fallback logic
+		// This ensures we get user database queries even if top results are system queries
+		targetCount := arguments.QueryMonitoringCountThreshold
+		if targetCount == 0 {
+			targetCount = len(candidateQueries) // Return all candidates when no limit specified
+		}
+		
+		finalQueries := FilterSystemDatabasesWithFallback(
+			candidateQueries, 
+			targetCount, // Target count (e.g., 20)
+			expandedThreshold, // Max queries to search through (e.g., 100)
+		)
+		
+		// STEP 3: Anonymize only the final filtered queries (much more efficient!)
+		for i := range finalQueries {
+			if finalQueries[i].QueryText != nil {
+				*finalQueries[i].QueryText = AnonymizeQueryText(*finalQueries[i].QueryText)
 			}
 		}
 		
 		// Convert filtered queries back to []interface{}
-		results = make([]interface{}, len(filteredQueries))
-		for i, query := range filteredQueries {
+		results = make([]interface{}, len(finalQueries))
+		for i, query := range finalQueries {
 			results[i] = query
 		}
 	}
@@ -330,6 +360,116 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	return nil
 }
 
+// IsSystemDatabase checks if a database name is a SQL Server system database
+func IsSystemDatabase(databaseName *string) bool {
+	if databaseName == nil {
+		return true // Treat nil database name as system database to filter it out
+	}
+	
+	systemDatabases := map[string]bool{
+		"master": true,
+		"model":  true,
+		"msdb":   true,
+		"tempdb": true,
+	}
+	
+	// Case-insensitive comparison
+	dbName := strings.ToLower(strings.TrimSpace(*databaseName))
+	return systemDatabases[dbName]
+}
+
+// FilterSystemDatabasesWithFallback intelligently filters system databases with fallback logic
+// If the initial top N queries are mostly system databases, it will expand the search 
+// to find user database queries from a larger pool (up to maxLookup queries)
+func FilterSystemDatabasesWithFallback(enrichedQueries []EnrichedSlowQueryDetails, targetCount int, maxLookup int) []EnrichedSlowQueryDetails {
+	if len(enrichedQueries) == 0 {
+		return enrichedQueries
+	}
+	
+	// Ensure maxLookup doesn't exceed available queries
+	if maxLookup > len(enrichedQueries) {
+		maxLookup = len(enrichedQueries)
+	}
+	
+	filteredQueries := make([]EnrichedSlowQueryDetails, 0, targetCount)
+	systemQueriesCount := 0
+	systemDatabasesFound := make(map[string]int)
+	
+	// Iterate through queries up to maxLookup limit
+	for i := 0; i < maxLookup && len(filteredQueries) < targetCount; i++ {
+		query := enrichedQueries[i]
+		
+		if !IsSystemDatabase(query.DatabaseName) {
+			// Found a user database query - add it to results
+			filteredQueries = append(filteredQueries, query)
+		} else {
+			// Track system database queries for logging
+			systemQueriesCount++
+			if query.DatabaseName != nil {
+				dbName := strings.ToLower(strings.TrimSpace(*query.DatabaseName))
+				systemDatabasesFound[dbName]++
+			}
+		}
+	}
+	
+	// Detailed logging
+	log.Debug("Smart system database filter with fallback:")
+	log.Debug("  - Searched through top %d queries", min(maxLookup, len(enrichedQueries)))
+	log.Debug("  - Found %d user database queries", len(filteredQueries))
+	log.Debug("  - Skipped %d system database queries", systemQueriesCount)
+	
+	if systemQueriesCount > 0 {
+		for dbName, count := range systemDatabasesFound {
+			log.Debug("  - %s: %d queries skipped", dbName, count)
+		}
+	}
+	
+	if len(filteredQueries) == 0 {
+		log.Warn("No user database queries found in top %d results - all queries are from system databases", maxLookup)
+	} else if len(filteredQueries) < targetCount {
+		log.Debug("Found %d user queries (wanted %d) after searching %d queries", len(filteredQueries), targetCount, maxLookup)
+	}
+	
+	return filteredQueries
+}
+
+// FilterSystemDatabases removes queries from system databases (legacy function for compatibility)
+// This should be called on the already filtered top N queries for efficiency
+func FilterSystemDatabases(enrichedQueries []EnrichedSlowQueryDetails) []EnrichedSlowQueryDetails {
+	if len(enrichedQueries) == 0 {
+		return enrichedQueries
+	}
+	
+	filteredQueries := make([]EnrichedSlowQueryDetails, 0, len(enrichedQueries))
+	systemQueriesCount := 0
+	systemDatabasesFound := make(map[string]int)
+	
+	for _, query := range enrichedQueries {
+		if !IsSystemDatabase(query.DatabaseName) {
+			filteredQueries = append(filteredQueries, query)
+		} else {
+			systemQueriesCount++
+			if query.DatabaseName != nil {
+				dbName := strings.ToLower(strings.TrimSpace(*query.DatabaseName))
+				systemDatabasesFound[dbName]++
+			}
+		}
+	}
+	
+	if systemQueriesCount > 0 {
+		log.Debug("System database filter (applied to top %d queries):", len(enrichedQueries))
+		log.Debug("  - Filtered out %d queries from system databases", systemQueriesCount)
+		for dbName, count := range systemDatabasesFound {
+			log.Debug("  - %s: %d queries removed", dbName, count)
+		}
+		log.Debug("  - Final queries to send to New Relic: %d", len(filteredQueries))
+	} else {
+		log.Debug("No system database queries found in top %d results", len(enrichedQueries))
+	}
+	
+	return filteredQueries
+}
+
 func AnonymizeQueryText(query string) string {
 	anonymizedQuery := literalAnonymizer.ReplaceAllString(query, "?")
 	return anonymizedQuery
@@ -421,5 +561,17 @@ func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlow
 		AvgElapsedTimeMS:     CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount),
 		AvgDiskReads:         CalculateAvgDiskReads(model.TotalLogicalReads, model.ExecutionCount),
 		AvgDiskWrites:        CalculateAvgDiskWrites(model.TotalLogicalWrites, model.ExecutionCount),
+	}
+}
+
+// EnrichQueriesWithAverages calculates averages for multiple queries efficiently
+func EnrichQueriesWithAverages(queries []EnrichedSlowQueryDetails) {
+	log.Debug("Calculating averages for %d filtered queries", len(queries))
+	
+	for i := range queries {
+		queries[i].AvgCPUTimeMS = CalculateAvgCPUTimeMS(queries[i].TotalWorkerTime, queries[i].ExecutionCount)
+		queries[i].AvgElapsedTimeMS = CalculateAvgElapsedTimeMS(queries[i].TotalElapsedTime, queries[i].ExecutionCount)
+		queries[i].AvgDiskReads = CalculateAvgDiskReads(queries[i].TotalLogicalReads, queries[i].ExecutionCount)
+		queries[i].AvgDiskWrites = CalculateAvgDiskWrites(queries[i].TotalLogicalWrites, queries[i].ExecutionCount)
 	}
 }
