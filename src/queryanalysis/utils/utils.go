@@ -47,8 +47,7 @@ var queryFormatters = map[string]queryFormatter{
 
 // formatSlowQueries formats the slow queries query.
 func formatSlowQueries(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
-		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 }
 
 // formatWaitAnalysis formats the wait analysis query.
@@ -106,6 +105,9 @@ func BindQueryResults(arguments args.ArgumentList,
 	results := make([]interface{}, 0)
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
+	// For slowQueries, collect all enriched queries first, then filter
+	var enrichedSlowQueries []EnrichedSlowQueryDetails
+
 	for rows.Next() {
 		switch queryDetailsDto.Type {
 		case "slowQueries":
@@ -117,7 +119,10 @@ func BindQueryResults(arguments args.ArgumentList,
 			if model.QueryText != nil {
 				*model.QueryText = AnonymizeQueryText(*model.QueryText)
 			}
-			results = append(results, model)
+			
+			// Create an enriched model with calculated averages
+			enrichedModel := EnrichSlowQueryWithAverages(model)
+			enrichedSlowQueries = append(enrichedSlowQueries, enrichedModel)
 
 			// Collect query IDs for fetching executionPlans
 			if model.QueryID != nil {
@@ -151,6 +156,22 @@ func BindQueryResults(arguments args.ArgumentList,
 			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
 		}
 	}
+
+	// Apply filtering logic for slowQueries
+	if queryDetailsDto.Type == "slowQueries" && len(enrichedSlowQueries) > 0 {
+		// Filter and limit the slow queries based on thresholds
+		filteredQueries, filterMetrics := FilterSlowQueriesWithMetrics(enrichedSlowQueries, arguments)
+		
+		// Log filtering metrics for debugging
+		LogFilterMetrics(filterMetrics)
+		
+		// Convert filtered queries back to []interface{}
+		results = make([]interface{}, len(filteredQueries))
+		for i, query := range filteredQueries {
+			results[i] = query
+		}
+	}
+
 	return results, queryIDs, nil
 }
 
@@ -260,8 +281,21 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 	}
 
 	for _, result := range results {
+		var dataToSend interface{}
+		
+		// For slow queries, convert to NewRelic format (exclude totals)
+		if queryDetailsDto.Type == "slowQueries" {
+			if enrichedQuery, ok := result.(EnrichedSlowQueryDetails); ok {
+				dataToSend = enrichedQuery.ToNewRelicFormat()
+			} else {
+				dataToSend = result
+			}
+		} else {
+			dataToSend = result
+		}
+
 		// Convert the result into a map[string]interface{} for dynamic key-value access
-		resultMap, err := convertResultToMap(result)
+		resultMap, err := convertResultToMap(dataToSend)
 		if err != nil {
 			log.Error("failed to convert result: %v", err)
 			continue
@@ -310,5 +344,98 @@ func ValidateAndSetDefaults(args *args.ArgumentList) {
 	} else if args.QueryMonitoringCountThreshold >= config.GroupedQueryCountMax {
 		args.QueryMonitoringCountThreshold = config.GroupedQueryCountMax
 		log.Warn("Query count threshold is greater than max supported value, setting to max supported value: %d", config.GroupedQueryCountMax)
+	}
+}
+
+// CalculateAvgCPUTimeMS calculates average CPU time in milliseconds
+func CalculateAvgCPUTimeMS(totalWorkerTime *int64, executionCount *int64) float64 {
+	if totalWorkerTime == nil || executionCount == nil || *executionCount == 0 {
+		return 0.0
+	}
+	return float64(*totalWorkerTime) / float64(*executionCount) / 1000.0
+}
+
+// CalculateAvgElapsedTimeMS calculates average elapsed time in milliseconds
+func CalculateAvgElapsedTimeMS(totalElapsedTime *int64, executionCount *int64) float64 {
+	if totalElapsedTime == nil || executionCount == nil || *executionCount == 0 {
+		return 0.0
+	}
+	return float64(*totalElapsedTime) / float64(*executionCount) / 1000.0
+}
+
+// CalculateAvgDiskReads calculates average disk reads per execution
+func CalculateAvgDiskReads(totalLogicalReads *int64, executionCount *int64) float64 {
+	if totalLogicalReads == nil || executionCount == nil || *executionCount == 0 {
+		return 0.0
+	}
+	return float64(*totalLogicalReads) / float64(*executionCount)
+}
+
+// CalculateAvgDiskWrites calculates average disk writes per execution
+func CalculateAvgDiskWrites(totalLogicalWrites *int64, executionCount *int64) float64 {
+	if totalLogicalWrites == nil || executionCount == nil || *executionCount == 0 {
+		return 0.0
+	}
+	return float64(*totalLogicalWrites) / float64(*executionCount)
+}
+
+// NewRelicSlowQueryDetails contains only the fields we want to send to New Relic
+type NewRelicSlowQueryDetails struct {
+	// Metadata attributes
+	QueryID                *models.HexString `metric_name:"query_id" source_type:"attribute"`
+	QueryPlanHash          *models.HexString `metric_name:"query_plan_hash" source_type:"attribute"`
+	PlanHandle             *models.HexString `metric_name:"plan_handle" source_type:"attribute"`
+	QueryText              *string           `metric_name:"query_text" source_type:"attribute"`
+	DatabaseName           *string           `metric_name:"database_name" source_type:"attribute"`
+	SchemaName             *string           `metric_name:"schema_name" source_type:"attribute"`
+	LastExecutionTimestamp *string           `metric_name:"last_execution_timestamp" source_type:"attribute"`
+	StatementType          *string           `metric_name:"statement_type" source_type:"attribute"`
+	CollectionTimestamp    *string           `metric_name:"collection_timestamp" source_type:"attribute"`
+	
+	// Only execution count (for context) and calculated averages
+	ExecutionCount   *int64  `metric_name:"execution_count" source_type:"gauge"`
+	AvgCPUTimeMS     float64 `metric_name:"avg_cpu_time_ms" source_type:"gauge"`
+	AvgElapsedTimeMS float64 `metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
+	AvgDiskReads     float64 `metric_name:"avg_disk_reads" source_type:"gauge"`
+	AvgDiskWrites    float64 `metric_name:"avg_disk_writes" source_type:"gauge"`
+}
+
+// EnrichedSlowQueryDetails extends TopNSlowQueryDetails with calculated averages (for internal processing)
+type EnrichedSlowQueryDetails struct {
+	models.TopNSlowQueryDetails
+	AvgCPUTimeMS     float64 `metric_name:"avg_cpu_time_ms" source_type:"gauge"`
+	AvgElapsedTimeMS float64 `metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
+	AvgDiskReads     float64 `metric_name:"avg_disk_reads" source_type:"gauge"`
+	AvgDiskWrites    float64 `metric_name:"avg_disk_writes" source_type:"gauge"`
+}
+
+// ToNewRelicFormat converts EnrichedSlowQueryDetails to NewRelicSlowQueryDetails (excludes totals)
+func (e EnrichedSlowQueryDetails) ToNewRelicFormat() NewRelicSlowQueryDetails {
+	return NewRelicSlowQueryDetails{
+		QueryID:                e.QueryID,
+		QueryPlanHash:          e.QueryPlanHash,
+		PlanHandle:             e.PlanHandle,
+		QueryText:              e.QueryText,
+		DatabaseName:           e.DatabaseName,
+		SchemaName:             e.SchemaName,
+		LastExecutionTimestamp: e.LastExecutionTimestamp,
+		StatementType:          e.StatementType,
+		CollectionTimestamp:    e.CollectionTimestamp,
+		ExecutionCount:         e.ExecutionCount,
+		AvgCPUTimeMS:           e.AvgCPUTimeMS,
+		AvgElapsedTimeMS:       e.AvgElapsedTimeMS,
+		AvgDiskReads:           e.AvgDiskReads,
+		AvgDiskWrites:          e.AvgDiskWrites,
+	}
+}
+
+// EnrichSlowQueryWithAverages creates an enriched model with calculated average metrics
+func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlowQueryDetails {
+	return EnrichedSlowQueryDetails{
+		TopNSlowQueryDetails: model,
+		AvgCPUTimeMS:         CalculateAvgCPUTimeMS(model.TotalWorkerTime, model.ExecutionCount),
+		AvgElapsedTimeMS:     CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount),
+		AvgDiskReads:         CalculateAvgDiskReads(model.TotalLogicalReads, model.ExecutionCount),
+		AvgDiskWrites:        CalculateAvgDiskWrites(model.TotalLogicalWrites, model.ExecutionCount),
 	}
 }
