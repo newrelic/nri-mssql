@@ -9,7 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancements
+## v2.24.0 - 2025-11-04
+
+### 🚀 Enhancements
 - Optimized qpm slow and wait queries
 
 ## v2.22.0 - 2025-10-21
