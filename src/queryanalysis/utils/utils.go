@@ -43,9 +43,14 @@ type queryFormatter func(query string, args args.ArgumentList) string
 
 // queryFormatters maps query types to their corresponding formatting functions.
 var queryFormatters = map[string]queryFormatter{
-	"slowQueries":      formatSlowQueries,
-	"waitAnalysis":     formatWaitAnalysis,
 	"blockingSessions": formatBlockingSessions,
+	"waitAnalysis":     formatWaitAnalysis,
+	"slowQueries":      formatSlowQueries,
+}
+var queryFormatterHistoricalInformation = map[string]queryFormatter{
+	"slowQueries":      formatSlowQueriesWithHistoricalInformation,
+	"waitAnalysis":     formatWaitAnalysisHistoricalInformation,
+	"blockingSessions": formatBlockingSessionsHistoricalInformation,
 }
 
 // formatSlowQueries formats the slow queries query.
@@ -53,13 +58,27 @@ func formatSlowQueries(query string, args args.ArgumentList) string {
 	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 }
 
+// formatSlowQueries formats the slow queries query.
+func formatSlowQueriesWithHistoricalInformation(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
+		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+}
+
 // formatWaitAnalysis formats the wait analysis query.
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
 	return query
 }
 
+// formatWaitAnalysis formats the wait analysis query.
+func formatWaitAnalysisHistoricalInformation(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+}
+
 // formatBlockingSessions formats the blocking sessions query.
 func formatBlockingSessions(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+}
+func formatBlockingSessionsHistoricalInformation(query string, args args.ArgumentList) string {
 	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 }
 
@@ -80,12 +99,32 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 	return loadedQueries, nil
 }
 
+// LoadQueries loads and formats query details based on the provided arguments.
+func LoadQueriesWithHistoricalInformation(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+	loadedQueries := make([]models.QueryDetailsDto, len(queries))
+	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
+
+	for i := range loadedQueries {
+		formatter, ok := queryFormatterHistoricalInformation[loadedQueries[i].Type]
+		if !ok {
+			// Log the error and return an error instead of nil
+			err := fmt.Errorf("%w: %s", ErrUnknownQueryType, loadedQueries[i].Type)
+			return nil, err
+		}
+		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
+	}
+	return loadedQueries, nil
+}
+
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+	log.Debug("Executing query: %s", queryDetailsDto.Query)
+	fmt.Println("Executing query:", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
+	log.Debug("Query executed: %s", queryDetailsDto.Query)
 	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
 
@@ -94,6 +133,83 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
 	}
 	return result, err
+}
+
+func ExecuteQueryWithHistoricalInformation(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+	log.Debug("Executing query: %s", queryDetailsDto.Query)
+	fmt.Println("Executing query:", queryDetailsDto.Query)
+	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+	log.Debug("Query executed: %s", queryDetailsDto.Query)
+	result, queryIDs, err := BindQueryResultsWithHistoricalInformation(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	rows.Close()
+
+	// Process collected query IDs for execution plan
+	if len(queryIDs) > 0 {
+		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
+	}
+	return result, err
+}
+
+// BindQueryResults binds query results to the specified data model using `sqlx`
+// nolint:gocyclo
+func BindQueryResultsWithHistoricalInformation(arguments args.ArgumentList,
+	rows *sqlx.Rows,
+	queryDetailsDto models.QueryDetailsDto,
+	integration *integration.Integration,
+	sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
+	results := make([]interface{}, 0)
+	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
+
+	for rows.Next() {
+		switch queryDetailsDto.Type {
+		case "slowQueries":
+			var model models.TopNSlowQueryDetailsWithHistoricalInformation
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
+			results = append(results, model)
+
+			// Collect query IDs for fetching executionPlans
+			if model.QueryID != nil {
+				queryIDs = append(queryIDs, *model.QueryID)
+			}
+
+		case "waitAnalysis":
+			var model models.WaitTimeAnalysisWithHistoricalInformation
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
+			results = append(results, model)
+		case "blockingSessions":
+			var model models.BlockingSessionQueryDetails
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.BlockingQueryText != nil {
+				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
+			}
+			if model.BlockedQueryText != nil {
+				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
+			}
+			results = append(results, model)
+		default:
+			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
+		}
+	}
+	return results, queryIDs, nil
 }
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
