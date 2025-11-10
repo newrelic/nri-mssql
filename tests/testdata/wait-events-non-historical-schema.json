@@ -56,14 +56,12 @@
                   "CollectionTimestamp",
                   "database_name",
                   "event_type",
-                  "last_execution_time",
-                  "query_id",
+                  "request_start_time",
+                  "session_id",
                   "query_text",
                   "reportingEndpoint",
                   "total_wait_time_ms",
-                  "wait_category",
-                  "avg_wait_time_ms",
-                  "wait_event_count"
+                  "wait_category"
                 ],
                 "properties": {
                   "CollectionTimestamp": {
@@ -79,14 +77,14 @@
                     "type": "string",
                     "description": "Type of the event"
                   },
-                  "last_execution_time": {
+                  "request_start_time": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "Timestamp when the query was last executed"
+                    "description": "Timestamp when the request started"
                   },
-                  "query_id": {
-                    "type": "string",
-                    "description": "Query identifier hash"
+                  "session_id": {
+                    "type": "number",
+                    "description": "Database session identifier"
                   },
                   "query_text": {
                     "type": "string",
@@ -103,14 +101,6 @@
                   "wait_category": {
                     "type": "string",
                     "description": "Category of the wait event"
-                  },
-                  "avg_wait_time_ms": {
-                    "type": "number",
-                    "description": "Average wait time in milliseconds"
-                  },
-                  "wait_event_count": {
-                    "type": "number",
-                    "description": "Number of wait events"
                   }
                 }
               }

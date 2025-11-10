@@ -91,6 +91,12 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 			expectedSampleTypes: []string{"MssqlInstanceSample", "MSSQLWaitTimeAnalysis", "MSSQLBlockingSessionQueries"},
 		},
 		{
+			name:                "Perf metrics on supported database with perf enabled and non-historical mode",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_disable_historical_information=true`},
+			expectedSampleTypes: []string{"MssqlInstanceSample", "MSSQLWaitTimeAnalysis", "MSSQLBlockingSessionQueries"},
+		},
+		{
 			name:                "Perf metrics on supported database with perf disabled",
 			containers:          perfContainers,
 			args:                []string{`-enable_query_monitoring=false`},
@@ -127,7 +133,7 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 						require.Contains(t, tt.expectedSampleTypes, sampleType, "Found unexpected sample type %q", sampleType)
 						foundSampleTypes[sampleType] = true
 
-						validateSample(t, sample, sampleType)
+						validateSample(t, sample, sampleType, tt.args)
 					}
 					samplesFound := getFoundSampleTypes(foundSampleTypes)
 					require.ElementsMatch(t, tt.expectedSampleTypes, samplesFound, "Not all expected sample types where found expected %v, found %v", tt.expectedSampleTypes, samplesFound)
@@ -147,7 +153,7 @@ func runQueries(t *testing.T, container string) {
 	}
 }
 
-func validateSample(t *testing.T, sample string, sampleType string) {
+func validateSample(t *testing.T, sample string, sampleType string, args []string) {
 	t.Helper()
 	// Validate JSON format
 	var j map[string]interface{}
@@ -156,7 +162,7 @@ func validateSample(t *testing.T, sample string, sampleType string) {
 
 	// Validate schema
 	t.Run(fmt.Sprintf("Validating JSON schema for sample: %s", sampleType), func(t *testing.T) {
-		schemaFile := getSchemaFileName(sampleType)
+		schemaFile := getSchemaFileName(sampleType, args)
 		require.NotEmpty(t, schemaFile, "Schema file not found for sample type: %s", sampleType)
 
 		err = validateJSONSchema(schemaFile, sample)
@@ -221,7 +227,7 @@ func getPortAndDbForContainer(container string) (int, string) {
 	}
 }
 
-func getSchemaFileName(sampleType string) string {
+func getSchemaFileName(sampleType string, args []string) string {
 	schemaMap := map[string]string{
 		"MssqlInstanceSample":         "mssql-schema.json",
 		"MSSQLQueryExecutionPlans":    "execution-plan-schema.json",
@@ -229,6 +235,16 @@ func getSchemaFileName(sampleType string) string {
 		"MSSQLWaitTimeAnalysis":       "wait-events-schema.json",
 		"MSSQLBlockingSessionQueries": "blocking-sessions-schema.json",
 	}
+
+	// Check if non-historical mode is enabled for wait time analysis
+	if sampleType == "MSSQLWaitTimeAnalysis" {
+		for _, arg := range args {
+			if strings.Contains(arg, "query_monitoring_disable_historical_information=true") {
+				return "wait-events-non-historical-schema.json"
+			}
+		}
+	}
+
 	return schemaMap[sampleType]
 }
 
