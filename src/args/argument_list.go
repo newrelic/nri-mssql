@@ -41,7 +41,7 @@ type ArgumentList struct {
 	QueryMonitoringResponseTimeThreshold        int    `default:"1" help:"Threshold in milliseconds for query response time. If response time exceeds this threshold, the query will be considered slow."`
 	QueryMonitoringCountThreshold               int    `default:"20" help:"Maximum number of queries returned in query analysis results."`
 	QueryMonitoringFetchInterval                int    `default:"15" help:"Interval in seconds for fetching grouped slow queries; Should always be same as mysql-config interval."`
-	QueryMonitoringDisableHistoricalInformation bool   `default:"true" help:"QPM queries will not fetch on all historical informations and to increase performance of the queries."`
+	QueryMonitoringDisableHistoricalInformation bool   `default:"false" help:"QPM queries will not fetch on all historical informations and to increase performance of the queries."`
 }
 
 // Validate validates SQL specific arguments
