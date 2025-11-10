@@ -34,9 +34,9 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 
 	var queryDetails []models.QueryDetailsDto
 	if arguments.QueryMonitoringDisableHistoricalInformation {
-		queryDetails, err = utils.LoadQueries(config.Queries, arguments)
+		queryDetails, err = utils.LoadQueriesWithoutHistoricalInformation(config.Queries, arguments)
 	} else {
-		queryDetails, err = utils.LoadQueriesWithHistoricalInformation(config.QueriesWithHistoricalInformation, arguments)
+		queryDetails, err = utils.LoadQueries(config.QueriesWithHistoricalInformation, arguments)
 	}
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
@@ -46,9 +46,9 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	for _, queryDetailsDto := range queryDetails {
 		var queryResults []interface{}
 		if arguments.QueryMonitoringDisableHistoricalInformation {
-			queryResults, err = utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+			queryResults, err = utils.ExecuteQueryWithoutHistoricalInformation(arguments, queryDetailsDto, integration, sqlConnection)
 		} else {
-			queryResults, err = utils.ExecuteQueryWithHistoricalInformation(arguments, queryDetailsDto, integration, sqlConnection)
+			queryResults, err = utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
 		}
 		if err != nil {
 			log.Error("Failed to execute query: %s", err)

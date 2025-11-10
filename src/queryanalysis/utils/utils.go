@@ -83,7 +83,7 @@ func formatBlockingSessionsHistoricalInformation(query string, args args.Argumen
 }
 
 // LoadQueries loads and formats query details based on the provided arguments.
-func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+func LoadQueriesWithoutHistoricalInformation(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	loadedQueries := make([]models.QueryDetailsDto, len(queries))
 	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
 
@@ -100,7 +100,7 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 }
 
 // LoadQueries loads and formats query details based on the provided arguments.
-func LoadQueriesWithHistoricalInformation(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	loadedQueries := make([]models.QueryDetailsDto, len(queries))
 	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
 
@@ -134,7 +134,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 	return result, err
 }
 
-func ExecuteQueryWithHistoricalInformation(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+func ExecuteQueryWithoutHistoricalInformation(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	log.Debug("Executing query: %s", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
@@ -142,7 +142,7 @@ func ExecuteQueryWithHistoricalInformation(arguments args.ArgumentList, queryDet
 	}
 	defer rows.Close()
 	log.Debug("Query executed: %s", queryDetailsDto.Query)
-	result, queryIDs, err := BindQueryResultsWithHistoricalInformation(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	result, queryIDs, err := BindQueryResultsWithoutHistoricalInformation(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
 
 	// Process collected query IDs for execution plan
@@ -154,7 +154,7 @@ func ExecuteQueryWithHistoricalInformation(arguments args.ArgumentList, queryDet
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
 // nolint:gocyclo
-func BindQueryResultsWithHistoricalInformation(arguments args.ArgumentList,
+func BindQueryResults(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
@@ -165,7 +165,7 @@ func BindQueryResultsWithHistoricalInformation(arguments args.ArgumentList,
 	for rows.Next() {
 		switch queryDetailsDto.Type {
 		case "slowQueries":
-			var model models.TopNSlowQueryDetailsWithHistoricalInformation
+			var model models.TopNSlowQueryDetails
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan row: ", err)
 				continue
@@ -181,7 +181,7 @@ func BindQueryResultsWithHistoricalInformation(arguments args.ArgumentList,
 			}
 
 		case "waitAnalysis":
-			var model models.WaitTimeAnalysisWithHistoricalInformation
+			var model models.WaitTimeAnalysis
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan row: ", err)
 				continue
@@ -212,7 +212,7 @@ func BindQueryResultsWithHistoricalInformation(arguments args.ArgumentList,
 
 // BindQueryResults binds query results to the specified data model using `sqlx`
 // nolint:gocyclo
-func BindQueryResults(arguments args.ArgumentList,
+func BindQueryResultsWithoutHistoricalInformation(arguments args.ArgumentList,
 	rows *sqlx.Rows,
 	queryDetailsDto models.QueryDetailsDto,
 	integration *integration.Integration,
@@ -224,11 +224,11 @@ func BindQueryResults(arguments args.ArgumentList,
 	var enrichedSlowQueries []EnrichedSlowQueryDetails
 
 	if queryDetailsDto.Type == "waitAnalysis" {
-		waitResults := make([]models.WaitTimeAnalysis, 0)
+		waitResults := make([]models.WaitTimeAnalysisWithoutHistoricalInformation, 0)
 		log.Info("Processing waitAnalysis rows")
 
 		for rows.Next() {
-			var model models.WaitTimeAnalysis
+			var model models.WaitTimeAnalysisWithoutHistoricalInformation
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan waitAnalysis row: ", err)
 				continue
@@ -279,7 +279,7 @@ func BindQueryResults(arguments args.ArgumentList,
 			}
 			results = append(results, model)
 		case "slowQueries":
-			var model models.TopNSlowQueryDetails
+			var model models.TopNSlowQueryDetailsWithoutHistoricalInformation
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan row: ", err)
 				continue
@@ -621,7 +621,7 @@ func RemoveDMVComments(query string) string {
 }
 
 // sortAndFilterWaitAnalysis sorts wait analysis results by TotalWaitTimeMs descending and takes top N records
-func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysis, maxResults int) []models.WaitTimeAnalysis {
+func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysisWithoutHistoricalInformation, maxResults int) []models.WaitTimeAnalysisWithoutHistoricalInformation {
 	// Handle case where maxResults is 0 or negative - return all results
 	if maxResults <= 0 {
 		maxResults = len(waitResults)
@@ -702,7 +702,7 @@ func CalculateAvgDiskWrites(totalLogicalWrites *int64, executionCount *int64) fl
 
 // EnrichedSlowQueryDetails extends TopNSlowQueryDetails with calculated averages (for internal processing)
 type EnrichedSlowQueryDetails struct {
-	models.TopNSlowQueryDetails
+	models.TopNSlowQueryDetailsWithoutHistoricalInformation
 	AvgCPUTimeMS     float64 `metric_name:"avg_cpu_time_ms" source_type:"gauge"`
 	AvgElapsedTimeMS float64 `metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
 	AvgDiskReads     float64 `metric_name:"avg_disk_reads" source_type:"gauge"`
@@ -728,7 +728,7 @@ func (e EnrichedSlowQueryDetails) ToNewRelicFormat() models.NewRelicSlowQueryDet
 }
 
 // EnrichSlowQueryWithAverages creates an enriched model with calculated average metrics
-func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlowQueryDetails {
+func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetailsWithoutHistoricalInformation) EnrichedSlowQueryDetails {
 	// Calculate averages first
 	avgCPUTimeMS := CalculateAvgCPUTimeMS(model.TotalWorkerTime, model.ExecutionCount)
 	avgElapsedTimeMS := CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount)
@@ -742,11 +742,11 @@ func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlow
 	model.TotalLogicalWrites = nil
 
 	return EnrichedSlowQueryDetails{
-		TopNSlowQueryDetails: model,
-		AvgCPUTimeMS:         avgCPUTimeMS,
-		AvgElapsedTimeMS:     avgElapsedTimeMS,
-		AvgDiskReads:         avgDiskReads,
-		AvgDiskWrites:        avgDiskWrites,
+		TopNSlowQueryDetailsWithoutHistoricalInformation: model,
+		AvgCPUTimeMS:     avgCPUTimeMS,
+		AvgElapsedTimeMS: avgElapsedTimeMS,
+		AvgDiskReads:     avgDiskReads,
+		AvgDiskWrites:    avgDiskWrites,
 	}
 }
 

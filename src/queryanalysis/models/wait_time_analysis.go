@@ -7,7 +7,7 @@ import (
 // WaitTimeAnalysis represents the structure for analyzing current waiting sessions
 // This has been updated to match the simplified query that shows currently waiting sessions
 // instead of the previous complex query store-based analysis
-type WaitTimeAnalysis struct {
+type WaitTimeAnalysisWithoutHistoricalInformation struct {
 	SessionID           *int64     `db:"session_id" json:"session_id" metric_name:"session_id" source_type:"attribute"`
 	DatabaseName        *string    `db:"database_name" json:"database_name" metric_name:"database_name" source_type:"attribute"`
 	QueryText           *string    `db:"query_text" json:"query_text" metric_name:"query_text" source_type:"attribute"`
@@ -17,7 +17,7 @@ type WaitTimeAnalysis struct {
 	CollectionTimestamp time.Time  `db:"collection_timestamp" metric_name:"collection_timestamp" source_type:"attribute"`
 }
 
-type WaitTimeAnalysisWithHistoricalInformation struct {
+type WaitTimeAnalysis struct {
 	QueryID             *HexString `db:"query_id" json:"query_id" metric_name:"query_id" source_type:"attribute"`
 	DatabaseName        *string    `db:"database_name" json:"database_name" metric_name:"database_name" source_type:"attribute"`
 	QueryText           *string    `db:"query_text" json:"query_text" metric_name:"query_text" source_type:"attribute"`

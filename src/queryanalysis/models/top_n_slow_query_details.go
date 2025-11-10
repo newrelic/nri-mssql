@@ -1,6 +1,6 @@
 package models
 
-type TopNSlowQueryDetails struct {
+type TopNSlowQueryDetailsWithoutHistoricalInformation struct {
 	QueryID                *HexString `db:"query_id" metric_name:"query_id" source_type:"attribute"`
 	QueryText              *string    `db:"query_text" metric_name:"query_text" source_type:"attribute"`
 	DatabaseName           *string    `db:"database_name" metric_name:"database_name" source_type:"attribute"`
@@ -15,7 +15,7 @@ type TopNSlowQueryDetails struct {
 	CollectionTimestamp    *string    `db:"collection_timestamp" metric_name:"collection_timestamp" source_type:"attribute"`
 }
 
-type TopNSlowQueryDetailsWithHistoricalInformation struct {
+type TopNSlowQueryDetails struct {
 	QueryID                *HexString `db:"query_id" metric_name:"query_id" source_type:"attribute"`
 	QueryText              *string    `db:"query_text" metric_name:"query_text" source_type:"attribute"`
 	DatabaseName           *string    `db:"database_name" metric_name:"database_name" source_type:"attribute"`
