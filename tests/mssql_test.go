@@ -94,7 +94,7 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 			name:                "Perf metrics on supported database with perf enabled and non-historical mode",
 			containers:          perfContainers,
 			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_disable_historical_information=true`},
-			expectedSampleTypes: []string{"MssqlInstanceSample", "MSSQLWaitTimeAnalysis", "MSSQLBlockingSessionQueries"},
+			expectedSampleTypes: allSampleTypes,
 		},
 		{
 			name:                "Perf metrics on supported database with perf disabled",
