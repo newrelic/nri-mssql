@@ -6,6 +6,7 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/config"
+	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/utils"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/validation"
 )
@@ -31,14 +32,24 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 
 	utils.ValidateAndSetDefaults(&arguments)
 
-	queryDetails, err := utils.LoadQueries(config.Queries, arguments)
+	var queryDetails []models.QueryDetailsDto
+	if arguments.QueryMonitoringDisableHistoricalInformation {
+		queryDetails, err = utils.LoadQueriesWithoutHistoricalInformation(config.Queries, arguments)
+	} else {
+		queryDetails, err = utils.LoadQueries(config.QueriesWithHistoricalInformation, arguments)
+	}
 	if err != nil {
 		log.Error("Error loading query configuration: %v", err)
 		return
 	}
 
 	for _, queryDetailsDto := range queryDetails {
-		queryResults, err := utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+		var queryResults []interface{}
+		if arguments.QueryMonitoringDisableHistoricalInformation {
+			queryResults, err = utils.ExecuteQueryWithoutHistoricalInformation(arguments, queryDetailsDto, integration, sqlConnection)
+		} else {
+			queryResults, err = utils.ExecuteQuery(arguments, queryDetailsDto, integration, sqlConnection)
+		}
 		if err != nil {
 			log.Error("Failed to execute query: %s", err)
 			continue

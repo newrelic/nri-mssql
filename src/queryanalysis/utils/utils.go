@@ -43,9 +43,14 @@ type queryFormatter func(query string, args args.ArgumentList) string
 
 // queryFormatters maps query types to their corresponding formatting functions.
 var queryFormatters = map[string]queryFormatter{
-	"slowQueries":      formatSlowQueries,
-	"waitAnalysis":     formatWaitAnalysis,
 	"blockingSessions": formatBlockingSessions,
+	"waitAnalysis":     formatWaitAnalysis,
+	"slowQueries":      formatSlowQueries,
+}
+var queryFormatterHistoricalInformation = map[string]queryFormatter{
+	"slowQueries":      formatSlowQueriesWithHistoricalInformation,
+	"waitAnalysis":     formatWaitAnalysisHistoricalInformation,
+	"blockingSessions": formatBlockingSessionsHistoricalInformation,
 }
 
 // formatSlowQueries formats the slow queries query.
@@ -53,18 +58,32 @@ func formatSlowQueries(query string, args args.ArgumentList) string {
 	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 }
 
+// formatSlowQueries formats the slow queries query.
+func formatSlowQueriesWithHistoricalInformation(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
+		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+}
+
 // formatWaitAnalysis formats the wait analysis query.
 func formatWaitAnalysis(query string, args args.ArgumentList) string {
 	return query
+}
+
+// formatWaitAnalysis formats the wait analysis query.
+func formatWaitAnalysisHistoricalInformation(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 }
 
 // formatBlockingSessions formats the blocking sessions query.
 func formatBlockingSessions(query string, args args.ArgumentList) string {
 	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
 }
+func formatBlockingSessionsHistoricalInformation(query string, args args.ArgumentList) string {
+	return fmt.Sprintf(query, args.QueryMonitoringCountThreshold, config.TextTruncateLimit)
+}
 
 // LoadQueries loads and formats query details based on the provided arguments.
-func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+func LoadQueriesWithoutHistoricalInformation(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
 	loadedQueries := make([]models.QueryDetailsDto, len(queries))
 	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
 
@@ -80,13 +99,50 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 	return loadedQueries, nil
 }
 
+// LoadQueries loads and formats query details based on the provided arguments.
+func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) ([]models.QueryDetailsDto, error) {
+	loadedQueries := make([]models.QueryDetailsDto, len(queries))
+	copy(loadedQueries, queries) // Create a copy to avoid modifying the original
+
+	for i := range loadedQueries {
+		formatter, ok := queryFormatterHistoricalInformation[loadedQueries[i].Type]
+		if !ok {
+			// Log the error and return an error instead of nil
+			err := fmt.Errorf("%w: %s", ErrUnknownQueryType, loadedQueries[i].Type)
+			return nil, err
+		}
+		loadedQueries[i].Query = formatter(loadedQueries[i].Query, arguments)
+	}
+	return loadedQueries, nil
+}
+
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+	log.Debug("Executing query: %s", queryDetailsDto.Query)
 	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
+	log.Debug("Query executed: %s", queryDetailsDto.Query)
 	result, queryIDs, err := BindQueryResults(arguments, rows, queryDetailsDto, integration, sqlConnection)
+	rows.Close()
+
+	// Process collected query IDs for execution plan
+	if len(queryIDs) > 0 {
+		ProcessExecutionPlans(arguments, integration, sqlConnection, queryIDs)
+	}
+	return result, err
+}
+
+func ExecuteQueryWithoutHistoricalInformation(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
+	log.Debug("Executing query: %s", queryDetailsDto.Query)
+	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+	log.Debug("Query executed: %s", queryDetailsDto.Query)
+	result, queryIDs, err := BindQueryResultsWithoutHistoricalInformation(arguments, rows, queryDetailsDto, integration, sqlConnection)
 	rows.Close()
 
 	// Process collected query IDs for execution plan
@@ -106,15 +162,73 @@ func BindQueryResults(arguments args.ArgumentList,
 	results := make([]interface{}, 0)
 	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
 
+	for rows.Next() {
+		switch queryDetailsDto.Type {
+		case "slowQueries":
+			var model models.TopNSlowQueryDetails
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
+			results = append(results, model)
+
+			// Collect query IDs for fetching executionPlans
+			if model.QueryID != nil {
+				queryIDs = append(queryIDs, *model.QueryID)
+			}
+
+		case "waitAnalysis":
+			var model models.WaitTimeAnalysis
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.QueryText != nil {
+				*model.QueryText = AnonymizeQueryText(*model.QueryText)
+			}
+			results = append(results, model)
+		case "blockingSessions":
+			var model models.BlockingSessionQueryDetails
+			if err := rows.StructScan(&model); err != nil {
+				log.Debug("Could not scan row: ", err)
+				continue
+			}
+			if model.BlockingQueryText != nil {
+				*model.BlockingQueryText = AnonymizeQueryText(*model.BlockingQueryText)
+			}
+			if model.BlockedQueryText != nil {
+				*model.BlockedQueryText = AnonymizeQueryText(*model.BlockedQueryText)
+			}
+			results = append(results, model)
+		default:
+			return nil, queryIDs, fmt.Errorf("%w: %s", ErrUnknownQueryType, queryDetailsDto.Type)
+		}
+	}
+	return results, queryIDs, nil
+}
+
+// BindQueryResults binds query results to the specified data model using `sqlx`
+// nolint:gocyclo
+func BindQueryResultsWithoutHistoricalInformation(arguments args.ArgumentList,
+	rows *sqlx.Rows,
+	queryDetailsDto models.QueryDetailsDto,
+	integration *integration.Integration,
+	sqlConnection *connection.SQLConnection) ([]interface{}, []models.HexString, error) {
+	results := make([]interface{}, 0)
+	queryIDs := make([]models.HexString, 0) // List to collect queryIDs for all slowQueries to process execution plans
+
 	// For slowQueries, collect all enriched queries first, then filter
 	var enrichedSlowQueries []EnrichedSlowQueryDetails
 
 	if queryDetailsDto.Type == "waitAnalysis" {
-		waitResults := make([]models.WaitTimeAnalysis, 0)
+		waitResults := make([]models.WaitTimeAnalysisWithoutHistoricalInformation, 0)
 		log.Info("Processing waitAnalysis rows")
 
 		for rows.Next() {
-			var model models.WaitTimeAnalysis
+			var model models.WaitTimeAnalysisWithoutHistoricalInformation
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan waitAnalysis row: ", err)
 				continue
@@ -165,7 +279,7 @@ func BindQueryResults(arguments args.ArgumentList,
 			}
 			results = append(results, model)
 		case "slowQueries":
-			var model models.TopNSlowQueryDetails
+			var model models.TopNSlowQueryDetailsWithoutHistoricalInformation
 			if err := rows.StructScan(&model); err != nil {
 				log.Debug("Could not scan row: ", err)
 				continue
@@ -507,7 +621,7 @@ func RemoveDMVComments(query string) string {
 }
 
 // sortAndFilterWaitAnalysis sorts wait analysis results by TotalWaitTimeMs descending and takes top N records
-func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysis, maxResults int) []models.WaitTimeAnalysis {
+func sortAndFilterWaitAnalysis(waitResults []models.WaitTimeAnalysisWithoutHistoricalInformation, maxResults int) []models.WaitTimeAnalysisWithoutHistoricalInformation {
 	// Handle case where maxResults is 0 or negative - return all results
 	if maxResults <= 0 {
 		maxResults = len(waitResults)
@@ -588,7 +702,7 @@ func CalculateAvgDiskWrites(totalLogicalWrites *int64, executionCount *int64) fl
 
 // EnrichedSlowQueryDetails extends TopNSlowQueryDetails with calculated averages (for internal processing)
 type EnrichedSlowQueryDetails struct {
-	models.TopNSlowQueryDetails
+	models.TopNSlowQueryDetailsWithoutHistoricalInformation
 	AvgCPUTimeMS     float64 `metric_name:"avg_cpu_time_ms" source_type:"gauge"`
 	AvgElapsedTimeMS float64 `metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
 	AvgDiskReads     float64 `metric_name:"avg_disk_reads" source_type:"gauge"`
@@ -614,7 +728,7 @@ func (e EnrichedSlowQueryDetails) ToNewRelicFormat() models.NewRelicSlowQueryDet
 }
 
 // EnrichSlowQueryWithAverages creates an enriched model with calculated average metrics
-func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlowQueryDetails {
+func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetailsWithoutHistoricalInformation) EnrichedSlowQueryDetails {
 	// Calculate averages first
 	avgCPUTimeMS := CalculateAvgCPUTimeMS(model.TotalWorkerTime, model.ExecutionCount)
 	avgElapsedTimeMS := CalculateAvgElapsedTimeMS(model.TotalElapsedTime, model.ExecutionCount)
@@ -628,11 +742,11 @@ func EnrichSlowQueryWithAverages(model models.TopNSlowQueryDetails) EnrichedSlow
 	model.TotalLogicalWrites = nil
 
 	return EnrichedSlowQueryDetails{
-		TopNSlowQueryDetails: model,
-		AvgCPUTimeMS:         avgCPUTimeMS,
-		AvgElapsedTimeMS:     avgElapsedTimeMS,
-		AvgDiskReads:         avgDiskReads,
-		AvgDiskWrites:        avgDiskWrites,
+		TopNSlowQueryDetailsWithoutHistoricalInformation: model,
+		AvgCPUTimeMS:     avgCPUTimeMS,
+		AvgElapsedTimeMS: avgElapsedTimeMS,
+		AvgDiskReads:     avgDiskReads,
+		AvgDiskWrites:    avgDiskWrites,
 	}
 }
 
