@@ -9,11 +9,16 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### enhancements
+## v2.25.0 - 2025-11-14
+
+### 🛡️ Security notices
+- Updated golang version to v1.25.3
+
+### 🚀 Enhancements
 - Added feature flag QueryMonitoringDisableHistoricalInformation for QPM queries optimizations by skipping historical data collection
 
-### security
-- Updated golang version to v1.25.3
+### ⛓️ Dependencies
+- Updated golang patch version to v1.25.4
 
 ## v2.24.0 - 2025-11-04
 
