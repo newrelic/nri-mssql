@@ -255,6 +255,87 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 	}
 }
 
+func Test_CreateAzureADConnectionURL_ManagedIdentity(t *testing.T) {
+	testCases := []struct {
+		name   string
+		arg    *args.ArgumentList
+		dbName string
+		want   string
+	}{
+		{
+			"Basic Managed Identity (encryption always enabled)",
+			&args.ArgumentList{
+				Hostname:           "myserver.database.windows.net",
+				Port:               "1433",
+				Timeout:            "30",
+				EnableSSL:          false,
+				UseManagedIdentity: true,
+			},
+			"",
+			"server=myserver.database.windows.net;port=1433;database=;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false",
+		},
+		{
+			"Managed Identity with Database (encryption always enabled)",
+			&args.ArgumentList{
+				Hostname:           "sqlmi-instance.database.windows.net",
+				Port:               "1433",
+				Timeout:            "30",
+				EnableSSL:          false,
+				UseManagedIdentity: true,
+			},
+			"test-database",
+			"server=sqlmi-instance.database.windows.net;port=1433;database=test-database;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false",
+		},
+		{
+			"Managed Identity with TrustServerCertificate",
+			&args.ArgumentList{
+				Hostname:               "sqlmi-instance.database.windows.net",
+				Port:                   "1433",
+				Timeout:                "30",
+				EnableSSL:              false, // Ignored for Managed Identity
+				TrustServerCertificate: true,
+				UseManagedIdentity:     true,
+			},
+			"production-db",
+			"server=sqlmi-instance.database.windows.net;port=1433;database=production-db;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
+		},
+		{
+			"Managed Identity with Certificate File",
+			&args.ArgumentList{
+				Hostname:               "sqlmi-instance.database.windows.net",
+				Port:                   "1433",
+				Timeout:                "30",
+				EnableSSL:              false, // Ignored for Managed Identity
+				TrustServerCertificate: false,
+				CertificateLocation:    "/path/to/cert.pem",
+				UseManagedIdentity:     true,
+			},
+			"secure-db",
+			"server=sqlmi-instance.database.windows.net;port=1433;database=secure-db;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
+		},
+		{
+			"Managed Identity without TrustServerCertificate or Certificate",
+			&args.ArgumentList{
+				Hostname:               "localhost",
+				Port:                   "1433",
+				Timeout:                "60",
+				EnableSSL:              false, // Ignored for Managed Identity
+				TrustServerCertificate: false,
+				CertificateLocation:    "",
+				UseManagedIdentity:     true,
+			},
+			"test-db",
+			"server=localhost;port=1433;database=test-db;fedauth=ActiveDirectoryManagedIdentity;dial timeout=60;connection timeout=60;encrypt=true;TrustServerCertificate=false",
+		},
+	}
+
+	for _, tc := range testCases {
+		if out := CreateAzureADConnectionURL(tc.arg, tc.dbName); out != tc.want {
+			t.Errorf("Test Case %s Failed: Expected '%s' got '%s'", tc.name, tc.want, out)
+		}
+	}
+}
+
 func Test_determineAuthMethod(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -262,6 +343,25 @@ func Test_determineAuthMethod(t *testing.T) {
 		expectError bool
 		expectType  string
 	}{
+		{
+			"Valid Managed Identity - UseManagedIdentity enabled",
+			&args.ArgumentList{
+				UseManagedIdentity: true,
+			},
+			false,
+			"AzureADAuthConnector",
+		},
+		{
+			"Managed Identity takes precedence over Service Principal",
+			&args.ArgumentList{
+				UseManagedIdentity: true,
+				ClientID:           "12345678-1234-1234-1234-123456789012",
+				TenantID:           "87654321-4321-4321-4321-210987654321",
+				ClientSecret:       "client-secret",
+			},
+			false,
+			"AzureADAuthConnector",
+		},
 		{
 			"Valid Azure AD Service Principal - All fields provided",
 			&args.ArgumentList{
