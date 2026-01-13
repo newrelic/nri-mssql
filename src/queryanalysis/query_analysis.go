@@ -24,7 +24,7 @@ func PopulateQueryPerformanceMetrics(integration *integration.Integration, argum
 	defer sqlConnection.Close()
 
 	// Validate preconditions
-	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection, &arguments)
+	isPreconditionPassed := validation.ValidatePreConditions(sqlConnection, arguments.QueryMonitoringDisableHistoricalInformation)
 	if !isPreconditionPassed {
 		log.Error("Error validating preconditions")
 		return
