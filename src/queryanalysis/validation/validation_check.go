@@ -2,6 +2,7 @@ package validation
 
 import (
 	"github.com/newrelic/infra-integrations-sdk/v3/log"
+	"github.com/newrelic/nri-mssql/src/args"
 	"github.com/newrelic/nri-mssql/src/connection"
 	"github.com/newrelic/nri-mssql/src/queryanalysis/models"
 )
@@ -9,14 +10,22 @@ import (
 const versionCompatibility = 90
 
 // ValidatePreConditions checks if the database is compatible with the integration
-func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
+func ValidatePreConditions(sqlConnection *connection.SQLConnection, arguments *args.ArgumentList) bool {
 	log.Debug("Starting pre-requisite validation")
-	isSupported, err := checkSQLServerVersion(sqlConnection)
+
+	// Extract DMV-only mode flag
+	isDMVOnlyMode := arguments != nil && arguments.QueryMonitoringDisableHistoricalInformation
+
+	isSupported, err := checkSQLServerVersion(sqlConnection, isDMVOnlyMode)
 	if err != nil {
 		return false
 	}
 	if !isSupported {
-		log.Error("Unsupported SQL Server version.")
+		if isDMVOnlyMode {
+			log.Error("Unsupported SQL Server version. DMV-only mode requires SQL Server 2016+ or Azure SQL 12+")
+		} else {
+			log.Error("Unsupported SQL Server version. Query Store mode requires SQL Server 2017+ or Azure SQL 12+")
+		}
 		return false
 	}
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)

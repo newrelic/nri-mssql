@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	versionRegexPattern      = `\b(\d+\.\d+\.\d+)\b`
-	getSQLServerVersionQuery = "SELECT @@VERSION"
-	lastSupportedVersion     = 16
-	firstSupportedVersion    = 14
+	versionRegexPattern          = `\b(\d+\.\d+\.\d+)\b`
+	getSQLServerVersionQuery     = "SELECT @@VERSION"
+	lastSupportedVersion         = 16
+	firstSupportedVersion        = 14
+	dmvOnlyFirstSupportedVersion = 13 // SQL Server 2016 (AT TIME ZONE, STRING_SPLIT)
 	// Defines the supported version range for Azure SQL Server in the cloud, from version 12 to 16.
 	azureFirstSupportedVersion = 12
 	azureLastSupportedVersion  = 16
@@ -51,7 +52,7 @@ func parseSQLServerVersion(serverVersion string) (semver.Version, error) {
 	return version, nil
 }
 
-func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error) {
+func checkSQLServerVersion(sqlConnection *connection.SQLConnection, isDMVOnlyMode bool) (bool, error) {
 	serverVersion, err := getSQLServerVersion(sqlConnection)
 	if err != nil {
 		return false, err
@@ -60,8 +61,23 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection) (bool, error
 	if err != nil {
 		return false, err
 	}
-	if strings.Contains(strings.ToLower(serverVersion), "azure") {
-		return version.Major >= azureFirstSupportedVersion && version.Major <= azureLastSupportedVersion, nil
+
+	isAzure := strings.Contains(strings.ToLower(serverVersion), "azure")
+
+	if isAzure {
+		// Azure: Keep existing range (12-16) for both modes
+		return version.Major >= azureFirstSupportedVersion &&
+			version.Major <= azureLastSupportedVersion, nil
 	}
-	return version.Major >= firstSupportedVersion && version.Major <= lastSupportedVersion, nil
+
+	// On-premises SQL Server
+	if isDMVOnlyMode {
+		// DMV-only mode: Support SQL Server 2016+ (version 13+)
+		return version.Major >= dmvOnlyFirstSupportedVersion &&
+			version.Major <= lastSupportedVersion, nil
+	}
+
+	// Query Store mode: Require SQL Server 2017+ (version 14+)
+	return version.Major >= firstSupportedVersion &&
+		version.Major <= lastSupportedVersion, nil
 }

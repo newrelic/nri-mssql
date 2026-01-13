@@ -75,6 +75,32 @@ When using a YAML file containing queries, you can specify the following paramet
 
 Check the official documentation website for [compatibility and requirements](https://docs.newrelic.com/docs/infrastructure/host-integrations/host-integrations-list/microsoft-sql/microsoft-sql-server-integration/#req).
 
+### Query Performance Monitoring (QPM) Version Support
+
+The integration supports different SQL Server versions depending on which Query Performance Monitoring mode you use:
+
+#### Query Store Mode (default)
+- **Requires**: SQL Server 2017+ or Azure SQL 12+
+- **Usage**: Default behavior when `query_monitoring_disable_historical_information=false` (or not set)
+- **Features**: Historical wait statistics and query execution history from Query Store
+- **Use case**: Comprehensive historical query performance analysis
+
+#### DMV-Only Mode
+- **Requires**: SQL Server 2016+ or Azure SQL 12+
+- **Usage**: Set `query_monitoring_disable_historical_information=true`
+- **Features**: Current execution metrics from Dynamic Management Views (DMVs)
+- **Trade-off**: No historical data, but lower overhead and works on SQL Server 2016
+- **Technical note**: Requires SQL Server 2016+ due to use of `AT TIME ZONE` and `STRING_SPLIT` T-SQL functions
+
+**Example configuration for DMV-only mode:**
+```yaml
+integrations:
+  - name: nri-mssql
+    env:
+      ENABLE_QUERY_MONITORING: true
+      QUERY_MONITORING_DISABLE_HISTORICAL_INFORMATION: true
+```
+
 ## Building
 
 Golang is required to build the integration. We recommend Golang 1.11 or higher.
