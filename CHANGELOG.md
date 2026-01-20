@@ -9,7 +9,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### Enhancements
+### enhancements
 - Added SQL Server 2016 support for Query Performance Monitoring when using DMV-only mode (QUERY_MONITORING_DISABLE_HISTORICAL_INFORMATION=true)
 
 ## v2.25.2 - 2025-12-09
