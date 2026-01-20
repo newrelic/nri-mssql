@@ -9,14 +9,19 @@ import (
 const versionCompatibility = 90
 
 // ValidatePreConditions checks if the database is compatible with the integration
-func ValidatePreConditions(sqlConnection *connection.SQLConnection) bool {
+func ValidatePreConditions(sqlConnection *connection.SQLConnection, isDMVOnlyMode bool) bool {
 	log.Debug("Starting pre-requisite validation")
-	isSupported, err := checkSQLServerVersion(sqlConnection)
+
+	isSupported, err := checkSQLServerVersion(sqlConnection, isDMVOnlyMode)
 	if err != nil {
 		return false
 	}
 	if !isSupported {
-		log.Error("Unsupported SQL Server version.")
+		if isDMVOnlyMode {
+			log.Error("Unsupported SQL Server version. DMV-only mode requires SQL Server 2016+ or Azure SQL 12+")
+		} else {
+			log.Error("Unsupported SQL Server version. Query Store mode requires SQL Server 2017+ or Azure SQL 12+")
+		}
 		return false
 	}
 	databaseDetails, err := GetDatabaseDetails(sqlConnection)
