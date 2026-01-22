@@ -9,6 +9,20 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## v2.26.0 - 2026-01-20
+
+### 🚀 Enhancements
+- Added SQL Server 2016 support for Query Performance Monitoring when using DMV-only mode (QUERY_MONITORING_DISABLE_HISTORICAL_INFORMATION=true)
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.9.6 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.9.6)
+
+## v2.25.2 - 2025-12-09
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.9.5 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.9.5)
+- Updated golang patch version to v1.25.5
+
 ## v2.25.1 - 2025-11-18
 
 ### ⛓️ Dependencies
