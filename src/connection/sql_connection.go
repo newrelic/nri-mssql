@@ -44,8 +44,11 @@ func isAzureADServicePrincipalAuth(args *args.ArgumentList) bool {
 
 func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
 	switch {
+	case args.UseManagedIdentity:
+		log.Debug("Detected Azure AD authentication - using Managed Identity")
+		return AzureADAuthConnector{}, nil
 	case isAzureADServicePrincipalAuth(args):
-		log.Debug("Detected Azure AD Service Principal authentication - using ClientID, TenantID, and ClientSecret")
+		log.Debug("Detected Azure AD authentication - using Service Principal")
 		return AzureADAuthConnector{}, nil
 	default:
 		// Default to SQL authentication (supports Windows Auth, SQL Auth with credentials, etc.)
@@ -156,19 +159,54 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 	return connectionString
 }
 
-// CreateAzureADConnectionURL creates a connection string specifically for Azure AD authentication.
+// CreateAzureADConnectionURL creates a connection string for Azure AD authentication.
+// Supports both Service Principal (with ClientID/TenantID/ClientSecret) and Managed Identity.
 func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
-	connectionString := fmt.Sprintf(
-		"server=%s;port=%s;database=%s;user id=%s@%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
-		args.Hostname,
-		args.Port,
-		dbName,
-		args.ClientID,     // Client ID
-		args.TenantID,     // Tenant ID
-		args.ClientSecret, // Client Secret
-		args.Timeout,
-		args.Timeout,
-	)
+	var connectionString string
+
+	if args.UseManagedIdentity {
+		connectionString = fmt.Sprintf(
+			"server=%s;port=%s;database=%s;fedauth=ActiveDirectoryManagedIdentity;dial timeout=%s;connection timeout=%s;encrypt=true",
+			args.Hostname,
+			args.Port,
+			dbName,
+			args.Timeout,
+			args.Timeout,
+		)
+		// For Managed Identity, default to TrustServerCertificate=true unless a certificate is explicitly provided
+		// This prevents SSPI channel binding errors (0x80090346) with Azure SQL MI
+		if args.CertificateLocation != "" {
+			connectionString += ";TrustServerCertificate=false"
+			connectionString += fmt.Sprintf(";certificate=%s", args.CertificateLocation)
+		} else {
+			// Default to trusting the server certificate for Managed Identity
+			connectionString += ";TrustServerCertificate=true"
+		}
+	} else {
+		connectionString = fmt.Sprintf(
+			"server=%s;port=%s;database=%s;user id=%s@%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
+			args.Hostname,
+			args.Port,
+			dbName,
+			args.ClientID,     // Client ID
+			args.TenantID,     // Tenant ID
+			args.ClientSecret, // Client Secret
+			args.Timeout,
+			args.Timeout,
+		)
+		// For Service Principal, only enable SSL if explicitly requested
+		if args.EnableSSL {
+			connectionString += ";encrypt=true"
+			if args.TrustServerCertificate {
+				connectionString += ";TrustServerCertificate=true"
+			} else {
+				connectionString += ";TrustServerCertificate=false"
+				if args.CertificateLocation != "" {
+					connectionString += fmt.Sprintf(";certificate=%s", args.CertificateLocation)
+				}
+			}
+		}
+	}
 
 	if args.ExtraConnectionURLArgs != "" {
 		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)
