@@ -1,6 +1,6 @@
 # Dockerfile to setup nri-mssql binary in a container
 
-FROM golang:1.25.5-bookworm AS builder
+FROM golang:1.25.6-bookworm as builder
 ARG CGO_ENABLED=0
 WORKDIR /go/src/github.com/newrelic/nri-mssql
 COPY . .
