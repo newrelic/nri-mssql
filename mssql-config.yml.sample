@@ -50,13 +50,21 @@ integrations:
     # db_hostname: my-custom-hostname # useful to filter in dashboards, especially in multi-server environments.   
   inventory_source: config/mssql
 
-# Below config is example for Azure AD Service Principal Authentication
+# Below config is example for Azure AD Authentication
+# For Service Principal: provide CLIENT_ID, TENANT_ID, and CLIENT_SECRET
+# For Managed Identity: set USE_MANAGED_IDENTITY to true (no credentials needed)
+# NOTE: Azure AD Managed Identity ALWAYS uses encrypted connections (encrypt=true) regardless of ENABLE_SSL setting
 - name: nri-mssql
   env:
     HOSTNAME: <Host name or IP address of the SQl Server>
+    
+    # Option 1: Azure AD Service Principal Authentication
     CLIENT_ID: <Azure AD Service Principal client ID>
     TENANT_ID: <Azure AD Service Principal tenant ID>
     CLIENT_SECRET: <Azure AD Service Principal client secret>
+    
+    # Option 2: Azure Managed Identity Authentication (comment out Service Principal fields above)
+    # USE_MANAGED_IDENTITY: true
 
     # Both port and instance can be omitted to use a default port of 1433
     PORT: <Microsoft SQL Server port to connect>
@@ -65,7 +73,8 @@ integrations:
     # instance is not supported for Azure AD Service Principal Authentication
     # INSTANCE: <The Microsoft SQL Server instance to connect to. Do not supply port if this is specified>
 
-    ENABLE_SSL: <true or false. Indicates if SSL encryption should be used>
+    ENABLE_SSL: <true or false. For Service Principal auth only - Managed Identity always encrypts>
+    # For Managed Identity with Azure SQMI, set TRUST_SERVER_CERTIFICATE to true to avoid SSPI channel binding errors
     TRUST_SERVER_CERTIFICATE: <true or false. If true server certificate is not verified for SSL. If false certificate will be verified against supplied certificate>
     CERTIFICATE_LOCATION: <Location of the SSL Certificate. Do not specify if trust_server_certificate is set to true>
     TIMEOUT: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
