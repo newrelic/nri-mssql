@@ -38,7 +38,7 @@ services:
   #     - mssql-oldest-backup:/var/opt/mssql/backup:rw
 
   mssql-no-ext:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2025-latest
     restart: always 
     container_name: "mssql-noext"
     environment:
