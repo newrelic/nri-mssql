@@ -38,12 +38,22 @@ func (a AzureADAuthConnector) Connect(args *args.ArgumentList, dbName string) (*
 	return sqlx.Connect(azuread.DriverName, connectionURL)
 }
 
+type ManagedIdentityAuthConnector struct{}
+
+func (m ManagedIdentityAuthConnector) Connect(a *args.ArgumentList, dbName string) (*sqlx.DB, error) {
+	connectionURL := CreateManagedIdentityConnectionURL(a, dbName)
+	return sqlx.Connect(azuread.DriverName, connectionURL)
+}
+
 func isAzureADServicePrincipalAuth(args *args.ArgumentList) bool {
 	return args.ClientID != "" && args.TenantID != "" && args.ClientSecret != ""
 }
 
 func determineAuthMethod(args *args.ArgumentList) (AuthConnector, error) {
 	switch {
+	case args.UseManagedIdentity:
+		log.Debug("Detected Managed Identity authentication")
+		return ManagedIdentityAuthConnector{}, nil
 	case isAzureADServicePrincipalAuth(args):
 		log.Debug("Detected Azure AD Service Principal authentication - using ClientID, TenantID, and ClientSecret")
 		return AzureADAuthConnector{}, nil
@@ -98,6 +108,22 @@ func (sc SQLConnection) Query(v interface{}, query string) error {
 // Queryx runs a query and returns a set of rows
 func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 	return sc.Connection.Queryx(query)
+}
+
+// appendExtraConnectionArgsToString parses and appends extra connection arguments to a connection string (semicolon format)
+func appendExtraConnectionArgsToString(connectionString, extraArgs string) string {
+	if extraArgs == "" {
+		return connectionString
+	}
+	extraArgsMap, err := url.ParseQuery(extraArgs)
+	if err == nil {
+		for k, v := range extraArgsMap {
+			connectionString += fmt.Sprintf(";%s=%s", k, v[0])
+		}
+	} else {
+		log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
+	}
+	return connectionString
 }
 
 // CreateConnectionURL tags in args and creates the connection string.
@@ -156,6 +182,36 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 	return connectionString
 }
 
+// CreateManagedIdentityConnectionURL creates a connection string for Azure Managed Identity authentication.
+// Encryption is always enabled. TrustServerCertificate defaults to true unless a certificate is provided,
+// which prevents SSPI channel binding errors with Azure SQL MI.
+// Only system-assigned managed identity is supported.
+func CreateManagedIdentityConnectionURL(args *args.ArgumentList, dbName string) string {
+	connectionString := fmt.Sprintf(
+		"server=%s;port=%s;database=%s;fedauth=ActiveDirectoryManagedIdentity;dial timeout=%s;connection timeout=%s",
+		args.Hostname,
+		args.Port,
+		dbName,
+		args.Timeout,
+		args.Timeout,
+	)
+
+	// Encryption is always required for Managed Identity
+	connectionString += ";encrypt=true"
+
+	// Default to trusting the server certificate unless an explicit cert is provided
+	if args.CertificateLocation != "" {
+		connectionString += fmt.Sprintf(";TrustServerCertificate=false;certificate=%s", args.CertificateLocation)
+	} else {
+		connectionString += ";TrustServerCertificate=true"
+	}
+
+	// Append extra connection arguments
+	connectionString = appendExtraConnectionArgsToString(connectionString, args.ExtraConnectionURLArgs)
+
+	return connectionString
+}
+
 // CreateAzureADConnectionURL creates a connection string specifically for Azure AD authentication.
 func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 	connectionString := fmt.Sprintf(
@@ -170,17 +226,10 @@ func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 		args.Timeout,
 	)
 
-	if args.ExtraConnectionURLArgs != "" {
-		extraArgsMap, err := url.ParseQuery(args.ExtraConnectionURLArgs)
-		if err == nil {
-			for k, v := range extraArgsMap {
-				connectionString += fmt.Sprintf(";%s=%s", k, v[0])
-			}
-		} else {
-			log.Warn("Could not successfully parse ExtraConnectionURLArgs.", err.Error())
-		}
-	}
+	// Append extra connection arguments
+	connectionString = appendExtraConnectionArgsToString(connectionString, args.ExtraConnectionURLArgs)
 
+	// Append SSL configuration
 	if args.EnableSSL {
 		connectionString += ";encrypt=true"
 		if args.TrustServerCertificate {
