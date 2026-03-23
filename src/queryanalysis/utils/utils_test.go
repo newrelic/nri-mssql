@@ -512,13 +512,12 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		QueryMonitoringCountThreshold:        25,
 		QueryMonitoringResponseTimeThreshold: 35,
 	}
-	// Expected queries after formatting - based on actual function behavior from error messages
-	// The function seems to format some arguments but then append format errors for extra unused arguments
+	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold) + "%!(EXTRA int=35, int=4094)",
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",
