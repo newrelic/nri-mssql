@@ -228,7 +228,7 @@ var QueriesWithHistoricalInformation = []models.QueryDetailsDto{
 					  EXEC sp_executesql @sql;
 				  END TRY
 				  BEGIN CATCH
-					PRINT 'Skipping database ' + @dbName + ' for wait time analysis: ' + ERROR_MESSAGE();
+					PRINT 'Skipping database ' + @dbName + ' for wait events: ' + ERROR_MESSAGE();
 				  END CATCH
 
 				  FETCH NEXT FROM db_cursor INTO @dbName;
