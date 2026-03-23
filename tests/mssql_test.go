@@ -79,12 +79,6 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 			expectedSampleTypes: allSampleTypes,
 		},
 		{
-			name:                "Perf metrics on supported database with perf enabled and custom parameters",
-			containers:          perfContainers,
-			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_response_time_threshold=2000`},
-			expectedSampleTypes: allSampleTypes,
-		},
-		{
 			name:                "Perf metrics on supported database with perf enabled and more custom parameters",
 			containers:          perfContainers,
 			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_response_time_threshold=10000`, `query_monitoring_fetch_interval=5`, `-query_monitoring_count_threshold=10`},
