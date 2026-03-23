@@ -60,8 +60,7 @@ func formatSlowQueries(query string, args args.ArgumentList) string {
 
 // formatSlowQueries formats the slow queries query.
 func formatSlowQueriesWithHistoricalInformation(query string, args args.ArgumentList) string {
-	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, args.QueryMonitoringCountThreshold,
-		args.QueryMonitoringResponseTimeThreshold, config.TextTruncateLimit)
+	return fmt.Sprintf(query, args.QueryMonitoringFetchInterval, config.TextTruncateLimit)
 }
 
 // formatWaitAnalysis formats the wait analysis query.

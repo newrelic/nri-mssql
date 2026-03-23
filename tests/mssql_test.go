@@ -47,7 +47,16 @@ var (
 	port       = flag.Int("port", defaultPort, "MSSQL port")
 	database   = flag.String("database", defaultDB, "MSSQL database")
 
+	// Sample types when using DMV-only mode (query_monitoring_disable_historical_information=true)
 	allSampleTypes = []string{
+		"MssqlInstanceSample",
+		"MSSQLQueryExecutionPlans",
+		"MSSQLTopSlowQueries",
+		"MSSQLWaitTimeAnalysis",
+		"MSSQLBlockingSessionQueries",
+	}
+	// Sample types when using Query Store mode (query_monitoring_disable_historical_information=false)
+	historicalSampleTypes = []string{
 		"MssqlInstanceSample",
 		"MSSQLQueryExecutionPlans",
 		"MSSQLTopSlowQueries",
@@ -89,6 +98,12 @@ func TestIntegrationSupportedDatabase(t *testing.T) {
 			containers:          perfContainers,
 			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_response_time_threshold=10000`, `query_monitoring_fetch_interval=5`, `-query_monitoring_count_threshold=10`},
 			expectedSampleTypes: []string{"MssqlInstanceSample", "MSSQLWaitTimeAnalysis", "MSSQLBlockingSessionQueries"},
+		},
+		{
+			name:                "Perf metrics on supported database with perf enabled and historical mode",
+			containers:          perfContainers,
+			args:                []string{`-enable_query_monitoring=true`, `-query_monitoring_disable_historical_information=false`},
+			expectedSampleTypes: historicalSampleTypes,
 		},
 		{
 			name:                "Perf metrics on supported database with perf enabled and non-historical mode",
