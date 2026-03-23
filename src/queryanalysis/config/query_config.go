@@ -85,10 +85,10 @@ SELECT TOP (@Limit)
     ) AS last_execution_timestamp,
 
     s.execution_count,
-    s.total_worker_time,
-    s.total_elapsed_time,
-    s.total_logical_reads,
-    s.total_logical_writes,
+    (s.total_worker_time / NULLIF(s.execution_count, 0)) / 1000.0 AS avg_cpu_time_ms,
+    (s.total_elapsed_time / NULLIF(s.execution_count, 0)) / 1000.0 AS avg_elapsed_time_ms,
+    (s.total_logical_reads / NULLIF(s.execution_count, 0)) AS avg_disk_reads,
+    (s.total_logical_writes / NULLIF(s.execution_count, 0)) AS avg_disk_writes,
     s.statement_type,
 
     FORMAT(

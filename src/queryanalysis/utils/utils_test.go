@@ -378,9 +378,8 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// The function seems to format but then append format errors, so let's expect what we actually get
-	// From the error: original query gets formatted (replacing %d with 0,0) + the error appended
-	expectedQuery := fmt.Sprintf(configQueries[slowQueriesIndex].Query, 0, 0) + "%!(EXTRA int=0, int=4094)"
+	// The function formats the query with IntervalSeconds and TextTruncateLimit
+	expectedQuery := fmt.Sprintf(configQueries[slowQueriesIndex].Query, 0, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != expectedQuery {
 		t.Errorf("expected: %s, got: %s", expectedQuery, queries[slowQueriesIndex].Query)
 	}
