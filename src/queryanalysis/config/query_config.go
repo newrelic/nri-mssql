@@ -150,8 +150,7 @@ var QueriesWithHistoricalInformation = []models.QueryDetailsDto{
 				DECLARE db_cursor CURSOR FOR
 				SELECT name FROM sys.databases
 				WHERE state_desc = 'ONLINE'
-				AND database_id > 4
-				AND query_store_is_enabled = 1;
+				AND database_id > 4;
 				
 				OPEN db_cursor;
 				FETCH NEXT FROM db_cursor INTO @dbName;
