@@ -150,7 +150,8 @@ var QueriesWithHistoricalInformation = []models.QueryDetailsDto{
 				DECLARE db_cursor CURSOR FOR
 				SELECT name FROM sys.databases
 				WHERE state_desc = 'ONLINE'
-				AND database_id > 4;
+				AND database_id > 4
+				AND is_query_store_on = 1;
 				
 				OPEN db_cursor;
 				FETCH NEXT FROM db_cursor INTO @dbName;
@@ -222,14 +223,9 @@ var QueriesWithHistoricalInformation = []models.QueryDetailsDto{
 				  FROM
 					WaitStates;';
 				  
-				  BEGIN TRY
-					INSERT INTO @resultTable
-					  EXEC sp_executesql @sql;
-				  END TRY
-				  BEGIN CATCH
-					PRINT 'Skipping database ' + @dbName + ' for wait events: ' + ERROR_MESSAGE();
-				  END CATCH
-
+				  INSERT INTO @resultTable
+					EXEC sp_executesql @sql;
+				
 				  FETCH NEXT FROM db_cursor INTO @dbName;
 				END
 				CLOSE db_cursor;
