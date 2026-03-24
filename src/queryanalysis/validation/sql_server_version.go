@@ -14,7 +14,6 @@ import (
 const (
 	versionRegexPattern          = `\b(\d+\.\d+\.\d+)\b`
 	getSQLServerVersionQuery     = "SELECT @@VERSION"
-	lastSupportedVersion         = 16
 	firstSupportedVersion        = 14
 	dmvOnlyFirstSupportedVersion = 13 // SQL Server 2016 (AT TIME ZONE, STRING_SPLIT)
 	// Defines the supported version range for Azure SQL Server in the cloud, from version 12 to 16.
@@ -73,11 +72,9 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection, isDMVOnlyMod
 	// On-premises SQL Server
 	if isDMVOnlyMode {
 		// DMV-only mode: Support SQL Server 2016+ (version 13+)
-		return version.Major >= dmvOnlyFirstSupportedVersion &&
-			version.Major <= lastSupportedVersion, nil
+		return version.Major >= dmvOnlyFirstSupportedVersion, nil
 	}
 
 	// Query Store mode: Require SQL Server 2017+ (version 14+)
-	return version.Major >= firstSupportedVersion &&
-		version.Major <= lastSupportedVersion, nil
+	return version.Major >= firstSupportedVersion, nil
 }
