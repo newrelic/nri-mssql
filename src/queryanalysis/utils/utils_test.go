@@ -378,9 +378,8 @@ func TestLoadQueries_SlowQueries(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// The function seems to format but then append format errors, so let's expect what we actually get
-	// From the error: original query gets formatted (replacing %d with 0,0) + the error appended
-	expectedQuery := fmt.Sprintf(configQueries[slowQueriesIndex].Query, 0, 0) + "%!(EXTRA int=0, int=4094)"
+	// The function formats the query with IntervalSeconds and TextTruncateLimit
+	expectedQuery := fmt.Sprintf(configQueries[slowQueriesIndex].Query, 0, config.TextTruncateLimit)
 	if queries[slowQueriesIndex].Query != expectedQuery {
 		t.Errorf("expected: %s, got: %s", expectedQuery, queries[slowQueriesIndex].Query)
 	}
@@ -512,13 +511,12 @@ func TestLoadQueries_AllTypes_AllFormats(t *testing.T) {
 		QueryMonitoringCountThreshold:        25,
 		QueryMonitoringResponseTimeThreshold: 35,
 	}
-	// Expected queries after formatting - based on actual function behavior from error messages
-	// The function seems to format some arguments but then append format errors for extra unused arguments
+	// Expected queries after formatting
 	expectedQueries := []models.QueryDetailsDto{
 		{
 			EventName: "MSSQLTopSlowQueries",
 			Type:      "slowQueries",
-			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, sampleArgs.QueryMonitoringCountThreshold) + "%!(EXTRA int=35, int=4094)",
+			Query:     fmt.Sprintf(config.Queries[0].Query, sampleArgs.QueryMonitoringFetchInterval, config.TextTruncateLimit),
 		},
 		{
 			EventName: "MSSQLWaitTimeAnalysis",

@@ -117,7 +117,7 @@
                   },
                   "StatementType": {
                     "type": "string",
-                    "enum": ["SELECT", "UPDATE", "INSERT", "DELETE"],
+                    "enum": ["SELECT", "UPDATE", "INSERT", "DELETE", "OTHER"],
                     "description": "Type of SQL statement"
                   },
                   "event_type": {

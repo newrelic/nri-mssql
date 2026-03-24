@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancements
+- Updated QPM Slow and Wait event queries
+
 ## v2.27.1 - 2026-03-03
 
 ### ⛓️ Dependencies
