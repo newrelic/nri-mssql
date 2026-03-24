@@ -182,18 +182,33 @@ func TestIntegrationUnsupportedDatabase(t *testing.T) {
 				t.Run(container, func(t *testing.T) {
 					stdout := runIntegration(t, container, tt.args...)
 
-					// Validate JSON format
-					var j map[string]interface{}
-					err := json.Unmarshal([]byte(stdout), &j)
-					assert.NoError(t, err, "Integration Output Is An Invalid JSON")
+					// Split output into individual samples (handles newline-separated JSON)
+					samples := strings.Split(stdout, "\n")
+					foundMssqlInstanceSample := false
 
-					// Verify it's a MssqlInstanceSample
-					assert.Contains(t, stdout, "MssqlInstanceSample",
+					for _, sample := range samples {
+						sample = strings.TrimSpace(sample)
+						if sample == "" {
+							continue
+						}
+
+						// Validate JSON format for each sample
+						var j map[string]interface{}
+						err := json.Unmarshal([]byte(sample), &j)
+						assert.NoError(t, err, "Integration Output Is An Invalid JSON: %s", sample)
+
+						// Check if this is a MssqlInstanceSample
+						if strings.Contains(sample, "MssqlInstanceSample") {
+							foundMssqlInstanceSample = true
+							// Validate against schema
+							err = validateJSONSchema("mssql-schema.json", sample)
+							assert.NoError(t, err, "Output failed schema validation")
+						}
+					}
+
+					// Verify at least one MssqlInstanceSample was found
+					assert.True(t, foundMssqlInstanceSample,
 						"Integration output does not contain MssqlInstanceSample")
-
-					// Validate against schema
-					err = validateJSONSchema("mssql-schema.json", stdout)
-					assert.NoError(t, err, "Output failed schema validation")
 				})
 			}
 		})
