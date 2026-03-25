@@ -9,9 +9,12 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### security
+- update go to v1.25.8
+
 ### enhancements
 - Updated QPM Slow and Wait event queries
-- Updated last supported version check
+- update last supported version check
 
 ## v2.27.1 - 2026-03-03
 
