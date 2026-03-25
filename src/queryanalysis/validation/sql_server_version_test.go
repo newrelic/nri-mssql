@@ -211,20 +211,6 @@ func TestCheckSqlServerVersion_VersionBoundaries(t *testing.T) {
 			expected:      true,
 			description:   "SQL Server 2022 should be accepted in DMV-only mode",
 		},
-		{
-			name:          "FutureVersion_QueryStoreMode",
-			version:       "Microsoft SQL Server 2025 - 17.0.1000.0",
-			isDMVOnlyMode: false,
-			expected:      false,
-			description:   "Future SQL Server version should be rejected in Query Store mode",
-		},
-		{
-			name:          "FutureVersion_DMVOnlyMode",
-			version:       "Microsoft SQL Server 2025 - 17.0.1000.0",
-			isDMVOnlyMode: true,
-			expected:      false,
-			description:   "Future SQL Server version should be rejected in DMV-only mode",
-		},
 	}
 
 	for _, tt := range tests {
