@@ -141,6 +141,59 @@ func Test_createConnectionURL(t *testing.T) {
 			"test-db",
 			"sqlserver://user:pass@localhost:1443?connection+timeout=30&database=test-db&dial+timeout=30",
 		},
+		{
+			"Windows Integrated Auth - No Credentials Localhost",
+			&args.ArgumentList{
+				Username:  "",
+				Password:  "",
+				Hostname:  "localhost",
+				EnableSSL: false,
+				Port:      "1433",
+				Timeout:   "30",
+			},
+			"",
+			"sqlserver://localhost:1433?connection+timeout=30&dial+timeout=30",
+		},
+		{
+			"Windows Integrated Auth - No Credentials Remote Host",
+			&args.ArgumentList{
+				Username:  "",
+				Password:  "",
+				Hostname:  "sql-server.company.local",
+				EnableSSL: false,
+				Port:      "1433",
+				Timeout:   "30",
+			},
+			"",
+			"sqlserver://sql-server.company.local:1433?connection+timeout=30&dial+timeout=30",
+		},
+		{
+			"Windows Integrated Auth - No Credentials with Instance",
+			&args.ArgumentList{
+				Username:  "",
+				Password:  "",
+				Hostname:  "sql-server.company.local",
+				EnableSSL: false,
+				Instance:  "SQLEXPRESS",
+				Timeout:   "30",
+			},
+			"",
+			"sqlserver://sql-server.company.local/SQLEXPRESS?connection+timeout=30&dial+timeout=30",
+		},
+		{
+			"Windows Integrated Auth - No Credentials with SSL",
+			&args.ArgumentList{
+				Username:               "",
+				Password:               "",
+				Hostname:               "sql-server.company.local",
+				EnableSSL:              true,
+				TrustServerCertificate: true,
+				Port:                   "1433",
+				Timeout:                "30",
+			},
+			"",
+			"sqlserver://sql-server.company.local:1433?TrustServerCertificate=true&connection+timeout=30&dial+timeout=30&encrypt=true",
+		},
 	}
 
 	for _, tc := range testCases {
