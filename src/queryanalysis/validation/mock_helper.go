@@ -28,7 +28,7 @@ func mockCheckPermissions(mock sqlmock.Sqlmock, hasPermission bool) {
 		WillReturnRows(sqlmock.NewRows([]string{"has_permission"}).AddRow(hasPermission))
 }
 
-func mockCheckSQLServerLoginEnabled(mock sqlmock.Sqlmock, isLoginEnabled bool) {
+func mockCheckSQLServerLoginEnabled(mock sqlmock.Sqlmock, isWindowsOnlyMode int) {
 	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"is_login_enabled"}).AddRow(isLoginEnabled))
+		WillReturnRows(sqlmock.NewRows([]string{"is_windows_only_mode"}).AddRow(isWindowsOnlyMode))
 }
