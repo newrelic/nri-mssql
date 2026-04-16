@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### Enhancements
+- Updated the prevalidation check for qpm to allow windows authentication mode
+
 ## v2.28.0 - 2026-03-27
 
 ### 🛡️ Security notices
