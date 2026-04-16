@@ -23,7 +23,7 @@ func TestValidatePreConditions(t *testing.T) {
 
 	// Mock checkSQLServerLoginEnabled
 	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"is_login_enabled"}).AddRow(true))
+		WillReturnRows(sqlmock.NewRows([]string{"is_windows_only_mode"}).AddRow(0))
 
 	result := ValidatePreConditions(sqlConnection, false)
 	assert.True(t, result)
@@ -62,7 +62,7 @@ func TestValidatePreConditions_DMVOnlyMode_SQL2016(t *testing.T) {
 
 	// Mock checkSQLServerLoginEnabled
 	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"is_login_enabled"}).AddRow(true))
+		WillReturnRows(sqlmock.NewRows([]string{"is_windows_only_mode"}).AddRow(0))
 
 	result := ValidatePreConditions(sqlConnection, true)
 	assert.True(t, result, "SQL Server 2016 should pass validation in DMV-only mode")
@@ -103,7 +103,7 @@ func TestValidatePreConditions_QueryStoreMode_SQL2017(t *testing.T) {
 
 	// Mock checkSQLServerLoginEnabled
 	mock.ExpectQuery(regexp.QuoteMeta(checkSQLServerLoginEnabledQuery)).
-		WillReturnRows(sqlmock.NewRows([]string{"is_login_enabled"}).AddRow(true))
+		WillReturnRows(sqlmock.NewRows([]string{"is_windows_only_mode"}).AddRow(0))
 
 	result := ValidatePreConditions(sqlConnection, false)
 	assert.True(t, result, "SQL Server 2017 should pass validation in Query Store mode")

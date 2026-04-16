@@ -12,7 +12,7 @@ func TestCheckPermissionsAndLogin(t *testing.T) {
 	defer sqlConnection.Connection.Close()
 
 	mockCheckPermissions(mock, true)
-	mockCheckSQLServerLoginEnabled(mock, true)
+	mockCheckSQLServerLoginEnabled(mock, 0)
 
 	result := checkPermissionsAndLogin(sqlConnection)
 	assert.True(t, result)
