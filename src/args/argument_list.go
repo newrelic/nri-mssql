@@ -22,6 +22,7 @@ type ArgumentList struct {
 	ClientID                                    string `default:"" help:"Azure AD Service Principal client ID"`
 	TenantID                                    string `default:"" help:"Azure AD Service Principal tenant ID"`
 	ClientSecret                                string `default:"" help:"Azure AD Service Principal client secret"`
+	UseManagedIdentity                          bool   `default:"false" help:"Use Azure Managed Identity for authentication"`
 	Instance                                    string `default:"" help:"The Microsoft SQL Server instance to connect to"`
 	Hostname                                    string `default:"127.0.0.1" help:"The Microsoft SQL Server connection host name"`
 	Port                                        string `default:"" help:"The Microsoft SQL Server port to connect to. Only needed when instance not specified"`
