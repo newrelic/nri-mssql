@@ -107,8 +107,14 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 
 	connectionURL := &url.URL{
 		Scheme: "sqlserver",
-		User:   url.UserPassword(args.Username, args.Password),
 		Host:   args.Hostname,
+	}
+
+	// Only include credentials if both username AND password are provided
+	// This allows Windows Integrated Authentication to work when credentials are omitted
+	// Partial credentials are validated in args.Validate() to prevent configuration errors
+	if args.Username != "" && args.Password != "" {
+		connectionURL.User = url.UserPassword(args.Username, args.Password)
 	}
 
 	// If port is present use port if not user instance
