@@ -255,6 +255,43 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 	}
 }
 
+func Test_CreateManagedIdentityConnectionURL(t *testing.T) {
+	testCases := []struct {
+		name   string
+		arg    *args.ArgumentList
+		dbName string
+		want   string
+	}{
+		{
+			"System-assigned MI no certificate",
+			&args.ArgumentList{
+				Hostname: "myserver.database.windows.net",
+				Port:     "1433",
+				Timeout:  "30",
+			},
+			"",
+			"server=myserver.database.windows.net;port=1433;database=;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
+		},
+		{
+			"MI with explicit certificate",
+			&args.ArgumentList{
+				Hostname:            "myserver.database.windows.net",
+				Port:                "1433",
+				Timeout:             "30",
+				CertificateLocation: "/path/to/cert.pem",
+			},
+			"securedb",
+			"server=myserver.database.windows.net;port=1433;database=securedb;fedauth=ActiveDirectoryManagedIdentity;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
+		},
+	}
+
+	for _, tc := range testCases {
+		if out := CreateManagedIdentityConnectionURL(tc.arg, tc.dbName); out != tc.want {
+			t.Errorf("Test Case %s Failed: Expected '%s' got '%s'", tc.name, tc.want, out)
+		}
+	}
+}
+
 func Test_determineAuthMethod(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -262,6 +299,25 @@ func Test_determineAuthMethod(t *testing.T) {
 		expectError bool
 		expectType  string
 	}{
+		{
+			"Managed Identity - system-assigned",
+			&args.ArgumentList{
+				UseManagedIdentity: true,
+			},
+			false,
+			"ManagedIdentityAuthConnector",
+		},
+		{
+			"Managed Identity takes priority over Service Principal fields",
+			&args.ArgumentList{
+				UseManagedIdentity: true,
+				ClientID:           "12345678-1234-1234-1234-123456789012",
+				TenantID:           "87654321-4321-4321-4321-210987654321",
+				ClientSecret:       "client-secret",
+			},
+			false,
+			"ManagedIdentityAuthConnector",
+		},
 		{
 			"Valid Azure AD Service Principal - All fields provided",
 			&args.ArgumentList{

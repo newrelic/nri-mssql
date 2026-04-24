@@ -102,3 +102,44 @@ integrations:
     role: mssql
     # db_hostname: my-custom-hostname # useful to filter in dashboards, especially in multi-server environments.
   inventory_source: config/mssql
+
+# Below config is example for Azure Managed Identity Authentication (system-assigned)
+# Use this when nri-mssql runs on an Azure VM/App Service with a system-assigned managed identity.
+# No password or secret is required — the Azure platform provides the token automatically.
+# Prerequisites:
+#   1. Enable system-assigned managed identity on the Azure VM/resource running this integration.
+#   2. In the target Azure SQL Database, run as the AAD admin:
+#      CREATE USER [<vm-name>] FROM EXTERNAL PROVIDER;
+#      ALTER ROLE db_datareader ADD MEMBER [<vm-name>];
+#      GRANT VIEW DATABASE STATE TO [<vm-name>];
+- name: nri-mssql
+  env:
+    HOSTNAME: <Host name or IP address of the Azure SQL Server, e.g. myserver.database.windows.net>
+    USE_MANAGED_IDENTITY: true
+
+    # Both port and instance can be omitted to use a default port of 1433
+    PORT: <Microsoft SQL Server port to connect>
+
+    # Encryption is always enforced when USE_MANAGED_IDENTITY is true (encrypt=true is set automatically).
+    # TrustServerCertificate defaults to true when USE_MANAGED_IDENTITY is true, unless CERTIFICATE_LOCATION is set.
+    # CERTIFICATE_LOCATION: <Path to SSL certificate file. Set this to enforce server certificate validation>
+
+    TIMEOUT: <Timeout in seconds for a single SQL Query Execution. Set 0 for no timeout>
+
+    # ENABLE_BUFFER_METRICS: true
+    # ENABLE_DATABASE_RESERVE_METRICS: true
+    # ENABLE_DISK_METRICS_IN_BYTES: true
+    # MAX_CONCURRENT_WORKERS: 10
+    # EXTRA_CONNECTION_URL_ARGS: ""
+
+    # CUSTOM_METRICS_CONFIG: ""
+    # ENABLE_QUERY_MONITORING : "false"
+    # QUERY_MONITORING_RESPONSE_TIME_THRESHOLD : "1"
+    # QUERY_MONITORING_COUNT_THRESHOLD : "20"
+    # QUERY_MONITORING_FETCH_INTERVAL : "15"
+  interval: 15s
+  labels:
+    env: production
+    role: mssql
+    # db_hostname: my-custom-hostname
+  inventory_source: config/mssql
