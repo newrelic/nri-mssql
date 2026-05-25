@@ -9,8 +9,8 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### Bug fixes
-- Removed the hardcoded upper-bound version check on Azure SQL in qpm validation so engine v17.x reported by Azure SQL Managed Instance (Always-up-to-date update policy) is accepted; the Azure check now mirrors the on-prem pattern of a lower-bound only (NR-559155)
+### bug fixes
+- Removed the hardcoded upper-bound version check on Azure SQL in qpm validation so engine v17.x reported by Azure SQL Managed Instance (Always-up-to-date update policy) is accepted
 
 ## v2.30.0 - 2026-05-15
 
