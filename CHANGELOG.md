@@ -15,7 +15,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
   Always-up-to-date update policy) was previously rejected from Query Store collection.
   The Azure check now mirrors the on-prem pattern of a lower-bound only (`>= 12`). [NR-559155]
 
-### Security
+## v2.30.0 - 2026-05-15
+
+### 🛡️ Security notices
 - Updated golang to v1.25.10
 
 ## v2.29.1 - 2026-05-05
