@@ -12,6 +12,8 @@ type NewRelicSlowQueryDetails struct {
 	ExecutionCount         *int64     `db:"execution_count" metric_name:"execution_count" source_type:"gauge"`
 	AvgCPUTimeMS           *float64   `db:"avg_cpu_time_ms" metric_name:"avg_cpu_time_ms" source_type:"gauge"`
 	AvgElapsedTimeMS       *float64   `db:"avg_elapsed_time_ms" metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
+	MinElapsedTimeMS       *float64   `db:"min_elapsed_time_ms" metric_name:"min_elapsed_time_ms" source_type:"gauge"`
+	MaxElapsedTimeMS       *float64   `db:"max_elapsed_time_ms" metric_name:"max_elapsed_time_ms" source_type:"gauge"`
 	AvgDiskReads           *float64   `db:"avg_disk_reads" metric_name:"avg_disk_reads" source_type:"gauge"`
 	AvgDiskWrites          *float64   `db:"avg_disk_writes" metric_name:"avg_disk_writes" source_type:"gauge"`
 	StatementType          *string    `db:"statement_type" metric_name:"statement_type" source_type:"attribute"`

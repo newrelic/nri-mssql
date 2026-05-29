@@ -719,6 +719,8 @@ func (e EnrichedSlowQueryDetails) ToNewRelicFormat() models.NewRelicSlowQueryDet
 		ExecutionCount:         e.ExecutionCount,
 		AvgCPUTimeMS:           &e.AvgCPUTimeMS,
 		AvgElapsedTimeMS:       &e.AvgElapsedTimeMS,
+		MinElapsedTimeMS:       e.MinElapsedTimeMS,
+		MaxElapsedTimeMS:       e.MaxElapsedTimeMS,
 		AvgDiskReads:           &e.AvgDiskReads,
 		AvgDiskWrites:          &e.AvgDiskWrites,
 		StatementType:          e.StatementType,

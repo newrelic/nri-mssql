@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancement
+- Added `min_elapsed_time_ms` and `max_elapsed_time_ms` fields to the `MSSQLTopSlowQueries` event, surfacing the minimum and maximum single-execution elapsed time for each grouped query (NR-558077)
+
 ### bugfix
 - Removed the hardcoded upper-bound version check on Azure SQL in qpm validation so engine v17.x reported by Azure SQL Managed Instance (Always-up-to-date update policy) is accepted
 
