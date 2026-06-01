@@ -9,6 +9,8 @@ type TopNSlowQueryDetailsWithoutHistoricalInformation struct {
 	ExecutionCount         *int64     `db:"execution_count" metric_name:"execution_count" source_type:"gauge"`
 	TotalWorkerTime        *int64     `db:"total_worker_time" metric_name:"total_worker_time" source_type:"gauge"`
 	TotalElapsedTime       *int64     `db:"total_elapsed_time" metric_name:"total_elapsed_time" source_type:"gauge"`
+	MinElapsedTimeMS       *float64   `db:"min_elapsed_time_ms" metric_name:"min_elapsed_time_ms" source_type:"gauge"`
+	MaxElapsedTimeMS       *float64   `db:"max_elapsed_time_ms" metric_name:"max_elapsed_time_ms" source_type:"gauge"`
 	TotalLogicalReads      *int64     `db:"total_logical_reads" metric_name:"total_logical_reads" source_type:"gauge"`
 	TotalLogicalWrites     *int64     `db:"total_logical_writes" metric_name:"total_logical_writes" source_type:"gauge"`
 	StatementType          *string    `db:"statement_type" metric_name:"statement_type" source_type:"attribute"`
@@ -24,6 +26,8 @@ type TopNSlowQueryDetails struct {
 	ExecutionCount         *int64     `db:"execution_count" metric_name:"execution_count" source_type:"gauge"`
 	AvgCPUTimeMS           *float64   `db:"avg_cpu_time_ms" metric_name:"avg_cpu_time_ms" source_type:"gauge"`
 	AvgElapsedTimeMS       *float64   `db:"avg_elapsed_time_ms" metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
+	MinElapsedTimeMS       *float64   `db:"min_elapsed_time_ms" metric_name:"min_elapsed_time_ms" source_type:"gauge"`
+	MaxElapsedTimeMS       *float64   `db:"max_elapsed_time_ms" metric_name:"max_elapsed_time_ms" source_type:"gauge"`
 	AvgDiskReads           *float64   `db:"avg_disk_reads" metric_name:"avg_disk_reads" source_type:"gauge"`
 	AvgDiskWrites          *float64   `db:"avg_disk_writes" metric_name:"avg_disk_writes" source_type:"gauge"`
 	StatementType          *string    `db:"statement_type" metric_name:"statement_type" source_type:"attribute"`
