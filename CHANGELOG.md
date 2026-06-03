@@ -9,6 +9,10 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### enhancement
+- Added `database_name` field to the `MSSQLQueryExecutionPlans` event, surfacing the originating database for each plan node (NR-558077)
+- Added `min_elapsed_time_ms` and `max_elapsed_time_ms` fields to the `MSSQLQueryExecutionPlans` event, surfacing per-plan-handle minimum and maximum single-execution elapsed time alongside the existing `avg_elapsed_time_ms` for each plan node (NR-558077)
+
 ## v2.31.0 - 2026-06-02
 
 ### 🚀 Enhancements
