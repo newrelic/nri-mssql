@@ -2,9 +2,11 @@
 package connection
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	// go-mssqldb is required for mssql driver but isn't used in code
 	"github.com/jmoiron/sqlx"
@@ -14,10 +16,14 @@ import (
 	"github.com/newrelic/nri-mssql/src/args"
 )
 
+// DefaultQueryTimeout is the fallback per-query timeout when args.Timeout is not set or is 0.
+const DefaultQueryTimeout = 30 * time.Second
+
 // SQLConnection represents a wrapper around a SQL Server connection
 type SQLConnection struct {
-	Connection *sqlx.DB
-	Host       string
+	Connection   *sqlx.DB
+	Host         string
+	QueryTimeout time.Duration // Per-query execution timeout derived from args.Timeout
 }
 
 type AuthConnector interface {
@@ -64,9 +70,19 @@ func createConnectionWithAuth(args *args.ArgumentList, dbName string) (*SQLConne
 	if err != nil {
 		return nil, err
 	}
+
+	queryTimeout := DefaultQueryTimeout
+	if args.Timeout != "" && args.Timeout != "0" {
+		timeoutSec, parseErr := strconv.Atoi(args.Timeout)
+		if parseErr == nil && timeoutSec > 0 {
+			queryTimeout = time.Duration(timeoutSec) * time.Second
+		}
+	}
+
 	return &SQLConnection{
-		Connection: db,
-		Host:       args.Hostname,
+		Connection:   db,
+		Host:         args.Hostname,
+		QueryTimeout: queryTimeout,
 	}, nil
 }
 
@@ -89,15 +105,55 @@ func (sc SQLConnection) Close() {
 	}
 }
 
-// Query runs a query and loads results into v
-func (sc SQLConnection) Query(v interface{}, query string) error {
-	log.Debug("Running query: %s", query)
-	return sc.Connection.Select(v, query)
+// getQueryTimeout returns the configured timeout or the default if not set.
+func (sc SQLConnection) getQueryTimeout() time.Duration {
+	if sc.QueryTimeout > 0 {
+		return sc.QueryTimeout
+	}
+	return DefaultQueryTimeout
 }
 
-// Queryx runs a query and returns a set of rows
+// logQueryDuration logs the execution time of a query at appropriate levels.
+func logQueryDuration(err error, elapsed, timeout time.Duration, query string) {
+	if err != nil {
+		log.Error("Query failed after %v (timeout: %v): %s", elapsed, timeout, query)
+	} else {
+		log.Debug("Query completed in %v: %s", elapsed, query)
+	}
+}
+
+// Query runs a query with the configured timeout and loads results into v.
+func (sc SQLConnection) Query(v interface{}, query string) error {
+	timeout := sc.getQueryTimeout()
+	start := time.Now()
+	log.Debug("Running query: %s", query)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := sc.Connection.SelectContext(ctx, v, query)
+	logQueryDuration(err, time.Since(start), timeout, query)
+	return err
+}
+
+// Queryx runs a query with the configured timeout and returns a set of rows.
 func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
-	return sc.Connection.Queryx(query)
+	timeout := sc.getQueryTimeout()
+	start := time.Now()
+	log.Debug("Running query: %s", query)
+	ctx, _ := context.WithTimeout(context.Background(), timeout) //nolint:lostcancel // context expires naturally; rows need it alive for iteration
+	rows, err := sc.Connection.QueryxContext(ctx, query)
+	logQueryDuration(err, time.Since(start), timeout, query)
+	return rows, err
+}
+
+// Get runs a query with the configured timeout and scans a single result into dest.
+func (sc SQLConnection) Get(dest interface{}, query string) error {
+	timeout := sc.getQueryTimeout()
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := sc.Connection.GetContext(ctx, dest, query)
+	logQueryDuration(err, time.Since(start), timeout, query)
+	return err
 }
 
 // CreateConnectionURL tags in args and creates the connection string.
