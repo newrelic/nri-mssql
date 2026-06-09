@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	// go-mssqldb is required for mssql driver but isn't used in code
@@ -113,12 +114,23 @@ func (sc SQLConnection) getQueryTimeout() time.Duration {
 	return DefaultQueryTimeout
 }
 
+// queryPrefix returns a short prefix of the query for logging purposes.
+func queryPrefix(query string) string {
+	const maxLen = 80
+	q := strings.TrimSpace(query)
+	if len(q) <= maxLen {
+		return q
+	}
+	return q[:maxLen] + "..."
+}
+
 // logQueryDuration logs the execution time of a query at appropriate levels.
 func logQueryDuration(err error, elapsed, timeout time.Duration, query string) {
+	prefix := queryPrefix(query)
 	if err != nil {
-		log.Error("Query failed after %v (timeout: %v): %s", elapsed, timeout, query)
+		log.Error("Query failed after %v (timeout: %v): %s", elapsed, timeout, prefix)
 	} else {
-		log.Debug("Query completed in %v: %s", elapsed, query)
+		log.Debug("Query completed in %v: %s", elapsed, prefix)
 	}
 }
 
@@ -126,7 +138,6 @@ func logQueryDuration(err error, elapsed, timeout time.Duration, query string) {
 func (sc SQLConnection) Query(v interface{}, query string) error {
 	timeout := sc.getQueryTimeout()
 	start := time.Now()
-	log.Debug("Running query: %s", query)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	err := sc.Connection.SelectContext(ctx, v, query)
@@ -138,7 +149,6 @@ func (sc SQLConnection) Query(v interface{}, query string) error {
 func (sc SQLConnection) Queryx(query string) (*sqlx.Rows, error) {
 	timeout := sc.getQueryTimeout()
 	start := time.Now()
-	log.Debug("Running query: %s", query)
 	ctx, _ := context.WithTimeout(context.Background(), timeout) //nolint:lostcancel // context expires naturally; rows need it alive for iteration
 	rows, err := sc.Connection.QueryxContext(ctx, query)
 	logQueryDuration(err, time.Since(start), timeout, query)
