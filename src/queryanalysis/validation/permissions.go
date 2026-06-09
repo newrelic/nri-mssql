@@ -15,7 +15,7 @@ const checkPermissionsQuery = `
 
 func checkPermissions(sqlConnection *connection.SQLConnection) (bool, error) {
 	var hasPermission bool
-	err := sqlConnection.Connection.Get(&hasPermission, checkPermissionsQuery)
+	err := sqlConnection.Get(&hasPermission, checkPermissionsQuery)
 	if err != nil {
 		return false, err
 	}

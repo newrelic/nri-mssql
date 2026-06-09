@@ -117,7 +117,7 @@ func LoadQueries(queries []models.QueryDetailsDto, arguments args.ArgumentList) 
 
 func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	log.Debug("Executing query: %s", queryDetailsDto.Query)
-	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
+	rows, err := sqlConnection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -135,7 +135,7 @@ func ExecuteQuery(arguments args.ArgumentList, queryDetailsDto models.QueryDetai
 
 func ExecuteQueryWithoutHistoricalInformation(arguments args.ArgumentList, queryDetailsDto models.QueryDetailsDto, integration *integration.Integration, sqlConnection *connection.SQLConnection) ([]interface{}, error) {
 	log.Debug("Executing query: %s", queryDetailsDto.Query)
-	rows, err := sqlConnection.Connection.Queryx(queryDetailsDto.Query)
+	rows, err := sqlConnection.Queryx(queryDetailsDto.Query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -380,7 +380,7 @@ func GenerateAndIngestExecutionPlan(arguments args.ArgumentList, integration *in
 
 	var model models.ExecutionPlanResult
 
-	rows, err := sqlConnection.Connection.Queryx(executionPlanQuery)
+	rows, err := sqlConnection.Queryx(executionPlanQuery)
 	if err != nil {
 		log.Error("Failed to execute execution plan query: %s", err)
 		return
@@ -501,7 +501,12 @@ func IngestQueryMetrics(results []interface{}, queryDetailsDto models.QueryDetai
 // IsSystemDatabase checks if a database name is a SQL Server system database
 func IsSystemDatabase(databaseName *string) bool {
 	if databaseName == nil {
-		return true // Treat nil database name as system database to filter it out
+		return false // Include queries with unknown database (e.g., cross-database ETL, ad-hoc queries with dbid=0)
+	}
+
+	dbName := strings.ToLower(strings.TrimSpace(*databaseName))
+	if dbName == "" {
+		return false // Include queries with empty database name
 	}
 
 	systemDatabases := map[string]bool{
@@ -511,8 +516,6 @@ func IsSystemDatabase(databaseName *string) bool {
 		"tempdb": true,
 	}
 
-	// Case-insensitive comparison
-	dbName := strings.ToLower(strings.TrimSpace(*databaseName))
 	return systemDatabases[dbName]
 }
 
