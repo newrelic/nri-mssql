@@ -9,6 +9,24 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+## v2.31.0 - 2026-06-02
+
+### 🚀 Enhancements
+- Added `min_elapsed_time_ms` and `max_elapsed_time_ms` fields to the `MSSQLTopSlowQueries` event, surfacing the minimum and maximum single-execution elapsed time for each grouped query (NR-558077)
+
+### 🐞 Bug fixes
+- Removed the hardcoded upper-bound version check on Azure SQL in qpm validation so engine v17.x reported by Azure SQL Managed Instance (Always-up-to-date update policy) is accepted
+
+## v2.30.0 - 2026-05-15
+
+### 🛡️ Security notices
+- Updated golang to v1.25.10
+
+## v2.29.1 - 2026-05-05
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.10.0 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.10.0)
+
 ## v2.29.0 - 2026-04-17
 
 ### 🛡️ Security notices

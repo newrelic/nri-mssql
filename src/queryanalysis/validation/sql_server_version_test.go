@@ -28,10 +28,14 @@ func TestCheckSQLServerVersionforAzure(t *testing.T) {
 		version  string
 		expected bool
 	}{
-		{"AzureSupportedVersion", "Microsoft SQL Azure (RTM) - 12.0.2000.8", true},
-		{"AzureUnsupportedVersion", "Microsoft SQL azure (RTM) - 11.0.2000.7", false},
-		{"AzureUnsupportedVersion", "Microsoft SQL (RTM) - 12.0.2000.8", false},
-		{"AzureUnsupportedVersion", "Microsoft SQL Azure (RTM) - 17.0.2000.8", false},
+		{"AzureSupportedVersion_v12", "Microsoft SQL Azure (RTM) - 12.0.2000.8", true},
+		{"AzureUnsupportedVersion_v11", "Microsoft SQL azure (RTM) - 11.0.2000.7", false},
+		{"NotAzure_v12_ButLowerOnPremFails", "Microsoft SQL (RTM) - 12.0.2000.8", false},
+		// Azure SQL MI rolls v17 via the Always-up-to-date update policy. Used to be rejected
+		// by a hardcoded `<= 16` cap; now accepted because the cap was removed (NR-559155).
+		{"AzureSupportedVersion_v17", "Microsoft SQL Azure (RTM) - 17.0.2000.8", true},
+		// Future-proofing: removing the cap means Azure v18+ also passes without code change.
+		{"AzureSupportedVersion_v18_FutureProof", "Microsoft SQL Azure (RTM) - 18.0.0.0", true},
 	}
 
 	for _, tt := range tests {
@@ -264,6 +268,30 @@ func TestCheckSqlServerVersion_Azure_DMVOnlyMode(t *testing.T) {
 			isDMVOnlyMode: true,
 			expected:      true,
 			description:   "Azure SQL v16 should be accepted in DMV-only mode",
+		},
+		// NR-559155: cap removal — Azure v17 (rolled to MI via Always-up-to-date)
+		// must be accepted in both modes. Previously rejected.
+		{
+			name:          "AzureSQL_v17_QueryStoreMode",
+			version:       "Microsoft SQL Azure (RTM) - 17.0.4040.1",
+			isDMVOnlyMode: false,
+			expected:      true,
+			description:   "Azure SQL v17 should be accepted in Query Store mode (NR-559155)",
+		},
+		{
+			name:          "AzureSQL_v17_DMVOnlyMode",
+			version:       "Microsoft SQL Azure (RTM) - 17.0.4040.1",
+			isDMVOnlyMode: true,
+			expected:      true,
+			description:   "Azure SQL v17 should be accepted in DMV-only mode (NR-559155)",
+		},
+		// Future-proofing: cap removal means v18+ passes without further code change.
+		{
+			name:          "AzureSQL_v18_FutureProof",
+			version:       "Microsoft SQL Azure (RTM) - 18.0.0.0",
+			isDMVOnlyMode: false,
+			expected:      true,
+			description:   "Azure SQL v18+ should be accepted (cap removed)",
 		},
 	}
 

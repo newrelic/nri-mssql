@@ -61,6 +61,8 @@
                   "DatabaseName",
                   "ExecutionCount",
                   "LastExecutionTimestamp",
+                  "MaxElapsedTimeMS",
+                  "MinElapsedTimeMS",
                   "QueryID",
                   "QueryText",
                   "SchemaName",
@@ -102,6 +104,14 @@
                     "type": "string",
                     "format": "date-time",
                     "description": "Timestamp of the last execution"
+                  },
+                  "MinElapsedTimeMS": {
+                    "type": "number",
+                    "description": "Minimum elapsed time of any single execution of the query group, in milliseconds"
+                  },
+                  "MaxElapsedTimeMS": {
+                    "type": "number",
+                    "description": "Maximum elapsed time of any single execution of the query group, in milliseconds"
                   },
                   "QueryID": {
                     "type": "string",

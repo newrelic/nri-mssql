@@ -16,9 +16,8 @@ const (
 	getSQLServerVersionQuery     = "SELECT @@VERSION"
 	firstSupportedVersion        = 14
 	dmvOnlyFirstSupportedVersion = 13 // SQL Server 2016 (AT TIME ZONE, STRING_SPLIT)
-	// Defines the supported version range for Azure SQL Server in the cloud, from version 12 to 16.
+	// Azure SQL is Microsoft-managed and forward-compatible; require >= 12, no upper bound.
 	azureFirstSupportedVersion = 12
-	azureLastSupportedVersion  = 16
 )
 
 var (
@@ -64,9 +63,8 @@ func checkSQLServerVersion(sqlConnection *connection.SQLConnection, isDMVOnlyMod
 	isAzure := strings.Contains(strings.ToLower(serverVersion), "azure")
 
 	if isAzure {
-		// Azure: Keep existing range (12-16) for both modes
-		return version.Major >= azureFirstSupportedVersion &&
-			version.Major <= azureLastSupportedVersion, nil
+		// Azure: only enforce a lower bound; matches on-prem pattern.
+		return version.Major >= azureFirstSupportedVersion, nil
 	}
 
 	// On-premises SQL Server
