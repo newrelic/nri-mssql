@@ -2,6 +2,7 @@ package models
 
 type ExecutionPlanResult struct {
 	SQLText                *string      `db:"sql_text" metric_name:"sql_text" source_type:"attribute"`
+	DatabaseName           *string      `db:"database_name" metric_name:"database_name" source_type:"attribute"`
 	QueryID                *HexString   `db:"query_id" metric_name:"query_id" source_type:"attribute"`
 	QueryPlanID            *HexString   `db:"query_plan_id" metric_name:"query_plan_id" source_type:"attribute"`
 	NodeID                 *int         `db:"NodeId" metric_name:"NodeId" source_type:"gauge"`
@@ -24,4 +25,6 @@ type ExecutionPlanResult struct {
 	ExecutionCount         *int64       `db:"execution_count" metric_name:"execution_count" source_type:"gauge"`
 	PlanHandle             *VarBinary64 `db:"plan_handle" metric_name:"plan_handle" source_type:"attribute"`
 	AvgElapsedTimeMs       *float64     `db:"avg_elapsed_time_ms" metric_name:"avg_elapsed_time_ms" source_type:"gauge"`
+	MinElapsedTimeMs       *float64     `db:"min_elapsed_time_ms" metric_name:"min_elapsed_time_ms" source_type:"gauge"`
+	MaxElapsedTimeMs       *float64     `db:"max_elapsed_time_ms" metric_name:"max_elapsed_time_ms" source_type:"gauge"`
 }

@@ -488,13 +488,18 @@ TopPlans AS (
         qs.query_hash as query_id,
         qs.query_plan_hash AS query_plan_id,
         LEFT(st.text, @TextTruncateLimit) AS sql_text,
+        DB_NAME(CONVERT(INT, pa.value)) AS database_name,
         qs.execution_count as execution_count,
         COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) AS avg_elapsed_time_ms,
+        qs.min_elapsed_time / 1000 AS min_elapsed_time_ms,
+        qs.max_elapsed_time / 1000 AS max_elapsed_time_ms,
         qp.query_plan
     FROM sys.dm_exec_query_stats AS qs
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
+    CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) AS pa
 	WHERE qs.query_hash IN (SELECT QueryId FROM @QueryIdTable)
+	AND pa.attribute = 'dbid'
 	AND qs.last_execution_time BETWEEN DATEADD(SECOND, -@IntervalSeconds, SYSDATETIME()) AND SYSDATETIME()
     AND COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) > @ElapsedTimeThreshold
     ORDER BY avg_elapsed_time_ms DESC
@@ -503,9 +508,12 @@ PlanNodes AS (
     SELECT
         tp.query_id,
         tp.sql_text,
+        tp.database_name,
         tp.plan_handle,
         tp.query_plan_id,
         tp.avg_elapsed_time_ms,
+        tp.min_elapsed_time_ms,
+        tp.max_elapsed_time_ms,
         tp.execution_count,
         COALESCE(n.value('(@NodeId)[1]', 'INT'), 0) AS NodeId,
         COALESCE(n.value('(@PhysicalOp)[1]', 'VARCHAR(50)'), 'N/A') AS PhysicalOp,

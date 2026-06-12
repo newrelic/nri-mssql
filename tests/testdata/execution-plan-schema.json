@@ -55,6 +55,7 @@
                 "required": [
                   "AvgElapsedTimeMs",
                   "AvgRowSize",
+                  "DatabaseName",
                   "EstimateCPU",
                   "EstimateIO",
                   "EstimateRows",
@@ -63,6 +64,8 @@
                   "ExecutionCount",
                   "GrantedMemoryKb",
                   "LogicalOp",
+                  "MaxElapsedTimeMs",
+                  "MinElapsedTimeMs",
                   "NoJoinPredicate",
                   "NodeID",
                   "PhysicalOp",
@@ -85,6 +88,9 @@
                   },
                   "AvgRowSize": {
                     "type": "number"
+                  },
+                  "DatabaseName": {
+                    "type": "string"
                   },
                   "EstimateCPU": {
                     "type": "number"
@@ -109,6 +115,12 @@
                   },
                   "LogicalOp": {
                     "type": "string"
+                  },
+                  "MaxElapsedTimeMs": {
+                    "type": "number"
+                  },
+                  "MinElapsedTimeMs": {
+                    "type": "number"
                   },
                   "NoJoinPredicate": {
                     "type": "string"
