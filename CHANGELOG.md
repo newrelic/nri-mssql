@@ -9,6 +9,14 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Enforced per-query execution timeout via `context.WithTimeout` so blocked queries are cancelled at the configured `TIMEOUT` instead of stalling the integration
+- Fixed `IsSystemDatabase` filtering out queries with `NULL` database names, which caused `MSSQLTopSlowQueries` to drop data on servers running cross-database ETL workloads
+- Routed QPM queries through `SQLConnection.Queryx` so the per-query timeout applies on all query paths
+
+### enhancements
+- Logged per-query execution duration to help diagnose slow queries during peak load
+
 ## v2.31.0 - 2026-06-02
 
 ### 🚀 Enhancements
