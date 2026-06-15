@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/newrelic/nri-mssql/src/args"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -49,6 +50,157 @@ func Test_SQLConnection_Query(t *testing.T) {
 
 	if temp[0].One != 1 || temp[0].Two != 2 {
 		t.Error("Query did not marshal correctly")
+	}
+}
+
+// assertCancelledByTimeout verifies that a query returned an error caused by
+// context.WithTimeout firing — sqlmock surfaces this as ErrCancelled — and
+// that the call returned before the mock's full delay elapsed (proving the
+// context cancellation interrupted the query). We deliberately do NOT bound
+// the upper edge of elapsed time: scheduler jitter on loaded CI runners
+// (shared GitHub Actions, Docker) can add hundreds of ms beyond the timeout,
+// and a tight upper bound makes the test flaky without adding signal.
+func assertCancelledByTimeout(t *testing.T, err error, elapsed, mockDelay time.Duration) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+	if !errors.Is(err, sqlmock.ErrCancelled) {
+		t.Fatalf("expected sqlmock.ErrCancelled (driver-level cancellation from context timeout), got %v", err)
+	}
+	if elapsed >= mockDelay {
+		t.Errorf("expected query to be cancelled before mock delay finished, elapsed=%v mockDelay=%v", elapsed, mockDelay)
+	}
+}
+
+func Test_SQLConnection_Queryx_TimesOut(t *testing.T) {
+	conn, mock := CreateMockSQL(t)
+	defer conn.Connection.Close()
+
+	// Use a generous mock delay so even on slow CI we still observe the
+	// cancellation arriving well before the mock would have returned rows.
+	timeout := 100 * time.Millisecond
+	mockDelay := 5 * time.Second
+	conn.QueryTimeout = timeout
+
+	query := "select slow_thing from somewhere"
+	rows := sqlmock.NewRows([]string{"slow_thing"}).AddRow(1)
+	mock.ExpectQuery(query).WillDelayFor(mockDelay).WillReturnRows(rows)
+
+	start := time.Now()
+	_, err := conn.Queryx(query)
+	elapsed := time.Since(start)
+
+	assertCancelledByTimeout(t, err, elapsed, mockDelay)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled mock expectations: %v", err)
+	}
+}
+
+func Test_SQLConnection_Query_TimesOut(t *testing.T) {
+	conn, mock := CreateMockSQL(t)
+	defer conn.Connection.Close()
+
+	timeout := 100 * time.Millisecond
+	mockDelay := 5 * time.Second
+	conn.QueryTimeout = timeout
+
+	query := "select slow from somewhere"
+	rows := sqlmock.NewRows([]string{"slow"}).AddRow(1)
+	mock.ExpectQuery(query).WillDelayFor(mockDelay).WillReturnRows(rows)
+
+	dest := []struct {
+		Slow int `db:"slow"`
+	}{}
+
+	start := time.Now()
+	err := conn.Query(&dest, query)
+	elapsed := time.Since(start)
+
+	assertCancelledByTimeout(t, err, elapsed, mockDelay)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled mock expectations: %v", err)
+	}
+}
+
+func Test_SQLConnection_Get_TimesOut(t *testing.T) {
+	conn, mock := CreateMockSQL(t)
+	defer conn.Connection.Close()
+
+	timeout := 100 * time.Millisecond
+	mockDelay := 5 * time.Second
+	conn.QueryTimeout = timeout
+
+	// Avoid regex metacharacters since sqlmock matches the query via regexp.
+	query := "select count_one from somewhere"
+	rows := sqlmock.NewRows([]string{"count_one"}).AddRow(1)
+	mock.ExpectQuery(query).WillDelayFor(mockDelay).WillReturnRows(rows)
+
+	var count int
+	start := time.Now()
+	err := conn.Get(&count, query)
+	elapsed := time.Since(start)
+
+	assertCancelledByTimeout(t, err, elapsed, mockDelay)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled mock expectations: %v", err)
+	}
+}
+
+func Test_SQLConnection_Queryx_CompletesWithinTimeout(t *testing.T) {
+	conn, mock := CreateMockSQL(t)
+	defer conn.Connection.Close()
+
+	conn.QueryTimeout = 500 * time.Millisecond
+
+	query := "select fast from somewhere"
+	rows := sqlmock.NewRows([]string{"fast"}).AddRow(1)
+	mock.ExpectQuery(query).WillReturnRows(rows)
+
+	r, err := conn.Queryx(query)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		t.Fatal("expected one row")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled mock expectations: %v", err)
+	}
+}
+
+func Test_SQLConnection_getQueryTimeout(t *testing.T) {
+	tests := []struct {
+		name      string
+		configured time.Duration
+		expected  time.Duration
+	}{
+		{
+			name:      "configured timeout used when set",
+			configured: 5 * time.Second,
+			expected:  5 * time.Second,
+		},
+		{
+			name:      "default used when zero",
+			configured: 0,
+			expected:  DefaultQueryTimeout,
+		},
+		{
+			name:      "default used when negative",
+			configured: -1 * time.Second,
+			expected:  DefaultQueryTimeout,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := SQLConnection{QueryTimeout: tt.configured}
+			if got := sc.getQueryTimeout(); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
 	}
 }
 
