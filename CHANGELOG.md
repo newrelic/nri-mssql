@@ -9,7 +9,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### 🛡️ Security notices
+### Security
 - Updated golang to v1.26.4
 - Replaced goversioninfo with go-winres for Windows exe metadata generation
 - Fixed critical security vulnerabilities in dependencies:
@@ -18,7 +18,7 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
   - golang.org/x/sys: v0.43.0 → v0.46.0
   - filippo.io/edwards25519: v1.1.0 → v1.2.0
 
-### ⛓️ Dependencies
+### Dependencies
 - Updated golang.org/x/text: v0.36.0 → v0.38.0
 
 ## v2.31.0 - 2026-06-02
