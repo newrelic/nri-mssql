@@ -32,6 +32,6 @@ sed \
   -e "s/{Year}/$Year/g" \
   -e "s/{Integration}/nri-$INTEGRATION/g" \
   -e "s/{IntegrationExe}/$INTEGRATION_EXE/g" \
-   ./build/windows/versioninfo.json.template > ./src/versioninfo.json
+   ./build/windows/winres.json.template > ./src/winres.json
 
-go generate github.com/newrelic/nri-${INTEGRATION}/src/
+go-winres make --in ./src/winres.json --out ./src/resource.syso
