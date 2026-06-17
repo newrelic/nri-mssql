@@ -760,6 +760,94 @@ func TestRemoveDMVComments(t *testing.T) {
 	}
 }
 
+func TestIsSystemDatabase(t *testing.T) {
+	master := "master"
+	model := "model"
+	msdb := "msdb"
+	tempdb := "tempdb"
+	masterUpper := "MASTER"
+	tempdbMixed := "TempDB"
+	masterPadded := "  master  "
+	userDB := "AdventureWorks"
+	userDBLower := "production"
+	empty := ""
+	whitespaceOnly := "   "
+
+	tests := []struct {
+		name     string
+		input    *string
+		expected bool
+	}{
+		{
+			name:     "nil database name is not a system database (cross-DB ETL, dbid=0)",
+			input:    nil,
+			expected: false,
+		},
+		{
+			name:     "empty database name is not a system database",
+			input:    &empty,
+			expected: false,
+		},
+		{
+			name:     "whitespace-only database name is not a system database",
+			input:    &whitespaceOnly,
+			expected: false,
+		},
+		{
+			name:     "master is a system database",
+			input:    &master,
+			expected: true,
+		},
+		{
+			name:     "model is a system database",
+			input:    &model,
+			expected: true,
+		},
+		{
+			name:     "msdb is a system database",
+			input:    &msdb,
+			expected: true,
+		},
+		{
+			name:     "tempdb is a system database",
+			input:    &tempdb,
+			expected: true,
+		},
+		{
+			name:     "MASTER (uppercase) is a system database (case-insensitive)",
+			input:    &masterUpper,
+			expected: true,
+		},
+		{
+			name:     "TempDB (mixed case) is a system database (case-insensitive)",
+			input:    &tempdbMixed,
+			expected: true,
+		},
+		{
+			name:     "padded master is a system database (whitespace trimmed)",
+			input:    &masterPadded,
+			expected: true,
+		},
+		{
+			name:     "AdventureWorks is a user database",
+			input:    &userDB,
+			expected: false,
+		},
+		{
+			name:     "production is a user database",
+			input:    &userDBLower,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsSystemDatabase(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestAnonymizeQueryTextWithDMVComments(t *testing.T) {
 	tests := []struct {
 		name     string

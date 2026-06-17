@@ -15,7 +15,7 @@ const checkSQLServerLoginEnabledQuery = `
 // established via Windows Authentication, so query monitoring can proceed.
 func checkSQLServerLoginEnabled(sqlConnection *connection.SQLConnection) (bool, error) {
 	var isWindowsOnlyMode int
-	err := sqlConnection.Connection.Get(&isWindowsOnlyMode, checkSQLServerLoginEnabledQuery)
+	err := sqlConnection.Get(&isWindowsOnlyMode, checkSQLServerLoginEnabledQuery)
 	if err != nil {
 		return false, err
 	}
