@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/newrelic/nri-mssql/src/database"
@@ -29,11 +28,13 @@ type AvailablePhysicalMemoryModel struct {
 	AvailablePhysicalMemory *float64 `db:"available_physical_memory" metric_name:"memoryAvailable" source_type:"gauge"`
 }
 
-// dbNameReplace inserts the dbName into a query anywhere
-// databasePlaceHolder is present
+// dbNameReplace inserts the dbName into a query anywhere databasePlaceholder is
+// present. The name is bracket-escaped (] → ]]) so it is safe to embed inside a
+// [bracket-quoted] SQL Server identifier and cannot break out into a new statement.
 func dbNameReplace(dbName string) QueryModifier {
 	return func(query string) string {
-		return strings.ReplaceAll(query, databasePlaceholder, dbName)
+		escaped := strings.ReplaceAll(dbName, "]", "]]")
+		return strings.ReplaceAll(query, databasePlaceholder, escaped)
 	}
 }
 
@@ -183,7 +184,7 @@ var databaseBufferDefinitionsForAzureSQLDatabase = []*QueryDefinition{
 
 var specificDatabaseDefinitions = []*QueryDefinition{
 	{
-		query: fmt.Sprintf(`USE "%s"
+		query: `USE [%DATABASE%]
 		;WITH reserved_space(db_name, reserved_space_kb, reserved_space_not_used_kb)
 		AS
 		(
@@ -200,7 +201,7 @@ var specificDatabaseDefinitions = []*QueryDefinition{
 		max(reserved_space_kb) * 1024 AS reserved_space,
 		max(reserved_space_not_used_kb) * 1024 AS reserved_space_not_used
 		FROM reserved_space
-		GROUP BY db_name`, databasePlaceholder),
+		GROUP BY db_name`,
 		dataModels: &[]struct {
 			database.DataModel
 			ReservedSpace        float64 `db:"reserved_space" metric_name:"pageFileTotal" source_type:"gauge"`
