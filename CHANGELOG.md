@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### security
+- Fixed second-order SQL injection in `specificDatabaseDefinitions` where raw database names from `sys.databases` were spliced into a `USE "..."` template without escaping. A principal with only `dbcreator` rights could create a database whose name contained arbitrary T-SQL, which the monitoring agent executed on every collection cycle. Fixed by switching to bracket-quoted identifiers (`USE [...]`) and escaping `]` → `]]` in `dbNameReplace`
+
 ### bugfix
 - Replaced `GETUTCDATE()` with `SYSDATETIME()` in DMV slow query lookback filter to correctly match `last_execution_time` (which is local server time) and prevent queries from being erroneously excluded on servers not in UTC
 
