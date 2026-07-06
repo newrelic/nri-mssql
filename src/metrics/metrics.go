@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/newrelic/infra-integrations-sdk/v3/data/attribute"
@@ -173,7 +174,7 @@ func populateWaitTimeMetrics(instanceEntity *integration.Entity, connection *con
 func populateCustomMetrics(instanceEntity *integration.Entity, connection *connection.SQLConnection, query customQuery) {
 	var prefix string
 	if len(query.Database) > 0 {
-		prefix = "USE " + query.Database + "; "
+		prefix = "USE [" + strings.ReplaceAll(query.Database, "]", "]]") + "]; "
 	}
 
 	log.Debug("Running custom query: %+v", query)
