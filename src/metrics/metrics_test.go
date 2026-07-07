@@ -260,7 +260,7 @@ func setupMockForDatabaseMetrics(mock sqlmock.Sqlmock, logGrowthResp mockRespons
 	}
 
 	if args.EnableDatabaseReserveMetrics {
-		reserveRegex := `^(?:USE\s+"[^"]+"\s+;\s*)?(?:WITH\s+reserved_space.*)?SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name.*reserved_space.*`
+		reserveRegex := `^(?:USE\s+\[[^\]]*\]\s*;\s*)?(?:WITH\s+reserved_space.*)?SELECT\s+DB_NAME\([^)]*\)\s+AS\s+db_name.*reserved_space.*`
 		mock.ExpectQuery(reserveRegex).
 			WillReturnRows(sqlmock.NewRows([]string{"db_name", "reserved_space", "reserved_space_not_used"}).AddRow("db-1", 0, 0))
 		mock.ExpectQuery(reserveRegex).
