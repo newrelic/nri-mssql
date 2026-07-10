@@ -2,6 +2,7 @@ package models
 
 type ExecutionPlanResult struct {
 	SQLText                *string      `db:"sql_text" metric_name:"sql_text" source_type:"attribute"`
+	DatabaseName           *string      `db:"database_name" metric_name:"database_name" source_type:"attribute"`
 	QueryID                *HexString   `db:"query_id" metric_name:"query_id" source_type:"attribute"`
 	QueryPlanID            *HexString   `db:"query_plan_id" metric_name:"query_plan_id" source_type:"attribute"`
 	NodeID                 *int         `db:"NodeId" metric_name:"NodeId" source_type:"gauge"`

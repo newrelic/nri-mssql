@@ -55,6 +55,7 @@
                 "required": [
                   "AvgElapsedTimeMs",
                   "AvgRowSize",
+                  "DatabaseName",
                   "EstimateCPU",
                   "EstimateIO",
                   "EstimateRows",
@@ -85,6 +86,9 @@
                   },
                   "AvgRowSize": {
                     "type": "number"
+                  },
+                  "DatabaseName": {
+                    "type": "string"
                   },
                   "EstimateCPU": {
                     "type": "number"
