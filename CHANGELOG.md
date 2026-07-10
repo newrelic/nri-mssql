@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### Enhancements
+- Added `DatabaseName` field to `MSSQLQueryExecutionPlans` query.
+
 ## v2.34.0 - 2026-07-07
 
 ### 🛡️ Security notices
