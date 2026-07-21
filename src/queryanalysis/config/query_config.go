@@ -489,7 +489,12 @@ TopPlans AS (
         LEFT(st.text, @TextTruncateLimit) AS sql_text,
         qs.execution_count as execution_count,
         COALESCE((qs.total_elapsed_time / NULLIF(qs.execution_count, 0)) / 1000, 0) AS avg_elapsed_time_ms,
-        qp.query_plan
+        qp.query_plan,
+        (
+            SELECT CONVERT(INT, value)
+            FROM sys.dm_exec_plan_attributes(qs.plan_handle)
+            WHERE attribute = 'dbid'
+        ) AS database_id
     FROM sys.dm_exec_query_stats AS qs
     CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) AS st
     CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) AS qp
@@ -502,6 +507,7 @@ PlanNodes AS (
     SELECT
         tp.query_id,
         tp.sql_text,
+        DB_NAME(tp.database_id) AS database_name,
         tp.plan_handle,
         tp.query_plan_id,
         tp.avg_elapsed_time_ms,

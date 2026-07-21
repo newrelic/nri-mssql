@@ -30,7 +30,7 @@ func TestGenerateAndIngestExecutionPlan_Success(t *testing.T) {
 
 	mock.ExpectQuery(executionPlanQueryPattern).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"query_id", "sql_text", "plan_handle", "query_plan_id",
+			"query_id", "sql_text", "database_name", "plan_handle", "query_plan_id",
 			"avg_elapsed_time_ms", "execution_count", "NodeId",
 			"PhysicalOp", "LogicalOp", "EstimateRows",
 			"EstimateIO", "EstimateCPU", "AvgRowSize",
@@ -39,7 +39,7 @@ func TestGenerateAndIngestExecutionPlan_Success(t *testing.T) {
 			"SpillOccurred", "NoJoinPredicate",
 		}).
 			AddRow(
-				[]uint8{0x01, 0x02}, "SELECT * FROM table", []byte{0x01, 0x02},
+				[]uint8{0x01, 0x02}, "SELECT * FROM table", "testdb", []byte{0x01, 0x02},
 				[]uint8{0x01, 0x02, 0x03}, 100, 10,
 				1, "PhysicalOp1", "LogicalOp1", 100,
 				1.0, 0.5, 4.0, "Row",
@@ -98,7 +98,7 @@ func TestProcessExecutionPlans_Success(t *testing.T) {
 	// Mocking SQL response to match expected output
 	mock.ExpectQuery(executionPlanQueryPattern).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"query_id", "sql_text", "plan_handle", "query_plan_id",
+			"query_id", "sql_text", "database_name", "plan_handle", "query_plan_id",
 			"avg_elapsed_time_ms", "execution_count", "NodeId",
 			"PhysicalOp", "LogicalOp", "EstimateRows",
 			"EstimateIO", "EstimateCPU", "AvgRowSize",
@@ -107,7 +107,7 @@ func TestProcessExecutionPlans_Success(t *testing.T) {
 			"SpillOccurred", "NoJoinPredicate",
 		}).
 			AddRow(
-				[]uint8{0x01, 0x02}, "SELECT * FROM some_table", []byte{0x01, 0x02},
+				[]uint8{0x01, 0x02}, "SELECT * FROM some_table", "testdb", []byte{0x01, 0x02},
 				[]uint8{0x01, 0x02, 0x03}, 100, 10, // Replace with realistic/mock values
 				1, "PhysicalOp1", "LogicalOp1", 100,
 				1.0, 0.5, 4.0, "Row",
