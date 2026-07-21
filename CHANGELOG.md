@@ -9,8 +9,13 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### Enhancements
+## v2.35.0 - 2026-07-21
+
+### 🚀 Enhancements
 - Added `DatabaseName` field to `MSSQLQueryExecutionPlans` query.
+
+### ⛓️ Dependencies
+- Updated golang patch version to v1.26.5
 
 ## v2.34.0 - 2026-07-07
 
