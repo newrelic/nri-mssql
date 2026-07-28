@@ -9,6 +9,12 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### Security
+- Upgraded `golang.org/x/net` from v0.56.0 to v0.57.0 to fix [CVE-2026-46600](https://www.cve.org/CVERecord?id=CVE-2026-46600) (SVCB/HTTPS RR parsing panic), [CVE-2026-33814](https://www.cve.org/CVERecord?id=CVE-2026-33814) (HTTP/2 infinite loop), [CVE-2026-25680](https://www.cve.org/CVERecord?id=CVE-2026-25680) (HTML parser DoS), [CVE-2026-39821](https://www.cve.org/CVERecord?id=CVE-2026-39821) (IDNA privilege escalation), and multiple HTML XSS vulnerabilities ([CVE-2026-27136](https://www.cve.org/CVERecord?id=CVE-2026-27136), [CVE-2026-25681](https://www.cve.org/CVERecord?id=CVE-2026-25681), [CVE-2026-42502](https://www.cve.org/CVERecord?id=CVE-2026-42502), [CVE-2026-42506](https://www.cve.org/CVERecord?id=CVE-2026-42506))
+- Upgraded `golang.org/x/crypto` from v0.53.0 to v0.54.0
+- Upgraded `golang.org/x/sys` from v0.46.0 to v0.47.0
+- Upgraded `golang.org/x/text` from v0.38.0 to v0.40.0
+
 ## v2.35.0 - 2026-07-21
 
 ### 🚀 Enhancements
