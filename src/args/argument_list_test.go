@@ -69,6 +69,34 @@ func TestValidate(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"SSL enabled with Azure AD auth and no certificate — should not error",
+			&ArgumentList{
+				Hostname:               "myserver.database.windows.net",
+				Port:                   "1433",
+				ClientID:               "client-id",
+				TenantID:               "tenant-id",
+				ClientSecret:           "client-secret",
+				EnableSSL:              true,
+				TrustServerCertificate: false,
+				CertificateLocation:    "",
+			},
+			false,
+		},
+		{
+			"SSL enabled with partial Azure AD config (missing ClientSecret) — should still error",
+			&ArgumentList{
+				Hostname:               "myserver.database.windows.net",
+				Port:                   "1433",
+				ClientID:               "client-id",
+				TenantID:               "tenant-id",
+				ClientSecret:           "",
+				EnableSSL:              true,
+				TrustServerCertificate: false,
+				CertificateLocation:    "",
+			},
+			true,
+		},
 	}
 
 	for _, tc := range testCases {
