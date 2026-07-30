@@ -58,7 +58,8 @@ func (al ArgumentList) Validate() error {
 		al.Port = "1433"
 	}
 
-	if al.EnableSSL && (!al.TrustServerCertificate && al.CertificateLocation == "") {
+	isAzureADAuth := al.ClientID != "" && al.TenantID != "" && al.ClientSecret != ""
+	if al.EnableSSL && !isAzureADAuth && (!al.TrustServerCertificate && al.CertificateLocation == "") {
 		return errors.New("invalid configuration: must specify a certificate file when using SSL and not trusting server certificate")
 	}
 

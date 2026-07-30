@@ -223,15 +223,17 @@ func CreateConnectionURL(args *args.ArgumentList, dbName string) string {
 }
 
 // CreateAzureADConnectionURL creates a connection string specifically for Azure AD authentication.
+// encrypt=true is always set because Azure SQL (Database and Managed Instance) requires
+// TLS-encrypted connections for Azure AD token authentication regardless of the EnableSSL flag.
 func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 	connectionString := fmt.Sprintf(
 		"server=%s;port=%s;database=%s;user id=%s@%s;password=%s;fedauth=ActiveDirectoryServicePrincipal;dial timeout=%s;connection timeout=%s",
 		args.Hostname,
 		args.Port,
 		dbName,
-		args.ClientID,     // Client ID
-		args.TenantID,     // Tenant ID
-		args.ClientSecret, // Client Secret
+		args.ClientID,
+		args.TenantID,
+		args.ClientSecret,
 		args.Timeout,
 		args.Timeout,
 	)
@@ -247,15 +249,15 @@ func CreateAzureADConnectionURL(args *args.ArgumentList, dbName string) string {
 		}
 	}
 
-	if args.EnableSSL {
-		connectionString += ";encrypt=true"
-		if args.TrustServerCertificate {
-			connectionString += ";TrustServerCertificate=true"
-		} else {
-			connectionString += ";TrustServerCertificate=false"
-			if args.CertificateLocation != "" {
-				connectionString += fmt.Sprintf(";certificate=%s", args.CertificateLocation)
-			}
+	// Azure SQL always requires encrypted connections — encrypt=true is unconditional.
+	// TrustServerCertificate defaults to false (verify the server certificate).
+	connectionString += ";encrypt=true"
+	if args.TrustServerCertificate {
+		connectionString += ";TrustServerCertificate=true"
+	} else {
+		connectionString += ";TrustServerCertificate=false"
+		if args.CertificateLocation != "" {
+			connectionString += fmt.Sprintf(";certificate=%s", args.CertificateLocation)
 		}
 	}
 

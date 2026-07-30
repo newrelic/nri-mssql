@@ -310,7 +310,7 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 		want   string
 	}{
 		{
-			"Basic Service Principal No SSL",
+			"Basic Service Principal — encrypt=true always added for Azure SQL",
 			&args.ArgumentList{
 				ClientID:     "12345678-1234-1234-1234-123456789012",
 				TenantID:     "87654321-4321-4321-4321-210987654321",
@@ -318,13 +318,12 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:     "localhost",
 				Port:         "1433",
 				Timeout:      "30",
-				EnableSSL:    false,
 			},
 			"",
-			"server=localhost;port=1433;database=;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+			"server=localhost;port=1433;database=;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false",
 		},
 		{
-			"Service Principal with Database",
+			"Service Principal with Database — encrypt=true always added for Azure SQL",
 			&args.ArgumentList{
 				ClientID:     "abcdef12-3456-7890-abcd-ef1234567890",
 				TenantID:     "fedcba09-8765-4321-fedc-ba0987654321",
@@ -332,13 +331,12 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:     "sqlserver.database.windows.net",
 				Port:         "1433",
 				Timeout:      "30",
-				EnableSSL:    false,
 			},
 			"test-database",
-			"server=sqlserver.database.windows.net;port=1433;database=test-database;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30",
+			"server=sqlserver.database.windows.net;port=1433;database=test-database;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false",
 		},
 		{
-			"Service Principal SSL Trust Certificate",
+			"Service Principal TrustServerCertificate=true",
 			&args.ArgumentList{
 				ClientID:               "12345678-1234-1234-1234-123456789012",
 				TenantID:               "87654321-4321-4321-4321-210987654321",
@@ -346,14 +344,13 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:               "sqlserver.database.windows.net",
 				Port:                   "1433",
 				Timeout:                "30",
-				EnableSSL:              true,
 				TrustServerCertificate: true,
 			},
 			"production-db",
 			"server=sqlserver.database.windows.net;port=1433;database=production-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=true",
 		},
 		{
-			"Service Principal SSL with Certificate File",
+			"Service Principal with Certificate File",
 			&args.ArgumentList{
 				ClientID:               "12345678-1234-1234-1234-123456789012",
 				TenantID:               "87654321-4321-4321-4321-210987654321",
@@ -361,7 +358,6 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:               "sqlserver.database.windows.net",
 				Port:                   "1433",
 				Timeout:                "30",
-				EnableSSL:              true,
 				TrustServerCertificate: false,
 				CertificateLocation:    "/path/to/cert.pem",
 			},
@@ -369,7 +365,7 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 			"server=sqlserver.database.windows.net;port=1433;database=secure-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=30;connection timeout=30;encrypt=true;TrustServerCertificate=false;certificate=/path/to/cert.pem",
 		},
 		{
-			"Service Principal SSL Don't Trust No Certificate",
+			"Service Principal TrustServerCertificate=false no certificate file",
 			&args.ArgumentList{
 				ClientID:               "12345678-1234-1234-1234-123456789012",
 				TenantID:               "87654321-4321-4321-4321-210987654321",
@@ -377,7 +373,6 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:               "localhost",
 				Port:                   "1433",
 				Timeout:                "60",
-				EnableSSL:              true,
 				TrustServerCertificate: false,
 				CertificateLocation:    "",
 			},
@@ -385,7 +380,7 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 			"server=localhost;port=1433;database=test-db;user id=12345678-1234-1234-1234-123456789012@87654321-4321-4321-4321-210987654321;password=client-secret;fedauth=ActiveDirectoryServicePrincipal;dial timeout=60;connection timeout=60;encrypt=true;TrustServerCertificate=false",
 		},
 		{
-			"Service Principal Different Port",
+			"Service Principal Different Port — encrypt=true always added for Azure SQL",
 			&args.ArgumentList{
 				ClientID:     "abcdef12-3456-7890-abcd-ef1234567890",
 				TenantID:     "fedcba09-8765-4321-fedc-ba0987654321",
@@ -393,10 +388,9 @@ func Test_CreateAzureADConnectionURL(t *testing.T) {
 				Hostname:     "myserver.example.com",
 				Port:         "1444",
 				Timeout:      "45",
-				EnableSSL:    false,
 			},
 			"analytics-db",
-			"server=myserver.example.com;port=1444;database=analytics-db;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=45;connection timeout=45",
+			"server=myserver.example.com;port=1444;database=analytics-db;user id=abcdef12-3456-7890-abcd-ef1234567890@fedcba09-8765-4321-fedc-ba0987654321;password=super-secret-key;fedauth=ActiveDirectoryServicePrincipal;dial timeout=45;connection timeout=45;encrypt=true;TrustServerCertificate=false",
 		},
 	}
 
