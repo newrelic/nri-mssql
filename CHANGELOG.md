@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### bugfix
+- Fixed Azure AD Service Principal authentication failing on Azure SQL Managed Instance: `encrypt=true` is now always added to the Azure AD connection string unconditionally (Azure SQL requires TLS for Azure AD token authentication), eliminating the need for `ENABLE_SSL: true` in the configuration. Also fixed a spurious validation error that incorrectly required a certificate file when `ENABLE_SSL: true` was set alongside Azure AD credentials
+
 ## v2.35.0 - 2026-07-21
 
 ### 🚀 Enhancements
