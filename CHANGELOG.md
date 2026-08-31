@@ -9,10 +9,10 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### 🛡️ Security notices
+### security
 - Updated go module directive to v1.26.6 to address CVEs in net/http, crypto/tls, encoding/asn1, encoding/xml, and golang.org/x/mod (#303)
 
-### ⛓️ Dependencies
+### enhancement
 - Updated github.com/microsoft/go-mssqldb to v1.11.0 (#304)
 - Updated github.com/stretchr/testify to v1.12.1 (#301)
 
