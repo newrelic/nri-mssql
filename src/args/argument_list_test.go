@@ -16,6 +16,7 @@ func TestValidate(t *testing.T) {
 			"No Errors",
 			&ArgumentList{
 				Username: "user",
+				Password: "password",
 				Hostname: "localhost",
 				Port:     "90",
 			},
@@ -34,6 +35,7 @@ func TestValidate(t *testing.T) {
 			"No Hostname",
 			&ArgumentList{
 				Username: "user",
+				Password: "password",
 				Hostname: "",
 				Port:     "90",
 			},
@@ -43,6 +45,7 @@ func TestValidate(t *testing.T) {
 			"No Port or Instance",
 			&ArgumentList{
 				Username: "user",
+				Password: "password",
 				Hostname: "localhost",
 			},
 			false,
@@ -51,6 +54,7 @@ func TestValidate(t *testing.T) {
 			"Port and Instance",
 			&ArgumentList{
 				Username: "user",
+				Password: "password",
 				Hostname: "localhost",
 				Port:     "90",
 				Instance: "MSSQL",
@@ -61,11 +65,52 @@ func TestValidate(t *testing.T) {
 			"SSL and No Server Certificate",
 			&ArgumentList{
 				Username:               "user",
+				Password:               "password",
 				Hostname:               "localhost",
 				Port:                   "90",
 				EnableSSL:              true,
 				TrustServerCertificate: false,
 				CertificateLocation:    "",
+			},
+			true,
+		},
+		{
+			"Valid SQL Auth - Both Username and Password",
+			&ArgumentList{
+				Username: "sqluser",
+				Password: "sqlpassword",
+				Hostname: "localhost",
+				Port:     "1433",
+			},
+			false,
+		},
+		{
+			"Valid Windows Auth - No Username and No Password",
+			&ArgumentList{
+				Username: "",
+				Password: "",
+				Hostname: "localhost",
+				Port:     "1433",
+			},
+			false,
+		},
+		{
+			"Invalid - Username Without Password",
+			&ArgumentList{
+				Username: "sqluser",
+				Password: "",
+				Hostname: "localhost",
+				Port:     "1433",
+			},
+			true,
+		},
+		{
+			"Invalid - Password Without Username",
+			&ArgumentList{
+				Username: "",
+				Password: "sqlpassword",
+				Hostname: "localhost",
+				Port:     "1433",
 			},
 			true,
 		},

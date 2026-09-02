@@ -62,6 +62,15 @@ func (al ArgumentList) Validate() error {
 		return errors.New("invalid configuration: must specify a certificate file when using SSL and not trusting server certificate")
 	}
 
+	// Validate credentials: Either both provided (SQL Auth) or both empty (Windows Auth)
+	// Partial credentials are not allowed as they indicate a configuration error
+	if (al.Username != "" && al.Password == "") {
+		return errors.New("invalid configuration: password is required when username is provided. For Windows Integrated Authentication, leave both username and password empty")
+	}
+	if (al.Username == "" && al.Password != "") {
+		return errors.New("invalid configuration: username is required when password is provided. For Windows Integrated Authentication, leave both username and password empty")
+	}
+
 	if len(al.CustomMetricsConfig) > 0 {
 		if len(al.CustomMetricsQuery) > 0 {
 			return errors.New("cannot specify options custom_metrics_query and custom_metrics_config")
