@@ -69,6 +69,15 @@ func TestValidate(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"Managed Identity system-assigned",
+			&ArgumentList{
+				Hostname:           "myserver.database.windows.net",
+				Port:               "1433",
+				UseManagedIdentity: true,
+			},
+			false,
+		},
 	}
 
 	for _, tc := range testCases {
