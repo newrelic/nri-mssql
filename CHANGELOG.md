@@ -9,9 +9,14 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### Security
+## v2.39.0 - 2026-09-29
+
+### 🛡️ Security notices
 - Signed the Windows `nri-mssql.exe` binary during the installer build, not just the `.msi` wrapper, fixing Defender/VirusTotal false-positive detections.
 - Upgraded `golang.org/x/crypto` from v0.55.0 to v0.56.0 to fix [GO-2026-6355](https://pkg.go.dev/vuln/GO-2026-6355) and [GO-2026-6354](https://pkg.go.dev/vuln/GO-2026-6354) (SSH channel deadlock DoS)
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.11.2 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.11.2)
 
 ## v2.38.0 - 2026-09-01
 
