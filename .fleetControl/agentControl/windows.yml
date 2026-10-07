@@ -1,0 +1,54 @@
+namespace: newrelic
+name: com.newrelic.infrastructure.nri_mssql
+version: 1.0.0
+platform: host
+operating_system: windows
+protocol_version: "1.0"
+variables:
+  config:
+    description: "nri-mssql integration YAML consumed by the infra-agent"
+    type: yaml
+    required: true
+    classification: config
+  custom_queries:
+    description: "nri-mssql custom query files"
+    type: string_map
+    required: false
+    default: {}
+    classification: multi-config
+  version:
+    description: "Agent version"
+    type: string
+    required: true
+  oci:
+    repository:
+      description: "OCI repository name for nri-mssql"
+      type: string
+      required: false
+      default: newrelic/nri-mssql-artifacts
+deployment:
+  packages:
+    nri-mssql:
+      download:
+        oci:
+          repository: ${nr-var:oci.repository}
+          version: ${nr-var:version}
+          public_key_url: https://publickeys.newrelic.com/g/agent-control-oci/global/nri-mssql/jwks.json
+  shared_filesystem:
+    infra-agent-ohi-configs:
+      kind: dir
+      entries:
+        nri-mssql.yaml:
+          kind: file
+          text: |
+            ${nr-var:config}
+    infra-agent-ohi-binaries:
+      kind: dir
+      entries:
+        nri-mssql.exe:
+          kind: file
+          copy_from_file: ${nr-sub:packages.nri-mssql.dir}\\nri-mssql.exe
+  filesystem:
+    custom_queries:
+      kind: dir_content_from_map
+      source: ${nr-var:custom_queries}
