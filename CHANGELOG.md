@@ -9,6 +9,13 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### Security
+- Updated go module directive to v1.26.9 to address stdlib CVEs: CVE-2026-78667, CVE-2026-78669, CVE-2026-97031, CVE-2026-56866, CVE-2026-78663, CVE-2026-94439, CVE-2026-94448, CVE-2026-97032, CVE-2026-56857
+- Upgraded `golang.org/x/net` from v0.58.0 to v0.60.0 to address CVE-2026-78669, CVE-2026-78663, and CVE-2026-97032
+
+### Dependencies
+- Updated `golang.org/x/crypto` to v0.57.0, `golang.org/x/sync` to v0.23.0, `golang.org/x/sys` to v0.48.0, and `golang.org/x/text` to v0.42.0
+
 ## v2.39.0 - 2026-09-29
 
 ### 🛡️ Security notices
