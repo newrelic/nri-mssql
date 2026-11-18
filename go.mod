@@ -5,7 +5,7 @@ go 1.26.10
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/microsoft/go-mssqldb v1.11.2
+	github.com/microsoft/go-mssqldb v1.12.0
 	github.com/newrelic/infra-integrations-sdk/v3 v3.9.1
 	github.com/stretchr/testify v1.12.1
 	github.com/xeipuuv/gojsonschema v1.2.0
