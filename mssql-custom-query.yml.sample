@@ -159,8 +159,8 @@ queries:
         qs.total_logical_reads/qs.execution_count AS [logical_reads_avg],
         qs.total_logical_writes AS [logical_writes_total],
         qs.total_logical_writes/qs.execution_count AS [logical_writes_avg],
-        qs.total_elapsed_time AS [duration_total_ms],
-        qs.total_elapsed_time/qs.execution_count AS [duration_avg_ms],
+        qs.total_elapsed_time AS [duration_total_us],
+        qs.total_elapsed_time/qs.execution_count AS [duration_avg_us],
         qs.creation_time AS [creation_time],
         qs.last_execution_time AS [last_execution_time],
         t.[text] AS [complete_text]
