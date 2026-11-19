@@ -12,14 +12,9 @@ permissions:
 
 jobs:
   pre-release:
-    uses: newrelic/db-integrations-automation/.github/workflows/reusable_pre_release.yaml@v1
+    uses: newrelic/coreint-automation/.github/workflows/reusable_pre_release.yaml@v3
     with:
       tag: ${{ github.event.release.tag_name }}
       integration: "mssql"
       upload_fips_packages: true
-      # Windows signing cert (NR-651583) not provisioned yet - skip Windows entirely for
-      # this pilot rather than attempt-and-fail (or worse, publish unsigned) on the
-      # missing DB_OHAI_PFX_CERTIFICATE_BASE64/DB_OHAI_PFX_PASSPHRASE secrets.
-      run_build-win-packages: false
-      run_test_windows: false
     secrets: inherit
