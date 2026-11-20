@@ -9,8 +9,13 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
-### security
+## v2.41.0 - 2026-11-20
+
+### 🛡️ Security notices
 - Updated golang patch version to v1.26.11 to fix stdlib CVEs
+
+### ⛓️ Dependencies
+- Updated github.com/microsoft/go-mssqldb to v1.12.0 - [Changelog 🔗](https://github.com/microsoft/go-mssqldb/releases/tag/v1.12.0)
 
 ## v2.40.0 - 2026-11-07
 
