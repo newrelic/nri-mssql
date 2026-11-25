@@ -13,9 +13,13 @@ permissions:
 jobs:
   release:
     if: ${{ !contains(github.event.release.body, 'release-flow=batch') }}
-    uses: newrelic/coreint-automation/.github/workflows/reusable_on_release.yaml@v3
+    uses: newrelic/db-integrations-automation/.github/workflows/reusable_on_release.yaml@v1
     with:
       integration: mssql
       tag: ${{ github.event.release.tag_name }}
       upload_fips_packages: true
+      # Linux-only for the pilot - Windows packages aren't built (see on_prerelease.yaml).
+      publish_schema: "ohi-linux"
+      # See on_prerelease.yaml: the package test action doesn't target our repo/key yet.
+      test_package: false
     secrets: inherit
