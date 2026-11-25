@@ -13,9 +13,20 @@ permissions:
 jobs:
   pre-release:
     if: ${{ !contains(github.event.release.body, 'release-flow=batch') }}
-    uses: newrelic/coreint-automation/.github/workflows/reusable_pre_release.yaml@v3
+    uses: newrelic/db-integrations-automation/.github/workflows/reusable_pre_release.yaml@v1
     with:
       tag: ${{ github.event.release.tag_name }}
       integration: "mssql"
       upload_fips_packages: true
+      # Windows signing cert (NR-651583) not provisioned yet - skip Windows entirely for
+      # this pilot rather than attempt-and-fail (or worse, publish unsigned) on the
+      # missing DB_OHAI_PFX_CERTIFICATE_BASE64/DB_OHAI_PFX_PASSPHRASE secrets.
+      run_build-win-packages: false
+      run_test_windows: false
+      # Linux-only schema (ohi.yml minus the Windows zip/msi entries) to match the above.
+      publish_schema: "ohi-linux"
+      # db-integrations-pkg-test-action has no v1 tag yet and still installs from the
+      # infrastructure agent's repo/key, not ours - re-enable once it points at
+      # database-monitoring/ohai-database-binaries/.
+      test_package: false
     secrets: inherit
