@@ -9,6 +9,9 @@ Unreleased section should follow [Release Toolkit](https://github.com/newrelic/r
 
 ## Unreleased
 
+### security
+- Updated golang patch version to v1.27.4 to fix stdlib CVEs (CVE-2026-97054, GO-2026-6859)
+
 ## v2.41.0 - 2026-11-20
 
 ### 🛡️ Security notices
